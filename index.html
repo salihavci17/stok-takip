@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Stok Takip Uygulaması</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Stok Takip Uygulaması</h1>
+
+  <!-- Ürün ekleme formu -->
+  <h2>Ürün Ekle</h2>
+  <form id="urunForm">
+    <input type="text" id="urunAdi" placeholder="Yeni ürün adı" required>
+    <button type="submit">Ürün Ekle</button>
+  </form>
+
+  <!-- Stok giriş/çıkış formu -->
+  <h2>Stok İşlemleri</h2>
+  <form id="stokForm">
+    <select id="urun" required>
+      <option value="">Ürün seçin</option>
+    </select>
+    
+    <input type="number" id="miktar" placeholder="Miktar" required>
+    
+    <select id="islemTuru" required>
+      <option value="giris">Giriş</option>
+      <option value="cikis">Çıkış</option>
+    </select>
+    
+    <button type="submit">Kaydet</button>
+  </form>
+
+  <!-- Stok tablosu -->
+  <table id="stokTablosu">
+    <thead>
+      <tr>
+        <th>Ürün</th>
+        <th>Giren</th>
+        <th>Çıkan</th>
+        <th>Kalan</th>
+        <th>İşlem</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- Yazdırma butonu -->
+  <button id="yazdir">Listeyi Yazdır</button>
+
+  <script src="app.js"></script>
+</body>
+</html>
