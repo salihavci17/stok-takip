@@ -5,8 +5,12 @@
   <title>Stok Takip Uygulaması</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <h1>Stok Takip Uygulaması</h1>
+<h2>Barkod ile Ürün Seç</h2>
+<div id="barcodeScanner" style="width:300px; height:200px; border:1px solid #ccc;"></div>
+<p id="barcodeResult">Barkod: Henüz okunmadı</p>
 
   <!-- Ürün ekleme formu -->
   <h2>Ürün Ekle</h2>
@@ -50,5 +54,6 @@
   <button id="yazdir">Listeyi Yazdır</button>
 
   <script src="app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 </body>
 </html>

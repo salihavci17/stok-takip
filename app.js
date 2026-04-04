@@ -155,4 +155,50 @@ document.getElementById("yazdir").addEventListener("click", () => {
   newWindow.document.write("</body></html>");
   newWindow.document.close();
   newWindow.print();
+  // Barkod tarayıcıyı başlat
+function startScanner() {
+  Quagga.init({
+    inputStream: {
+      type: "LiveStream",
+      target: document.querySelector('#barcodeScanner'),
+      constraints: {
+        facingMode: "environment" // arka kamera
+      }
+    },
+    decoder: {
+      readers: ["ean_reader", "code_128_reader"] // yaygın barkod tipleri
+    }
+  }, function(err) {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    Quagga.start();
+  });
+
+  Quagga.onDetected(function(result) {
+    const code = result.codeResult.code;
+    document.getElementById("barcodeResult").textContent = "Barkod: " + code;
+
+    // Barkod ürün listesinde varsa otomatik seç
+    if (urunler.includes(code)) {
+      urunSelect.value = code;
+    } else {
+      // Yoksa yeni ürün olarak ekle
+      urunler.push(code);
+      stoklar[code] = { giren: 0, cikan: 0, kalan: 0 };
+      localStorage.setItem("urunler", JSON.stringify(urunler));
+      localStorage.setItem("stoklar", JSON.stringify(stoklar));
+      ekleUrunSecenek(code);
+      tabloyuYenile();
+      urunSelect.value = code;
+    }
+  });
+}
+
+// Sayfa açıldığında barkod tarayıcıyı başlat
+window.addEventListener("load", () => {
+  startScanner();
+});
+
 });
