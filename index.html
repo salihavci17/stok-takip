@@ -65,7 +65,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
     import { getFirestore, doc, setDoc, getDocs, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-    // Senin verdiğin Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBdxkBa8K77nnLVFefpyzS-ACuxuZhhPc8",
       authDomain: "stok-app-ca168.firebaseapp.com",
@@ -118,13 +117,21 @@
       const islemTuru = document.getElementById("islemTuru").value;
       if (!urun) return alert("Lütfen ürün seçin.");
       let kayit = stoklar[urun] || { giren: 0, cikan: 0, kalan: 0 };
-      if (islemTuru === "giris") {
-        kayit.giren += miktar;
-        kayit.kalan += miktar;
+
+      // Düzenleme kontrolü
+      if (stokForm.dataset.duzenlenen) {
+        kayit.kalan = miktar;
+        stokForm.dataset.duzenlenen = "";
       } else {
-        kayit.cikan += miktar;
-        kayit.kalan = Math.max(0, kayit.kalan - miktar);
+        if (islemTuru === "giris") {
+          kayit.giren += miktar;
+          kayit.kalan += miktar;
+        } else {
+          kayit.cikan += miktar;
+          kayit.kalan = Math.max(0, kayit.kalan - miktar);
+        }
       }
+
       await setDoc(doc(db, "stoklar", urun), kayit);
       await stoklariYukle();
       stokForm.reset();
@@ -150,6 +157,7 @@
         <td>${kayit.cikan}</td>
         <td>${kayit.kalan}</td>
         <td>
+          <button onclick="duzenleUrun('${urun}')">Düzenle</button>
           <button onclick="silUrun('${urun}')">Sil</button>
         </td>
       `;
@@ -159,6 +167,13 @@
     window.silUrun = async function(urun) {
       await deleteDoc(doc(db, "stoklar", urun));
       stoklariYukle();
+    }
+
+    window.duzenleUrun = function(urun) {
+      const kayit = stoklar[urun];
+      urunSelect.value = urun;
+      document.getElementById("miktar").value = kayit.kalan;
+      stokForm.dataset.duzenlenen = urun;
     }
 
     function raporGuncelle() {
