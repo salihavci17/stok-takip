@@ -10,19 +10,18 @@
     th { background-color: #f2f2f2; }
     form { margin-top: 20px; }
     button { margin-left: 5px; }
-    .rapor { margin-top:20px; font-weight:bold; }
   </style>
 </head>
 <body>
   <h1>Stok Takip Uygulaması</h1>
 
-  <!-- Ürün ekleme formu -->
+  <!-- Ürün ekleme -->
   <form id="urunForm">
     <input type="text" id="urunAdi" placeholder="Ürün adı" required>
     <button type="submit">Ürün Ekle</button>
   </form>
 
-  <!-- Stok işlemleri formu -->
+  <!-- Stok işlemleri -->
   <form id="stokForm">
     <select id="urunSelect" required>
       <option value="">Ürün seçin</option>
@@ -35,11 +34,8 @@
     <button type="submit">Kaydet</button>
   </form>
 
-  <!-- Barkod okuma -->
-  <button id="barkodOku">Barkod Oku</button>
-  <video id="kamera" width="300" height="200" style="display:none;"></video>
-
-  <!-- Stok tablosu -->
+  <!-- Stok listesi -->
+  <h2>📋 Stok Listesi</h2>
   <table>
     <thead>
       <tr>
@@ -53,17 +49,24 @@
     <tbody id="tablo"></tbody>
   </table>
 
-  <!-- Raporlama -->
-  <div class="rapor">
-    <p>Toplam Giriş: <span id="raporGiris">0</span></p>
-    <p>Toplam Çıkış: <span id="raporCikis">0</span></p>
-    <p>Toplam Kalan: <span id="raporKalan">0</span></p>
-  </div>
+  <!-- Günlük hareketler -->
+  <h2>📅 Günlük Hareketler</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Tarih</th>
+        <th>Ürün</th>
+        <th>Tür</th>
+        <th>Miktar</th>
+      </tr>
+    </thead>
+    <tbody id="hareketTablo"></tbody>
+  </table>
 
   <!-- Firebase ve uygulama kodu -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDocs, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDocs, deleteDoc, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBdxkBa8K77nnLVFefpyzS-ACuxuZhhPc8",
@@ -82,10 +85,12 @@
     const stokForm = document.getElementById("stokForm");
     const urunSelect = document.getElementById("urunSelect");
     const tablo = document.getElementById("tablo");
+    const hareketTablo = document.getElementById("hareketTablo");
 
     let stoklar = {};
     let urunler = [];
 
+    // Stokları yükle
     async function stoklariYukle() {
       const snapshot = await getDocs(collection(db, "stoklar"));
       stoklar = {};
@@ -97,9 +102,26 @@
       urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
       urunler.forEach(urun => ekleUrunSecenek(urun));
       tabloyuYenile();
-      raporGuncelle();
     }
 
+    // Günlük hareketleri yükle
+    async function hareketleriYukle() {
+      const snapshot = await getDocs(collection(db, "hareketler"));
+      hareketTablo.innerHTML = "";
+      snapshot.forEach(docSnap => {
+        const h = docSnap.data();
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${h.tarih}</td>
+          <td>${h.urun}</td>
+          <td>${h.tur}</td>
+          <td>${h.miktar}</td>
+        `;
+        hareketTablo.appendChild(tr);
+      });
+    }
+
+    // Ürün ekleme
     urunForm.addEventListener("submit", async e => {
       e.preventDefault();
       const urunAdi = document.getElementById("urunAdi").value.trim();
@@ -110,6 +132,7 @@
       urunForm.reset();
     });
 
+    // Stok işlemleri
     stokForm.addEventListener("submit", async e => {
       e.preventDefault();
       const urun = urunSelect.value;
@@ -118,7 +141,6 @@
       if (!urun) return alert("Lütfen ürün seçin.");
       let kayit = stoklar[urun] || { giren: 0, cikan: 0, kalan: 0 };
 
-      // Düzenleme kontrolü
       if (stokForm.dataset.duzenlenen) {
         kayit.kalan = miktar;
         stokForm.dataset.duzenlenen = "";
@@ -133,7 +155,17 @@
       }
 
       await setDoc(doc(db, "stoklar", urun), kayit);
+
+      // Hareket kaydı ekle
+      await addDoc(collection(db, "hareketler"), {
+        urun: urun,
+        miktar: miktar,
+        tur: islemTuru,
+        tarih: new Date().toISOString().split("T")[0]
+      });
+
       await stoklariYukle();
+      await hareketleriYukle();
       stokForm.reset();
     });
 
@@ -146,22 +178,21 @@
 
     function tabloyuYenile() {
       tablo.innerHTML = "";
-      for (const u in stoklar) ekleSatir(u, stoklar[u]);
-    }
-
-    function ekleSatir(urun, kayit) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${urun}</td>
-        <td>${kayit.giren}</td>
-        <td>${kayit.cikan}</td>
-        <td>${kayit.kalan}</td>
-        <td>
-          <button onclick="duzenleUrun('${urun}')">Düzenle</button>
-          <button onclick="silUrun('${urun}')">Sil</button>
-        </td>
-      `;
-      tablo.appendChild(tr);
+      for (const u in stoklar) {
+        const kayit = stoklar[u];
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${u}</td>
+          <td>${kayit.giren}</td>
+          <td>${kayit.cikan}</td>
+          <td>${kayit.kalan}</td>
+          <td>
+            <button onclick="duzenleUrun('${u}')">Düzenle</button>
+            <button onclick="silUrun('${u}')">Sil</button>
+          </td>
+        `;
+        tablo.appendChild(tr);
+      }
     }
 
     window.silUrun = async function(urun) {
@@ -176,19 +207,10 @@
       stokForm.dataset.duzenlenen = urun;
     }
 
-    function raporGuncelle() {
-      let toplamGiris = 0, toplamCikis = 0, toplamKalan = 0;
-      for (const u in stoklar) {
-        toplamGiris += stoklar[u].giren;
-        toplamCikis += stoklar[u].cikan;
-        toplamKalan += stoklar[u].kalan;
-      }
-      document.getElementById("raporGiris").textContent = toplamGiris;
-      document.getElementById("raporCikis").textContent = toplamCikis;
-      document.getElementById("raporKalan").textContent = toplamKalan;
-    }
-
-    window.addEventListener("load", stoklariYukle);
+    window.addEventListener("load", () => {
+      stoklariYukle();
+      hareketleriYukle();
+    });
   </script>
 </body>
 </html>
