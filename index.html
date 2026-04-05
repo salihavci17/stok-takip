@@ -55,7 +55,7 @@
   <!-- Firebase ve uygulama kodu -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDocs, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, getDocs, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBdxkBa8K77nnLVFefpyzS-ACuxuZhhPc8",
@@ -119,19 +119,13 @@
 
       let kayit = stoklar[urun] || { giren: 0, cikan: 0, kalan: 0 };
 
-      if (stokForm.dataset.duzenlenen) {
-        // düzenleme modunda kalan stok doğrudan güncellenir
-        kayit.kalan = miktar;
-        stokForm.dataset.duzenlenen = "";
+      if (islemTuru === "giris") {
+        kayit.giren += miktar;
+        kayit.kalan += miktar;
       } else {
-        if (islemTuru === "giris") {
-          kayit.giren += miktar;
-          kayit.kalan += miktar;
-        } else {
-          kayit.cikan += miktar;
-          kayit.kalan -= miktar;
-          if (kayit.kalan < 0) kayit.kalan = 0;
-        }
+        kayit.cikan += miktar;
+        kayit.kalan -= miktar;
+        if (kayit.kalan < 0) kayit.kalan = 0;
       }
 
       await setDoc(doc(db, "stoklar", urun), kayit);
@@ -196,8 +190,9 @@
     // Düzenleme
     window.duzenleUrun = async function(urun) {
       const kayit = stoklar[urun];
-      urunSelect.value = urun;
+      document.getElementById("urunAdi").value = urun;
       document.getElementById("miktar").value = kayit.kalan;
+      urunSelect.value = urun;
       stokForm.dataset.duzenlenen = urun;
     }
 
@@ -207,4 +202,12 @@
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       kamera.srcObject = stream;
       kamera.play();
-      // Burada barkod kütüphanesi (örn. QuaggaJS veya jsQR) entegre edilebilir
+      // Burada barkod kütüphanesi (ör. QuaggaJS) entegre edilebilir
+      alert("Barkod okuma için kütüphane eklenmeli (örn. QuaggaJS).");
+    });
+
+    // Sayfa açıldığında stokları yükle
+    window.addEventListener("load", stoklariYukle);
+  </script>
+</body>
+</html>
