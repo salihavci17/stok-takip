@@ -36,9 +36,9 @@
 
   <!-- Stok listesi -->
   <h2>📋 Stok Listesi</h2>
+  <button onclick="yazdirStok()">Stok Listesini Yazdır</button>
   <table>
-    <button onclick="yazdirStok()">Stok Listesini Yazdır</button>
-    <thead>
+   <thead>
       <tr>
         <th>Ürün</th>
         <th>Giren</th>
@@ -52,9 +52,9 @@
 
   <!-- Günlük hareketler -->
   <h2>📅 Günlük Hareketler</h2>
-  <table>
    <button onclick="yazdirHareket()">Günlük Hareketleri Yazdır</button>
-    <thead>
+    <table>
+       <thead>
       <tr>
         <th>Tarih</th>
         <th>Ürün</th>
@@ -208,6 +208,7 @@
       document.getElementById("miktar").value = kayit.kalan;
       stokForm.dataset.duzenlenen = urun;
     }
+
 // Stok listesini yazdırma
 window.yazdirStok = function() {
   const printContents = document.getElementById("stokTable").outerHTML;
