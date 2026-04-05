@@ -37,6 +37,7 @@
   <!-- Stok listesi -->
   <h2>📋 Stok Listesi</h2>
   <table>
+    <button onclick="yazdirStok()">Stok Listesini Yazdır</button>
     <thead>
       <tr>
         <th>Ürün</th>
@@ -52,6 +53,7 @@
   <!-- Günlük hareketler -->
   <h2>📅 Günlük Hareketler</h2>
   <table>
+   <button onclick="yazdirHareket()">Günlük Hareketleri Yazdır</button>
     <thead>
       <tr>
         <th>Tarih</th>
@@ -206,6 +208,23 @@
       document.getElementById("miktar").value = kayit.kalan;
       stokForm.dataset.duzenlenen = urun;
     }
+// Stok listesini yazdırma
+window.yazdirStok = function() {
+  const printContents = document.getElementById("stokTable").outerHTML;
+  const w = window.open("", "", "width=800,height=600");
+  w.document.write("<h2>Stok Listesi</h2>" + printContents);
+  w.document.close();
+  w.print();
+}
+
+// Günlük hareketleri yazdırma
+window.yazdirHareket = function() {
+  const printContents = document.getElementById("hareketTable").outerHTML;
+  const w = window.open("", "", "width=800,height=600");
+  w.document.write("<h2>Günlük Hareketler</h2>" + printContents);
+  w.document.close();
+  w.print();
+}
 
     window.addEventListener("load", () => {
       stoklariYukle();
