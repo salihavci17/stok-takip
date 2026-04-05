@@ -10,6 +10,7 @@
     th { background-color: #f2f2f2; }
     form { margin-top: 20px; }
     button { margin-left: 5px; }
+    .rapor { margin-top:20px; font-weight:bold; }
   </style>
 </head>
 <body>
@@ -52,11 +53,19 @@
     <tbody id="tablo"></tbody>
   </table>
 
+  <!-- Raporlama -->
+  <div class="rapor">
+    <p>Toplam Giriş: <span id="raporGiris">0</span></p>
+    <p>Toplam Çıkış: <span id="raporCikis">0</span></p>
+    <p>Toplam Kalan: <span id="raporKalan">0</span></p>
+  </div>
+
   <!-- Firebase ve uygulama kodu -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, getDocs, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDocs, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
+    // Senin verdiğin Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBdxkBa8K77nnLVFefpyzS-ACuxuZhhPc8",
       authDomain: "stok-app-ca168.firebaseapp.com",
@@ -74,13 +83,10 @@
     const stokForm = document.getElementById("stokForm");
     const urunSelect = document.getElementById("urunSelect");
     const tablo = document.getElementById("tablo");
-    const barkodBtn = document.getElementById("barkodOku");
-    const kamera = document.getElementById("kamera");
 
     let stoklar = {};
     let urunler = [];
 
-    // Firestore’dan stokları yükle
     async function stoklariYukle() {
       const snapshot = await getDocs(collection(db, "stoklar"));
       stoklar = {};
@@ -92,48 +98,38 @@
       urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
       urunler.forEach(urun => ekleUrunSecenek(urun));
       tabloyuYenile();
+      raporGuncelle();
     }
 
-    // Ürün ekleme
     urunForm.addEventListener("submit", async e => {
       e.preventDefault();
       const urunAdi = document.getElementById("urunAdi").value.trim();
-      if (urunAdi && !urunler.includes(urunAdi)) {
+      if (urunAdi) {
         await setDoc(doc(db, "stoklar", urunAdi), { giren: 0, cikan: 0, kalan: 0 });
-        stoklariYukle();
+        await stoklariYukle();
       }
       urunForm.reset();
     });
 
-    // Stok işlemleri
     stokForm.addEventListener("submit", async e => {
       e.preventDefault();
       const urun = urunSelect.value;
       const miktar = parseInt(document.getElementById("miktar").value);
       const islemTuru = document.getElementById("islemTuru").value;
-
-      if (!urun) {
-        alert("Lütfen ürün seçin.");
-        return;
-      }
-
+      if (!urun) return alert("Lütfen ürün seçin.");
       let kayit = stoklar[urun] || { giren: 0, cikan: 0, kalan: 0 };
-
       if (islemTuru === "giris") {
         kayit.giren += miktar;
         kayit.kalan += miktar;
       } else {
         kayit.cikan += miktar;
-        kayit.kalan -= miktar;
-        if (kayit.kalan < 0) kayit.kalan = 0;
+        kayit.kalan = Math.max(0, kayit.kalan - miktar);
       }
-
       await setDoc(doc(db, "stoklar", urun), kayit);
-      stoklariYukle();
+      await stoklariYukle();
       stokForm.reset();
     });
 
-    // Ürün select’e ekleme
     function ekleUrunSecenek(urun) {
       const option = document.createElement("option");
       option.value = urun;
@@ -141,31 +137,11 @@
       urunSelect.appendChild(option);
     }
 
-    // Tabloyu yenile
     function tabloyuYenile() {
       tablo.innerHTML = "";
-      let toplamGiris = 0, toplamCikis = 0, toplamKalan = 0;
-
-      for (const u in stoklar) {
-        ekleSatir(u, stoklar[u]);
-        toplamGiris += stoklar[u].giren;
-        toplamCikis += stoklar[u].cikan;
-        toplamKalan += stoklar[u].kalan;
-      }
-
-      const ozetSatir = document.createElement("tr");
-      ozetSatir.style.fontWeight = "bold";
-      ozetSatir.innerHTML = `
-        <td>TOPLAM</td>
-        <td>${toplamGiris}</td>
-        <td>${toplamCikis}</td>
-        <td>${toplamKalan}</td>
-        <td></td>
-      `;
-      tablo.appendChild(ozetSatir);
+      for (const u in stoklar) ekleSatir(u, stoklar[u]);
     }
 
-    // Tabloya satır ekleme (silme ve düzenleme butonları ile)
     function ekleSatir(urun, kayit) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -174,39 +150,29 @@
         <td>${kayit.cikan}</td>
         <td>${kayit.kalan}</td>
         <td>
-          <button onclick="duzenleUrun('${urun}')">Düzenle</button>
           <button onclick="silUrun('${urun}')">Sil</button>
         </td>
       `;
       tablo.appendChild(tr);
     }
 
-    // Silme
     window.silUrun = async function(urun) {
       await deleteDoc(doc(db, "stoklar", urun));
       stoklariYukle();
     }
 
-    // Düzenleme
-    window.duzenleUrun = async function(urun) {
-      const kayit = stoklar[urun];
-      document.getElementById("urunAdi").value = urun;
-      document.getElementById("miktar").value = kayit.kalan;
-      urunSelect.value = urun;
-      stokForm.dataset.duzenlenen = urun;
+    function raporGuncelle() {
+      let toplamGiris = 0, toplamCikis = 0, toplamKalan = 0;
+      for (const u in stoklar) {
+        toplamGiris += stoklar[u].giren;
+        toplamCikis += stoklar[u].cikan;
+        toplamKalan += stoklar[u].kalan;
+      }
+      document.getElementById("raporGiris").textContent = toplamGiris;
+      document.getElementById("raporCikis").textContent = toplamCikis;
+      document.getElementById("raporKalan").textContent = toplamKalan;
     }
 
-    // Barkod okuma (kamera açma)
-    barkodBtn.addEventListener("click", async () => {
-      kamera.style.display = "block";
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      kamera.srcObject = stream;
-      kamera.play();
-      // Burada barkod kütüphanesi (ör. QuaggaJS) entegre edilebilir
-      alert("Barkod okuma için kütüphane eklenmeli (örn. QuaggaJS).");
-    });
-
-    // Sayfa açıldığında stokları yükle
     window.addEventListener("load", stoklariYukle);
   </script>
 </body>
