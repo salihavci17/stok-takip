@@ -301,13 +301,19 @@ function startScanner() {
       alert("Barkod okundu: " + decodedText);
     },
     (errorMessage) => {
-      // Hata mesajlarını konsola yaz
       console.log("Barkod okunamadı: ", errorMessage);
     }
   ).catch(err => {
     console.error("Kamera başlatılamadı: ", err);
   });
 }
+
+// Sayfa yüklenince stokları ve hareketleri yükle + barkod başlat
+window.addEventListener("load", () => {
+  stoklariYukle();
+  hareketleriYukle();
+  startScanner();
+});
 
 // Sayfa yüklenince başlat
 window.addEventListener("load", () => {
