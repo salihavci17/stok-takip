@@ -34,7 +34,9 @@
     <button type="submit">Kaydet</button>
   </form>
 <h2>📷 Barkod Okuma</h2>
+<button onclick="startScanner()">Barkod Okumayı Başlat</button>
 <div id="reader" style="width:300px;"></div>
+<button onclick="stopScanner()">Barkod Okumayı Durdur</button>
 
   <!-- Stok listesi -->
   <h2>📋 Stok Listesi</h2>
@@ -284,7 +286,7 @@ window.yazdirHareket = function() {
 
 // Barkod okuma başlat
 function startScanner() {
-  const html5QrCode = new Html5Qrcode("reader");
+  html5QrCode = new Html5Qrcode("reader");
   html5QrCode.start(
     { facingMode: "environment" }, // Arka kamera
     { fps: 10, qrbox: 250 },
@@ -300,12 +302,21 @@ function startScanner() {
   });
 }
 
+function stopScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => {
+      console.log("Barkod okuma durduruldu.");
+    }).catch(err => {
+      console.error("Durdurulamadı: ", err);
+    });
+  }
+}
+
 // Sayfa yüklenince stokları ve hareketleri yükle + barkod başlat
 window.addEventListener("load", () => {
   stoklariYukle();
   hareketleriYukle();
-  startScanner();
-});
+ });
 
  </script>
 </body>
