@@ -16,10 +16,11 @@
   <h1>Stok Takip Uygulaması</h1>
 
   <!-- Ürün ekleme -->
-  <form id="urunForm">
-    <input type="text" id="urunAdi" placeholder="Ürün adı" required>
-    <button type="submit">Ürün Ekle</button>
-  </form>
+ <form id="urunForm">
+  <input type="text" id="urunAdi" placeholder="Ürün adı" required>
+  <input type="text" id="urunBarkod" placeholder="Barkod" required>
+  <button type="submit">Ürün Ekle</button>
+</form>
 
   <!-- Stok işlemleri -->
   <form id="stokForm">
@@ -44,6 +45,7 @@
   <table id="stokTable">
    <thead>
       <tr>
+        <th>Barkod</th>
         <th>Ürün</th>
         <th>Giren</th>
         <th>Çıkan</th>
@@ -53,6 +55,12 @@
     </thead>
     <tbody id="tablo"></tbody>
 </table>
+<h2>🔑 Barkod Ekle</h2>
+<form id="barkodForm">
+  <select id="barkodUrunSelect"></select>
+  <input type="text" id="barkodNo" placeholder="Barkod" required>
+  <button type="submit">Barkod Ekle</button>
+</form>
 
 
   <!-- Günlük hareketler -->
@@ -102,17 +110,33 @@
 
     // Stokları yükle
     async function stoklariYukle() {
-      const snapshot = await getDocs(collection(db, "stoklar"));
-      stoklar = {};
-      urunler = [];
-      snapshot.forEach(docSnap => {
-        stoklar[docSnap.id] = docSnap.data();
-        urunler.push(docSnap.id);
-      });
-      urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
-      urunler.forEach(urun => ekleUrunSecenek(urun));
-      tabloyuYenile();
-    }
+  const snapshot = await getDocs(collection(db, "stoklar"));
+  stoklar = {};
+  urunler = [];
+  snapshot.forEach(docSnap => {
+    stoklar[docSnap.id] = docSnap.data();
+    urunler.push(docSnap.id);
+  });
+
+  // Ürün seçim dropdownlarını temizle
+  urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
+  barkodUrunSelect.innerHTML = '<option value="">Ürün seçin</option>';
+
+  urunler.forEach(urun => {
+    ekleUrunSecenek(urun);       // mevcut fonksiyon
+    ekleBarkodSecenek(urun);     // yeni fonksiyon
+  });
+
+  tabloyuYenile();
+}
+
+function ekleBarkodSecenek(urun) {
+  const option = document.createElement("option");
+  option.value = urun;
+  option.textContent = urun;
+  barkodUrunSelect.appendChild(option);
+}
+
 
     // Günlük hareketleri yükle
     async function hareketleriYukle() {
@@ -191,16 +215,17 @@
       for (const u in stoklar) {
         const kayit = stoklar[u];
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${u}</td>
-          <td>${kayit.giren}</td>
-          <td>${kayit.cikan}</td>
-          <td>${kayit.kalan}</td>
-          <td>
-            <button onclick="duzenleUrun('${u}')">Düzenle</button>
-            <button onclick="silUrun('${u}')">Sil</button>
-          </td>
-        `;
+       tr.innerHTML = `
+  <td>${u}</td>
+  <td>${kayit.giren}</td>
+  <td>${kayit.cikan}</td>
+  <td>${kayit.kalan}</td>
+  <td>${kayit.barkod || "-"}</td>
+  <td>
+    <button onclick="duzenleUrun('${u}')">Düzenle</button>
+    <button onclick="silUrun('${u}')">Sil</button>
+  </td>
+`;
         tablo.appendChild(tr);
       }
     }
@@ -284,6 +309,22 @@ window.yazdirHareket = function() {
   w.document.close();
   w.print();
 }
+const barkodForm = document.getElementById("barkodForm");
+const barkodUrunSelect = document.getElementById("barkodUrunSelect");
+
+barkodForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const urunAdi = barkodUrunSelect.value;
+  const barkodNo = document.getElementById("barkodNo").value.trim();
+  if (urunAdi && barkodNo) {
+    let kayit = stoklar[urunAdi];
+    kayit.barkod = barkodNo; // yeni alan ekleniyor
+    await setDoc(doc(db, "stoklar", urunAdi), kayit);
+    await stoklariYukle();
+    alert("Barkod eklendi: " + urunAdi + " → " + barkodNo);
+  }
+  barkodForm.reset();
+});
 
 let html5QrCode; // global değişken
 
