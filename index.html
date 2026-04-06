@@ -287,6 +287,7 @@ window.yazdirHareket = function() {
 // Barkod okuma başlat
 let html5QrCode; // global değişken
 
+// Barkod başlat
 window.startScanner = function() {
   html5QrCode = new Html5Qrcode("reader");
   html5QrCode.start(
@@ -304,6 +305,7 @@ window.startScanner = function() {
   });
 }
 
+// Barkod durdur
 window.stopScanner = function() {
   if (html5QrCode) {
     html5QrCode.stop().then(() => {
