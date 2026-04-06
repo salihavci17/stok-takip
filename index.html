@@ -62,6 +62,21 @@
   <input type="text" id="barkodNo" placeholder="Barkod" required>
   <button type="submit">Barkod Ekle</button>
 </form>
+<div id="urunDetayModal" style="display:none; border:1px solid #ccc; padding:20px;">
+  <h2 id="detayUrunAdi"></h2>
+  <p><strong>Barkod:</strong> <input type="text" id="detayBarkod"></p>
+  <p><strong>Kalan Miktar:</strong> <input type="number" id="detayMiktar"></p>
+  <button onclick="kaydetDetay()">Kaydet</button>
+  <button onclick="kapatDetay()">Kapat</button>
+  
+  <h3>📅 Hareketler</h3>
+  <table>
+    <thead>
+      <tr><th>Tarih</th><th>Tür</th><th>Miktar</th></tr>
+    </thead>
+    <tbody id="detayHareketTablo"></tbody>
+  </table>
+</div>
 
 
   <!-- Günlük hareketler -->
@@ -129,6 +144,46 @@
   });
 
   tabloyuYenile();
+}
+let aktifUrun = null;
+
+window.urunDetay = async function(urun) {
+  aktifUrun = urun;
+  const kayit = stoklar[urun];
+  document.getElementById("detayUrunAdi").textContent = urun;
+  document.getElementById("detayBarkod").value = kayit.barkod || "";
+  document.getElementById("detayMiktar").value = kayit.kalan;
+
+  // Hareketleri filtrele
+  const snapshot = await getDocs(collection(db, "hareketler"));
+  const detayHareketTablo = document.getElementById("detayHareketTablo");
+  detayHareketTablo.innerHTML = "";
+  snapshot.forEach(docSnap => {
+    const h = docSnap.data();
+    if (h.urun === urun) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${h.tarih}</td><td>${h.tur}</td><td>${h.miktar}</td>`;
+      detayHareketTablo.appendChild(tr);
+    }
+  });
+
+  document.getElementById("urunDetayModal").style.display = "block";
+}
+
+window.kapatDetay = function() {
+  document.getElementById("urunDetayModal").style.display = "none";
+}
+window.kaydetDetay = async function() {
+  if (!aktifUrun) return;
+  const yeniMiktar = parseInt(document.getElementById("detayMiktar").value);
+  const yeniBarkod = document.getElementById("detayBarkod").value.trim();
+  let kayit = stoklar[aktifUrun];
+  kayit.kalan = yeniMiktar;
+  if (yeniBarkod) kayit.barkod = yeniBarkod;
+
+  await setDoc(doc(db, "stoklar", aktifUrun), kayit);
+  await stoklariYukle();
+  alert("Stok güncellendi: " + aktifUrun + " → kalan: " + yeniMiktar + (yeniBarkod ? " barkod: " + yeniBarkod : ""));
 }
 
 function ekleBarkodSecenek(urun) {
@@ -230,6 +285,7 @@ function ekleBarkodSecenek(urun) {
   <td>${kayit.cikan}</td>
   <td>${kayit.kalan}</td>
     <td>
+     <button onclick="urunDetay('${u}')">Detay</button>
     <button onclick="duzenleUrun('${u}')">Düzenle</button>
     <button onclick="silUrun('${u}')">Sil</button>
   </td>
