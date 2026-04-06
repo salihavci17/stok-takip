@@ -62,6 +62,7 @@
   <input type="text" id="barkodNo" placeholder="Barkod" required>
   <button type="submit">Barkod Ekle</button>
 </form>
+
 <div id="urunDetayModal" style="display:none; border:1px solid #ccc; padding:20px;">
   <h2 id="detayUrunAdi"></h2>
   <p><strong>Barkod:</strong> <input type="text" id="detayBarkod"></p>
@@ -145,6 +146,7 @@
 
   tabloyuYenile();
 }
+
 let aktifUrun = null;
 
 window.urunDetay = async function(urun) {
