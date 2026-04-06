@@ -168,40 +168,44 @@ function ekleBarkodSecenek(urun) {
 
     // Stok işlemleri
     stokForm.addEventListener("submit", async e => {
-      e.preventDefault();
-      const urun = urunSelect.value;
-      const miktar = parseInt(document.getElementById("miktar").value);
-      const islemTuru = document.getElementById("islemTuru").value;
-      if (!urun) return alert("Lütfen ürün seçin.");
-      let kayit = stoklar[urun] || { giren: 0, cikan: 0, kalan: 0 };
+  e.preventDefault();
+  const urun = urunSelect.value;
+  const miktar = parseInt(document.getElementById("miktar").value);
+  const islemTuru = document.getElementById("islemTuru").value;
+  if (!urun) return alert("Lütfen ürün seçin.");
+  let kayit = stoklar[urun] || { giren: 0, cikan: 0, kalan: 0 };
 
-      if (stokForm.dataset.duzenlenen) {
-        kayit.kalan = miktar;
-        stokForm.dataset.duzenlenen = "";
-      } else {
-        if (islemTuru === "giris") {
-          kayit.giren += miktar;
-          kayit.kalan += miktar;
-        } else {
-          kayit.cikan += miktar;
-          kayit.kalan = Math.max(0, kayit.kalan - miktar);
-        }
-      }
+  if (stokForm.dataset.duzenlenen) {
+    // 🔑 Düzenleme modunda sadece kalan stok güncellenir
+    kayit.kalan = miktar;
+    await setDoc(doc(db, "stoklar", urun), kayit);
+    stokForm.dataset.duzenlenen = "";
+    alert("Stok düzenlendi: " + urun + " → kalan: " + miktar);
+  } else {
+    // Normal giriş/çıkış işlemleri
+    if (islemTuru === "giris") {
+      kayit.giren += miktar;
+      kayit.kalan += miktar;
+    } else {
+      kayit.cikan += miktar;
+      kayit.kalan = Math.max(0, kayit.kalan - miktar);
+    }
 
-      await setDoc(doc(db, "stoklar", urun), kayit);
+    await setDoc(doc(db, "stoklar", urun), kayit);
 
-      // Hareket kaydı ekle
-      await addDoc(collection(db, "hareketler"), {
-        urun: urun,
-        miktar: miktar,
-        tur: islemTuru,
-        tarih: new Date().toISOString().split("T")[0]
-      });
-
-      await stoklariYukle();
-      await hareketleriYukle();
-      stokForm.reset();
+    // 🔑 Hareket kaydı sadece giriş/çıkışta eklenir
+    await addDoc(collection(db, "hareketler"), {
+      urun: urun,
+      miktar: miktar,
+      tur: islemTuru,
+      tarih: new Date().toISOString().split("T")[0]
     });
+  }
+
+  await stoklariYukle();
+  await hareketleriYukle();
+  stokForm.reset();
+});
 
     function ekleUrunSecenek(urun) {
       const option = document.createElement("option");
