@@ -80,6 +80,23 @@
     </table>
   </div>
  <script src="https://unpkg.com/html5-qrcode"></script>
-  <script type="module" src="app.js"></script>
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDocs, collection, addDoc, deleteDoc } 
+      from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdxkBa8K77nnLVFefpyzS-ACuxuZhhPc8",
+      authDomain: "stok-app-ca168.firebaseapp.com",
+      projectId: "stok-app-ca168",
+      storageBucket: "stok-app-ca168.firebasestorage.app",
+      messagingSenderId: "599049285321",
+      appId: "1:599049285321:web:fb313b6b00e7b16620e718",
+      measurementId: "G-BV2H7DYS7J"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+  </script>
+ <script type="module" src="app.js"></script>
 </body>
 </html>
