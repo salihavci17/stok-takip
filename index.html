@@ -24,16 +24,17 @@
 
   <!-- Stok işlemleri -->
   <form id="stokForm">
-    <select id="urunSelect" required>
-      <option value="">Ürün seçin</option>
-    </select>
-    <input type="number" id="miktar" placeholder="Miktar" required>
-    <select id="islemTuru">
-      <option value="giris">Giriş</option>
-      <option value="cikis">Çıkış</option>
-    </select>
-    <button type="submit">Kaydet</button>
-  </form>
+  <select id="urunSelect" required>
+    <option value="">Ürün seçin</option>
+  </select>
+  <input type="number" id="miktar" placeholder="Miktar" required>
+  <input type="text" id="urunBarkod" placeholder="Barkod">
+  <select id="islemTuru">
+    <option value="giris">Giriş</option>
+    <option value="cikis">Çıkış</option>
+  </select>
+  <button type="submit">Kaydet</button>
+</form>
 <h2>📷 Barkod Okuma</h2>
 <button onclick="startScanner()">Barkod Okumayı Başlat</button>
 <div id="reader" style="width:300px;"></div>
@@ -171,16 +172,18 @@ function ekleBarkodSecenek(urun) {
   e.preventDefault();
   const urun = urunSelect.value;
   const miktar = parseInt(document.getElementById("miktar").value);
+  const barkodNo = document.getElementById("urunBarkod").value.trim();
   const islemTuru = document.getElementById("islemTuru").value;
   if (!urun) return alert("Lütfen ürün seçin.");
   let kayit = stoklar[urun] || { giren: 0, cikan: 0, kalan: 0 };
 
   if (stokForm.dataset.duzenlenen) {
-    // 🔑 Düzenleme modunda sadece kalan stok güncellenir
+    // 🔑 Düzenleme modunda sadece stok ve barkod güncellenir
     kayit.kalan = miktar;
+    if (barkodNo) kayit.barkod = barkodNo;
     await setDoc(doc(db, "stoklar", urun), kayit);
     stokForm.dataset.duzenlenen = "";
-    alert("Stok düzenlendi: " + urun + " → kalan: " + miktar);
+    alert("Stok düzenlendi: " + urun + " → kalan: " + miktar + (barkodNo ? " barkod: " + barkodNo : ""));
   } else {
     // Normal giriş/çıkış işlemleri
     if (islemTuru === "giris") {
@@ -190,6 +193,7 @@ function ekleBarkodSecenek(urun) {
       kayit.cikan += miktar;
       kayit.kalan = Math.max(0, kayit.kalan - miktar);
     }
+    if (barkodNo) kayit.barkod = barkodNo;
 
     await setDoc(doc(db, "stoklar", urun), kayit);
 
@@ -240,11 +244,12 @@ function ekleBarkodSecenek(urun) {
     }
 
     window.duzenleUrun = function(urun) {
-      const kayit = stoklar[urun];
-      urunSelect.value = urun;
-      document.getElementById("miktar").value = kayit.kalan;
-      stokForm.dataset.duzenlenen = urun;
-    }
+  const kayit = stoklar[urun];
+  urunSelect.value = urun;
+  document.getElementById("miktar").value = kayit.kalan;
+  document.getElementById("urunBarkod").value = kayit.barkod || "";
+  stokForm.dataset.duzenlenen = urun;
+}
 
 // Stok listesini yazdırma
 window.yazdirStok = function() {
