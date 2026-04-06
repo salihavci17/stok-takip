@@ -5,6 +5,7 @@
   <title>Stok Takip</title>
 </head>
 <body>
+  <!-- Ürün ekleme formu -->
   <h2>Ürün Ekle</h2>
   <form id="urunForm">
     <input type="text" id="urunAdi" placeholder="Ürün adı" required>
@@ -12,23 +13,58 @@
     <button type="submit">Ürün Ekle</button>
   </form>
 
+  <!-- Stok giriş/çıkış formu -->
+  <h2>Stok İşlemleri</h2>
+  <form id="stokForm">
+    <select id="urunSelect" required>
+      <option value="">Ürün seçin</option>
+    </select>
+    <input type="number" id="miktar" placeholder="Miktar" required>
+    <select id="islemTuru">
+      <option value="giris">Giriş</option>
+      <option value="cikis">Çıkış</option>
+    </select>
+    <button type="submit">Kaydet</button>
+  </form>
+
+  <!-- Stok listesi -->
   <h2>📋 Stok Listesi</h2>
   <table id="stokTable" border="1">
     <thead>
       <tr>
-        <th>Barkod</th>
         <th>Ürün</th>
         <th>Giren</th>
         <th>Çıkan</th>
         <th>Kalan</th>
+        <th>Barkod</th>
         <th>İşlem</th>
       </tr>
     </thead>
     <tbody id="stokBody"></tbody>
   </table>
 
+  <!-- Hareket listesi -->
+  <h2>📅 Hareketler</h2>
+  <table id="hareketTable" border="1">
+    <thead>
+      <tr>
+        <th>Ürün</th>
+        <th>Tür</th>
+        <th>Miktar</th>
+        <th>Tarih</th>
+      </tr>
+    </thead>
+    <tbody id="hareketBody"></tbody>
+  </table>
+
+  <!-- Barkod okutma alanı -->
+  <h2>📷 Barkod Okut</h2>
+  <div id="reader" style="width:300px;"></div>
+  <button onclick="startScanner()">Kamerayı Başlat</button>
+  <button onclick="stopScanner()">Kamerayı Durdur</button>
+
   <!-- Ürün Detay Modal -->
-  <div id="urunDetayModal" style="display:none; border:1px solid #ccc; padding:20px;">
+  <div id="urunDetayModal" style="display:none; border:1px solid #ccc; padding:20px; margin-top:20px;">
     <h2 id="detayUrunAdi"></h2>
     <p><strong>Barkod:</strong> <input type="text" id="detayBarkod"></p>
     <p><strong>Kalan Miktar:</strong> <input type="number" id="detayMiktar"></p>
