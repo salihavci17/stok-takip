@@ -37,7 +37,7 @@
   <!-- Stok listesi -->
   <h2>📋 Stok Listesi</h2>
   <button onclick="yazdirStok()">Stok Listesini Yazdır</button>
-  <table>
+  <table id="stokTable">
    <thead>
       <tr>
         <th>Ürün</th>
@@ -48,13 +48,14 @@
       </tr>
     </thead>
     <tbody id="tablo"></tbody>
-  </table>
+</table>
+
 
   <!-- Günlük hareketler -->
   <h2>📅 Günlük Hareketler</h2>
    <button onclick="yazdirHareket()">Günlük Hareketleri Yazdır</button>
-    <table>
-       <thead>
+    <table id="hareketTable">
+   <thead>
       <tr>
         <th>Tarih</th>
         <th>Ürün</th>
@@ -63,7 +64,7 @@
       </tr>
     </thead>
     <tbody id="hareketTablo"></tbody>
-  </table>
+</table>
 
   <!-- Firebase ve uygulama kodu -->
   <script type="module">
