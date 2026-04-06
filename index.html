@@ -285,7 +285,9 @@ window.yazdirHareket = function() {
 }
 
 // Barkod okuma başlat
-function startScanner() {
+let html5QrCode; // global değişken
+
+window.startScanner = function() {
   html5QrCode = new Html5Qrcode("reader");
   html5QrCode.start(
     { facingMode: "environment" }, // Arka kamera
@@ -302,7 +304,7 @@ function startScanner() {
   });
 }
 
-function stopScanner() {
+window.stopScanner = function() {
   if (html5QrCode) {
     html5QrCode.stop().then(() => {
       console.log("Barkod okuma durduruldu.");
