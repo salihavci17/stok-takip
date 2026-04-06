@@ -216,12 +216,12 @@ function ekleBarkodSecenek(urun) {
         const kayit = stoklar[u];
         const tr = document.createElement("tr");
        tr.innerHTML = `
-  <td>${u}</td>
+       <td>${kayit.barkod || "-"}</td>
+       <td>${u}</td>
   <td>${kayit.giren}</td>
   <td>${kayit.cikan}</td>
   <td>${kayit.kalan}</td>
-  <td>${kayit.barkod || "-"}</td>
-  <td>
+    <td>
     <button onclick="duzenleUrun('${u}')">Düzenle</button>
     <button onclick="silUrun('${u}')">Sil</button>
   </td>
