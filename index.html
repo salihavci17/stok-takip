@@ -232,7 +232,6 @@ window.yazdirHareket = function() {
   w.print();
 }
 
-    window.addEventListener("load", () => {
 // Stok listesini yazdırma
 window.yazdirStok = function() {
   const printContents = document.getElementById("stokTable").outerHTML;
@@ -283,20 +282,13 @@ window.yazdirHareket = function() {
   w.print();
 }
 
-      stoklariYukle();
-      hareketleriYukle();
-    });
- // Barkod okuma başlat
+// Barkod okuma başlat
 function startScanner() {
   const html5QrCode = new Html5Qrcode("reader");
   html5QrCode.start(
     { facingMode: "environment" }, // Arka kamera
-    {
-      fps: 10,
-      qrbox: 250
-    },
+    { fps: 10, qrbox: 250 },
     (decodedText, decodedResult) => {
-      // Barkod okunduğunda ürün seçimini otomatik yap
       urunSelect.value = decodedText;
       alert("Barkod okundu: " + decodedText);
     },
