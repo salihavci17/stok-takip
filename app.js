@@ -186,6 +186,7 @@ window.kaydetDetay = async function() {
 // ---------------- Barkod Okutma ----------------
 // html5-qrcode kütüphanesini kullanıyorsan:
 let html5QrCode;
+
 window.startScanner = function() {
   html5QrCode = new Html5Qrcode("reader");
   html5QrCode.start(
@@ -200,7 +201,17 @@ window.startScanner = function() {
         }
       }
     }
-  );
+  ).catch(err => {
+    console.error("Kamera başlatılamadı:", err);
+  });
 }
 
-window.stopScannerTamam
+window.stopScanner = function() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => {
+      console.log("Kamera durduruldu.");
+    }).catch(err => {
+      console.error("Kamera durdurulamadı:", err);
+    });
+  }
+}
