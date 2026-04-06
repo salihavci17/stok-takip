@@ -229,6 +229,56 @@ window.yazdirHareket = function() {
 }
 
     window.addEventListener("load", () => {
+// Stok listesini yazdırma
+window.yazdirStok = function() {
+  const printContents = document.getElementById("stokTable").outerHTML;
+  const w = window.open("", "", "width=800,height=600");
+  w.document.write(`
+    <html>
+      <head>
+        <title>Stok Listesi</title>
+        <style>
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+          th { background-color: #f2f2f2; }
+          /* İşlem sütununu gizle */
+          th:last-child, td:last-child { display: none; }
+        </style>
+      </head>
+      <body>
+        <h2>Stok Listesi</h2>
+        ${printContents}
+      </body>
+    </html>
+  `);
+  w.document.close();
+  w.print();
+}
+
+// Günlük hareketleri yazdırma
+window.yazdirHareket = function() {
+  const printContents = document.getElementById("hareketTable").outerHTML;
+  const w = window.open("", "", "width=800,height=600");
+  w.document.write(`
+    <html>
+      <head>
+        <title>Günlük Hareketler</title>
+        <style>
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+          th { background-color: #f2f2f2; }
+        </style>
+      </head>
+      <body>
+        <h2>Günlük Hareketler</h2>
+        ${printContents}
+      </body>
+    </html>
+  `);
+  w.document.close();
+  w.print();
+}
+
       stoklariYukle();
       hareketleriYukle();
     });
