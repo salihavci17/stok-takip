@@ -311,6 +311,44 @@ function stopScanner() {
     });
   }
 }
+// Barkod okuma başlat
+function startScanner() {
+  html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode: "environment" }, // Arka kamera
+    { fps: 10, qrbox: 250 },
+    (decodedText, decodedResult) => {
+      // Barkod okutulduğunda stoklar içinden barkod alanını kontrol et
+      let bulundu = false;
+      for (const [urun, kayit] of Object.entries(stoklar)) {
+        if (kayit.barkod === decodedText) {
+          urunSelect.value = urun;
+          alert("Barkod okundu: " + urun + " (Barkod: " + decodedText + ")");
+          bulundu = true;
+          break;
+        }
+      }
+      if (!bulundu) {
+        alert("Okunan barkod hiçbir ürünle eşleşmedi: " + decodedText);
+      }
+    },
+    (errorMessage) => {
+      console.log("Barkod okunamadı: ", errorMessage);
+    }
+  ).catch(err => {
+    console.error("Kamera başlatılamadı: ", err);
+  });
+}
+
+function stopScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => {
+      console.log("Barkod okuma durduruldu.");
+    }).catch(err => {
+      console.error("Durdurulamadı: ", err);
+    });
+  }
+}
 
 // Sayfa yüklenince stokları ve hareketleri yükle + barkod başlat
 window.addEventListener("load", () => {
