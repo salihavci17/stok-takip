@@ -1,4 +1,3 @@
-// --- CONFIG ---
 const firebaseConfig = {
     apiKey: "AIzaSyBdxkBa8K77nnLVFefpyzS-ACuxuZhhPc8",
     authDomain: "stok-app-ca168.firebaseapp.com",
@@ -15,70 +14,96 @@ const db = firebase.firestore();
 let stoklar = {};
 let myChart = null;
 let seciliUrunId = "";
-let html5QrCode;
+let html5QrCode = null;
 
-// --- BARKOD & KAMERA SİSTEMİ ---
+// --- KAMERA (TELEFON UYUMLU) ---
 async function kameraBaslat(inputId) {
-    const readerDiv = document.getElementById('reader');
-    readerDiv.style.display = "block";
+    const wrapper = document.getElementById('reader-wrapper');
+    wrapper.style.display = "block";
     
-    // Eğer önceden açık bir kamera varsa kapat
     if(html5QrCode) { await html5QrCode.stop().catch(() => {}); }
-
     html5QrCode = new Html5Qrcode("reader");
     
-    const config = { fps: 15, qrbox: { width: 250, height: 150 } };
+    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
 
-    html5QrCode.start(
-        { facingMode: "environment" }, 
-        config,
-        (decodedText) => {
-            document.getElementById(inputId).value = decodedText;
-            kameraDurdur();
-            alert("Barkod Okundu!");
-        }
-    ).catch(err => {
-        alert("Kamera Hatası: HTTPS bağlantısı veya kamera izni gerekiyor.");
-        console.error(err);
-        readerDiv.style.display = "none";
+    // environment = Arka Kamera demek
+    html5QrCode.start({ facingMode: "environment" }, config, (text) => {
+        document.getElementById(inputId).value = text;
+        kameraDurdur();
+        alert("Okundu: " + text);
+    }).catch(err => {
+        alert("Kamera Hatası! HTTPS kullanıyor musunuz? Hata: " + err);
+        wrapper.style.display = "none";
     });
 }
 
 function kameraDurdur() {
-    if (html5QrCode) {
+    if(html5QrCode) {
         html5QrCode.stop().then(() => {
-            document.getElementById('reader').style.display = "none";
-        }).catch(err => console.log(err));
+            document.getElementById('reader-wrapper').style.display = "none";
+        });
     }
 }
 
-// --- VERİ TABANI İŞLEMLERİ ---
+// --- VERİ ÇEKME & LİSTELEME ---
 function verileriGetir() {
     db.collection("stoklar").onSnapshot((querySnapshot) => {
         stoklar = {};
         const tablo = document.getElementById('tablo');
         const select = document.getElementById('urunSelect');
         tablo.innerHTML = "";
-        select.innerHTML = '<option value="">Seçin</option>';
+        select.innerHTML = '<option value="">Ürün Seçin</option>';
 
         querySnapshot.forEach((doc) => {
             const id = doc.id;
             const v = doc.data();
             stoklar[id] = v;
             const kritik = v.kritik || 5;
-            const renk = v.kalan <= kritik ? "red" : "black";
-            const uyari = v.kalan <= kritik ? "⚠️ " : "";
+            const renk = v.kalan <= kritik ? "#e74c3c" : "#2c3e50";
 
             tablo.innerHTML += `<tr>
-                <td onclick="urunDetayiniGoster('${id}')" style="color:blue; cursor:pointer;">${id}</td>
-                <td>${v.barkod || '-'}</td>
-                <td style="color:${renk}; font-weight:bold;">${uyari}${v.kalan || 0}</td>
-                <td><button onclick="urunSil('${id}')">Sil</button></td>
+                <td onclick="urunDetayiniGoster('${id}')" style="color:#3498db; font-weight:bold;">${id}</td>
+                <td style="color:${renk}; font-weight:bold;">${v.kalan || 0}</td>
+                <td><button onclick="urunSil('${id}')" class="btn-sil">Sil</button></td>
             </tr>`;
             select.innerHTML += `<option value="${id}">${id}</option>`;
         });
         stokGrafikCiz();
     });
+}
+
+// --- HAREKETLER (Yeniden Eklendi) ---
+function hareketleriGetir() {
+    db.collection("hareketler").orderBy("tarih", "desc").limit(15).onSnapshot((snap) => {
+        const liste = document.getElementById('hareketListesi');
+        if(!liste) return;
+        liste.innerHTML = "";
+        snap.forEach(doc => {
+            const h = doc.data();
+            const tarih = h.tarih ? new Date(h.tarih.seconds*1000).toLocaleTimeString() : "";
+            const renk = h.tur === "giris" ? "#27ae60" : "#e74c3c";
+            liste.innerHTML += `<li style="padding:8px; border-bottom:1px solid #eee;">
+                <span style="color:#888;">${tarih}</span> | <b>${h.urun}</b> | <span style="color:${renk}">${h.tur.toUpperCase()} (${h.miktar})</span>
+            </li>`;
+        });
+    });
+}
+
+// --- İŞLEMLER ---
+function stokIslem(tip) {
+    const urun = document.getElementById('urunSelect').value;
+    const miktar = parseInt(document.getElementById('islemMiktar').value);
+    if(!urun || !miktar) return alert("Eksik bilgi!");
+
+    const yeniStok = tip === 'giris' ? (stoklar[urun].kalan + miktar) : (stoklar[urun].kalan - miktar);
+    if(yeniStok < 0) return alert("Stok yetersiz!");
+
+    const batch = db.batch();
+    batch.update(db.collection("stoklar").doc(urun), { kalan: yeniStok });
+    batch.set(db.collection("hareketler").doc(), {
+        urun, tur: tip, miktar, tarih: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    batch.commit().then(() => document.getElementById('islemMiktar').value = "");
 }
 
 function urunDetayiniGoster(id) {
@@ -95,8 +120,8 @@ function urunDetayiniGoster(id) {
         icerik.innerHTML = "";
         snap.forEach(doc => {
             const h = doc.data();
-            const t = h.tarih ? new Date(h.tarih.seconds*1000).toLocaleDateString() : "-";
-            icerik.innerHTML += `<div style="font-size:12px; border-bottom:1px solid #eee; padding:5px;">${t} - ${h.tur}: ${h.miktar}</div>`;
+            const d = h.tarih ? new Date(h.tarih.seconds*1000).toLocaleDateString() : "";
+            icerik.innerHTML += `<div style="font-size:12px; padding:5px; border-bottom:1px solid #eee;">${d} - ${h.tur}: ${h.miktar}</div>`;
         });
     });
 }
@@ -109,33 +134,26 @@ function urunHepsiniGuncelle() {
     }).then(() => { alert("Güncellendi"); modalKapat(); });
 }
 
-function stokIslem(tip) {
-    const urun = document.getElementById('urunSelect').value;
-    const miktar = parseInt(document.getElementById('islemMiktar').value);
-    if(!urun || !miktar) return alert("Eksik bilgi!");
-    const yeni = tip === 'giris' ? (stoklar[urun].kalan + miktar) : (stoklar[urun].kalan - miktar);
-    
-    const batch = db.batch();
-    batch.update(db.collection("stoklar").doc(urun), { kalan: yeni });
-    batch.set(db.collection("hareketler").doc(), { urun, tur: tip, miktar, tarih: firebase.firestore.FieldValue.serverTimestamp() });
-    batch.commit();
-}
-
-// (Raporlama, Excel, PDF fonksiyonları öncekiyle aynı şekilde en alta eklenebilir)
+// --- DİĞER FONKSİYONLAR ---
 function modalKapat() { document.getElementById('detayModal').style.display = "none"; }
 function urunEkle() {
     const ad = document.getElementById('urunAdi').value;
     const bar = document.getElementById('urunBarkod').value;
-    if(ad) db.collection("stoklar").doc(ad).set({ barkod: bar, kalan: 0, kritik: 5 });
+    if(!ad) return alert("Ürün adı girin!");
+    db.collection("stoklar").doc(ad).set({ barkod: bar, kalan: 0, kritik: 5 }).then(() => {
+        document.getElementById('urunAdi').value = ""; document.getElementById('urunBarkod').value = "";
+    });
 }
-function urunSil(id) { if(confirm("Silinsin mi?")) db.collection("stoklar").doc(id).delete(); }
+function urunSil(id) { if(confirm(id + " silinsin mi?")) db.collection("stoklar").doc(id).delete(); }
 
 function stokGrafikCiz() {
     const ctx = document.getElementById('stokChart');
     const labels = Object.keys(stoklar);
     const data = labels.map(l => stoklar[l].kalan);
     if(myChart) myChart.destroy();
-    myChart = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Stok', data, backgroundColor: 'blue' }] } });
+    myChart = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Stok Adedi', data, backgroundColor: '#3498db' }] } });
 }
 
+// Uygulamayı Başlat
 verileriGetir();
+hareketleriGetir();
