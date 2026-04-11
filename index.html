@@ -3,38 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stok Takip Sistemi ULTIMATE</title>
+    <title>Stok Takip Sistemi PRO</title>
     <link rel="stylesheet" href="style.css">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
 
     <div class="container">
         <h1>Stok Takip Sistemi</h1>
-<div id="reader" style="width: 100%; display:none; margin-bottom: 20px; border-radius: 10px; overflow: hidden;"></div>
+
+        <div id="reader" style="width: 100%; display:none; margin-bottom: 20px; border-radius: 10px; overflow: hidden; border: 2px solid #3498db;"></div>
+
         <div class="section">
             <h3>Yeni Ürün Ekle</h3>
             <input type="text" id="urunAdi" placeholder="Ürün Adı">
-            <input type="text" id="urunBarkod" placeholder="Barkod">
-            <button onclick="urunEkle()">Ürün Ekle</button>
+            <div style="display:flex; gap:5px; margin-top:5px;">
+                <input type="text" id="urunBarkod" placeholder="Barkod" style="flex:1;">
+                <button onclick="kameraBaslat('urunBarkod')" style="background:#34495e; color:white; border:none; border-radius:5px; padding:0 15px; cursor:pointer;">📷</button>
+            </div>
+            <button onclick="urunEkle()" style="margin-top:10px;">Ürün Ekle</button>
         </div>
-<div style="display:flex; gap:5px;">
-    <input type="text" id="urunBarkod" placeholder="Barkod">
-    <button onclick="kameraBaslat('urunBarkod')" style="background:#34495e; padding:5px 10px;">📷</button>
-</div>
 
-<div style="display:flex; gap:5px; margin-top:4px;">
-    <input type="text" id="editBarkod" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:5px;">
-    <button onclick="kameraBaslat('editBarkod')" style="background:#34495e; color:white; border:none; border-radius:5px; padding:0 10px; cursor:pointer;">📷</button>
-</div>
         <div class="section">
             <h3>Stok Giriş / Çıkış</h3>
             <select id="urunSelect"></select>
@@ -44,36 +41,18 @@
         </div>
 
         <div class="section" style="background: #f1f2f6; border-left: 5px solid #34495e;">
-            <h3>📊 Gelişmiş Raporlama</h3>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
+            <h3>📊 Raporlama & Çıktı</h3>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
                 <input type="date" id="raporBaslangic">
                 <input type="date" id="raporBitis">
-                <button onclick="raporOlustur()" style="background: #34495e; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Sorgula</button>
-                
-                <button onclick="excelIndir()" id="btnExcel" style="display:none; background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Excel</button>
-                <button onclick="pdfIndir()" id="btnPdf" style="display:none; background: #e67e22; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">PDF</button>
-                <button onclick="raporYazdir()" id="btnYazdir" style="display:none; background: #2980b9; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Yazdır 🖨️</button>
+                <button onclick="raporOlustur()" style="background: #34495e; color: white;">Sorgula</button>
             </div>
-
-            <div id="raporSonuc" style="display: none; background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
-                <div style="display: flex; gap: 20px; margin-bottom: 15px;">
-                    <div style="flex: 1; background: #eafaf1; padding: 10px; border-radius: 5px; text-align: center;">
-                        <small>Toplam Giriş</small><br>
-                        <strong id="toplamGirisAdet" style="color: #27ae60; font-size: 18px;">0</strong>
-                    </div>
-                    <div style="flex: 1; background: #fdedec; padding: 10px; border-radius: 5px; text-align: center;">
-                        <small>Toplam Çıkış</small><br>
-                        <strong id="toplamCikisAdet" style="color: #e74c3c; font-size: 18px;">0</strong>
-                    </div>
-                </div>
-                <table id="printableTable" style="width: 100%; font-size: 13px; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #eee;">
-                            <th style="text-align: left; padding: 8px; border: 1px solid #ddd;">Ürün</th>
-                            <th style="padding: 8px; border: 1px solid #ddd;">Giriş</th>
-                            <th style="padding: 8px; border: 1px solid #ddd;">Çıkış</th>
-                        </tr>
-                    </thead>
+            <div id="raporSonuc" style="display:none;">
+                <button onclick="excelIndir()" style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:3px;">Excel</button>
+                <button onclick="pdfIndir()" style="background:#e67e22; color:white; border:none; padding:5px 10px; border-radius:3px;">PDF</button>
+                <button onclick="raporYazdir()" style="background:#2980b9; color:white; border:none; padding:5px 10px; border-radius:3px;">Yazdır</button>
+                <table id="printableTable" style="width:100%; margin-top:10px; border-collapse: collapse; font-size:12px;">
+                    <thead><tr style="background:#eee;"><th>Ürün</th><th>Giriş</th><th>Çıkış</th></tr></thead>
                     <tbody id="raporTabloGovde"></tbody>
                 </table>
             </div>
@@ -81,61 +60,39 @@
 
         <div class="section">
             <h3>Stok Listesi</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Ürün Adı</th>
-                        <th>Barkod</th>
-                        <th>Kalan</th>
-                        <th>İşlem</th>
-                    </tr>
-                </thead>
+            <table style="width:100%;">
+                <thead><tr><th>Ürün</th><th>Barkod</th><th>Kalan</th><th>İşlem</th></tr></thead>
                 <tbody id="tablo"></tbody>
             </table>
         </div>
 
         <canvas id="stokChart"></canvas>
-
-        <div class="section">
-            <h3>Son 10 Hareket</h3>
-            <ul id="hareketListesi"></ul>
-        </div>
     </div>
 
-   <div id="detayModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; backdrop-filter: blur(3px);">
-        <div style="background:white; width:90%; max-width:480px; margin:30px auto; padding:25px; border-radius:15px; position:relative; max-height:90vh; overflow-y:auto; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
-            
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #3498db; padding-bottom:10px;">
-                <h2 id="detayUrunAdi" style="margin:0; color:#2c3e50; font-size: 1.2rem;">Ürün Ayarları</h2>
-                <span id="stokDurumRozet" style="padding:4px 10px; border-radius:20px; font-size:11px; font-weight:bold;"></span>
-            </div>
-
-            <div style="background:#f8f9fa; padding:15px; border-radius:10px; margin:15px 0; border: 1px solid #e9ecef;">
-                <h4 style="margin-top:0; color:#34495e; font-size: 14px;">✏️ Ürün Bilgilerini Güncelle</h4>
-                
-                <div style="margin-bottom:10px;">
-                    <label style="font-size:11px; font-weight:bold; color:#7f8c8d;">Barkod No:</label>
-                    <input type="text" id="editBarkod" style="width:100%; padding:8px; margin-top:4px; border:1px solid #ddd; border-radius:5px; box-sizing: border-box;">
+    <div id="detayModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999;">
+        <div style="background:white; width:90%; max-width:450px; margin:20px auto; padding:20px; border-radius:10px; position:relative; max-height:90vh; overflow-y:auto;">
+            <h2 id="detayUrunAdi">Ürün Ayarları</h2>
+            <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:15px;">
+                <label style="font-size:12px; font-weight:bold;">Barkod:</label>
+                <div style="display:flex; gap:5px; margin-bottom:10px;">
+                    <input type="text" id="editBarkod" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:5px;">
+                    <button onclick="kameraBaslat('editBarkod')" style="background:#34495e; color:white; border:none; padding:0 10px; border-radius:5px;">📷</button>
                 </div>
-
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <div style="display:flex; gap:10px;">
                     <div style="flex:1;">
-                        <label style="font-size:11px; font-weight:bold; color:#7f8c8d;">Mevcut Stok:</label>
-                        <input type="number" id="editStok" style="width:100%; padding:8px; margin-top:4px; border:1px solid #ddd; border-radius:5px; box-sizing: border-box;">
+                        <label style="font-size:12px;">Mevcut Stok:</label>
+                        <input type="number" id="editStok" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;">
                     </div>
                     <div style="flex:1;">
-                        <label style="font-size:11px; font-weight:bold; color:#7f8c8d;">Kritik Seviye:</label>
-                        <input type="number" id="editKritik" placeholder="Örn: 5" style="width:100%; padding:8px; margin-top:4px; border:1px solid #ddd; border-radius:5px; box-sizing: border-box;">
+                        <label style="font-size:12px;">Kritik Seviye:</label>
+                        <input type="number" id="editKritik" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;">
                     </div>
                 </div>
-
-                <button onclick="urunHepsiniGuncelle()" style="width:100%; background:#27ae60; color:white; border:none; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold;">Değişiklikleri Kaydet</button>
+                <button onclick="urunHepsiniGuncelle()" style="width:100%; margin-top:15px; background:#27ae60; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold;">KAYDET</button>
             </div>
-
-            <h4 style="margin-bottom:10px; color:#34495e; font-size: 14px;">🕒 Son Hareketler</h4>
+            <h4>Hareket Geçmişi</h4>
             <div id="detayIcerik"></div>
-            
-            <button onclick="modalKapat()" style="width:100%; background:#95a5a6; color:white; border:none; padding:12px; margin-top:20px; border-radius:6px; cursor:pointer; font-weight:bold;">Kapat</button>
+            <button onclick="modalKapat()" style="width:100%; margin-top:10px; padding:10px;">Kapat</button>
         </div>
     </div>
 
