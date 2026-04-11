@@ -122,9 +122,11 @@
     const urunSelect = document.getElementById("urunSelect");
     const tablo = document.getElementById("tablo");
     const hareketTablo = document.getElementById("hareketTablo");
+    const hareketFiltreUrun = document.getElementById("hareketFiltreUrun");
 
     let stoklar = {};
     let urunler = [];
+    let html5QrCode;
 
 // Stokları yükle
 async function stoklariYukle() {
@@ -135,8 +137,14 @@ async function stoklariYukle() {
     stoklar[docSnap.id] = docSnap.data();
     urunler.push(docSnap.id);
   });
-  urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
-  urunler.forEach(urun => ekleUrunSecenek(urun));
+   urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
+  hareketFiltreUrun.innerHTML = '<option value="">Tüm Ürünler</option>';
+  urunler.forEach(urun => {
+    ekleUrunSecenek(urun);
+    const opt = document.createElement("option");
+    opt.value = urun; opt.textContent = urun;
+    hareketFiltreUrun.appendChild(opt);
+  });
   tabloyuYenile();
   stokGrafikCiz();
 }
@@ -163,10 +171,10 @@ async function stoklariYukle() {
       e.preventDefault();
       const urunAdi = document.getElementById("urunAdi").value.trim();
       if (urunAdi) {
-        await setDoc(doc(db, "stoklar", urunAdi), { giren: 0, cikan: 0, kalan: 0 });
-        await stoklariYukle();
-      }
-      urunForm.reset();
+        await setDoc(doc(db, "stoklar", urunAdi), { giren: 0, cikan: 0, kalan: 0, barkod: "" });
+    await stoklariYukle();
+  }
+  urunForm.reset();
     });
 
     // Stok işlemleri
