@@ -305,6 +305,34 @@ function urunEkle() {
     if(ad) db.collection("stoklar").doc(ad).set({ barkod: document.getElementById('urunBarkod').value, kalan: 0, kritik: 5 });
 }
 function urunSil(id) { if(confirm("Sil?")) db.collection("stoklar").doc(id).delete(); }
-function modalKapat() { modalKameraDurdur(); document.getElementById('detayModal').style.display = "none"; }
-
+// MODAL KAPATMA (Artık kamerayı da otomatik kapatacak)
+function modalKapat() {
+    // Önce kamera açıksa onu güvenli bir şekilde durduruyoruz
+    if (modalQrCode) {
+        modalQrCode.stop().then(() => {
+            modalQrCode = null;
+            document.getElementById('modal-reader').style.display = "none";
+            document.getElementById('modalCamBtn').innerText = "📷";
+            // Kamera durduktan sonra modalı kapatıyoruz
+            document.getElementById('detayModal').style.display = "none";
+        }).catch(err => {
+            console.log("Kamera durdurma hatası:", err);
+            // Hata olsa bile modalı kapat
+            document.getElementById('detayModal').style.display = "none";
+        });
+    } else {
+        // Kamera açık değilse direkt kapat
+        document.getElementById('detayModal').style.display = "none";
+    }
+}
+// MODAL İÇİ KAMERA DURDURMA (Yardımcı Fonksiyon)
+function modalKameraDurdur() {
+    if (modalQrCode) {
+        modalQrCode.stop().then(() => {
+            document.getElementById('modal-reader').style.display = "none";
+            document.getElementById('modalCamBtn').innerText = "📷";
+            modalQrCode = null;
+        });
+    }
+}
 verileriGetir(); hareketleriGetir();
