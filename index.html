@@ -4,69 +4,16 @@
   <meta charset="UTF-8">
   <title>Stok Takip Uygulaması</title>
   <style>
-    body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      margin: 20px;
-      background-color: #f9fafb;
-      color: #333;
-    }
-
-    h1, h2 {
-      color: #2c3e50;
-    }
-
-    form {
-      margin-top: 20px;
-      padding: 15px;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-
-    input, select, button {
-      padding: 10px;
-      margin: 5px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-    }
-
-    button {
-      background-color: #3498db;
-      color: white;
-      border: none;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-
-    button:hover {
-      background-color: #2980b9;
-    }
-
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 20px;
-      background: #fff;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-
-    th, td {
-      border: 1px solid #ddd;
-      padding: 12px;
-      text-align: center;
-    }
-
-    th {
-      background-color: #3498db;
-      color: white;
-    }
-
-    tr:nth-child(even) {
-      background-color: #f2f2f2;
-    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; background:#f9fafb; }
+    h1,h2 { color:#2c3e50; }
+    form { margin-top:20px; padding:15px; background:#fff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+    input,select,button { padding:10px; margin:5px; border-radius:6px; border:1px solid #ccc; font-size:14px; }
+    button { background:#3498db; color:#fff; border:none; cursor:pointer; transition:0.3s; }
+    button:hover { background:#2980b9; }
+    table { border-collapse:collapse; width:100%; margin-top:20px; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+    th,td { border:1px solid #ddd; padding:12px; text-align:center; }
+    th { background:#3498db; color:#fff; }
+    tr:nth-child(even){background:#f2f2f2;}
 
     /* Mobil uyum */
     @media (max-width: 768px) {
@@ -179,19 +126,7 @@
     let stoklar = {};
     let urunler = [];
 
-    // Stokları yükle
-    async function stoklariYukle() {
-      const snapshot = await getDocs(collection(db, "stoklar"));
-      stoklar = {};
-      urunler = [];
-      snapshot.forEach(docSnap => {
-        stoklar[docSnap.id] = docSnap.data();
-        urunler.push(docSnap.id);
-      });
-      urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
-      urunler.forEach(urun => ekleUrunSecenek(urun));
-      tabloyuYenile();
-    }
+// Stokları yükle
 async function stoklariYukle() {
   const snapshot = await getDocs(collection(db, "stoklar"));
   stoklar = {};
@@ -203,8 +138,6 @@ async function stoklariYukle() {
   urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
   urunler.forEach(urun => ekleUrunSecenek(urun));
   tabloyuYenile();
-
-  // 📊 stok grafiğini çiz
   stokGrafikCiz();
 }
 
