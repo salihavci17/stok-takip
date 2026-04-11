@@ -161,37 +161,11 @@ async function modalKameraBaslat() {
 function verileriGetir() {
     db.collection("stoklar").onSnapshot((querySnapshot) => {
         stoklar = {};
-        const tablo = document.getElementById('tablo');
-        const select = document.getElementById('urunSelect');
-        const kPanel = document.getElementById('kritikPanel');
-        const kListe = document.getElementById('kritikListe');
-        
-        tablo.innerHTML = "";
-        select.innerHTML = '<option value="">Seçin</option>';
-        kListe.innerHTML = "";
-        let kritikVarMi = false;
-
         querySnapshot.forEach((doc) => {
-            const id = doc.id; const v = doc.data();
-            stoklar[id] = v;
-            const kritik = v.kritik || 5;
-            const kalan = v.kalan || 0;
-
-            // Kritik Stok Kontrolü
-            if (kalan <= kritik) {
-                kritikVarMi = true;
-                kListe.innerHTML += `<li><b>${id}</b>: Son ${kalan} adet kaldı!</li>`;
-            }
-
-            tablo.innerHTML += `<tr>
-                <td onclick="urunDetayiniGoster('${id}')" style="color:#3498db; font-weight:bold;">${id}</td>
-                <td style="color:${kalan <= kritik ? 'red' : 'black'}; font-weight:bold;">${kalan}</td>
-                <td><button onclick="urunSil('${id}')" style="background:none; border:none; color:red;">✖</button></td>
-            </tr>`;
-            select.innerHTML += `<option value="${id}">${id}</option>`;
+            stoklar[doc.id] = doc.data();
         });
-
-        kPanel.style.display = kritikVarMi ? "block" : "none";
+        // Veriler her güncellendiğinde tabloyu ve sipariş listesini çizen fonksiyonu çağır
+        stoklariListele(); 
     });
 }
 
@@ -250,13 +224,62 @@ async function raporOlustur() {
     }
     document.getElementById('raporSonuc').style.display = sonRaporVerisi.length ? "block" : "none";
 }
+function stoklariListele() {
+    const tabloGovde = document.getElementById('tablo');
+    const urunSelect = document.getElementById('urunSelect');
+    const siparisListesi = document.getElementById('siparisListesi');
+    const siparisPanel = document.getElementById('siparisPanel');
 
+    // İçerikleri temizle
+    tabloGovde.innerHTML = "";
+    urunSelect.innerHTML = '<option value="">Ürün Seçiniz...</option>';
+    let siparisIcerik = "";
+    let eksikVarMi = false;
+
+    // Stokları alfabetik sıralayalım
+    const siraliAnahtarlar = Object.keys(stoklar).sort();
+
+    siraliAnahtarlar.forEach(id => {
+        const s = stoklar[id];
+        
+        // 1. Tabloyu Doldur (Ana Liste)
+        const renk = parseInt(s.kalan) <= parseInt(s.kritik) ? "red" : "black";
+        tabloGovde.innerHTML += `
+          <tr onclick="urunDetayiniGoster('${id}')"> 
+        <td>${id}</td>
+        <td style="color:${renk}; font-weight:bold;">${s.kalan}</td>
+        <td><button onclick="urunSil('${id}')" class="btn-sil">✖</button></td>
+    </tr>
+`;
+
+        // 2. Hızlı İşlem Seçeneklerini Doldur
+        urunSelect.innerHTML += `<option value="${id}">${id}</option>`;
+
+        // 3. SEÇENEK B: Sipariş Önerisi Kontrolü
+        if (parseInt(s.kalan) <= parseInt(s.kritik)) {
+            // Türkçe karakter temizleme robotunu kullanarak listeye ekle
+            const temizIsim = karakterTemizle(id);
+            siparisIcerik += `<li style="margin-bottom:8px;">
+                <span style="color:#e67e22; font-weight:bold;">⚠️ ${id}</span> 
+                <small>(Kalan: ${s.kalan} / Kritik: ${s.kritik})</small>
+            </li>`;
+            eksikVarMi = true;
+        }
+    });
+
+    // Sipariş panelini göster veya gizle
+    if (siparisPanel) {
+        siparisPanel.style.display = eksikVarMi ? "block" : "none";
+        siparisListesi.innerHTML = siparisIcerik;
+    }
+}
 // --- DİĞER İŞLEMLER ---
 function stokIslem(tip) {
     const urun = document.getElementById('urunSelect').value;
     const miktar = parseInt(document.getElementById('islemMiktar').value);
     if(!urun || !miktar) return;
-    const yeni = tip === 'giris' ? (stoklar[urun].kalan + miktar) : (stoklar[urun].kalan - miktar);
+    const mevcutStok = parseInt(stoklar[urun].kalan) || 0;
+    const yeni = tip === 'giris' ? (mevcutStok + miktar) : (mevcutStok - miktar);
     const batch = db.batch();
     batch.update(db.collection("stoklar").doc(urun), { kalan: yeni });
     batch.set(db.collection("hareketler").doc(), { urun, tur: tip, miktar, tarih: firebase.firestore.FieldValue.serverTimestamp() });
