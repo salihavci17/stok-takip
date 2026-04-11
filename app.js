@@ -124,15 +124,32 @@ function stoklariListele() {
 }
 
 function hareketleriGetir() {
+    // Firebase'den en son 15 hareketi tarih sırasına göre çekiyoruz
     db.collection("hareketler").orderBy("tarih", "desc").limit(15).onSnapshot((snap) => {
         const liste = document.getElementById('hareketListesi');
-        liste.innerHTML = "";
+        if (!liste) return;
+        
+        liste.innerHTML = ""; // Listeyi temizle
+
         snap.forEach(doc => {
             const h = doc.data();
-            const renk = h.tur === "giris" ? "green" : "red";
-            liste.innerHTML += `<div style="padding:5px; border-bottom:1px solid #eee; font-size:12px;">
-                ${tarihFormat(h.tarih)} - <b>${h.urun}</b> - <span style="color:${renk}">${h.miktar}</span>
-            </div>`;
+            const renk = h.tur === "giris" ? "#27ae60" : "#e74c3c"; // Yeşil / Kırmızı
+            const simge = h.tur === "giris" ? "➕" : "➖";
+            
+            // Eğer tarih verisi henüz sunucudan gelmediyse "İşleniyor..." yaz
+            const tarihYazisi = h.tarih ? tarihFormat(h.tarih) : "İşleniyor...";
+
+            liste.innerHTML += `
+                <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span style="font-weight:bold; color:${renk}">${simge} ${h.urun}</span>
+                        <br>
+                        <small style="color:#7f8c8d;">${tarihYazisi}</small>
+                    </div>
+                    <div style="font-weight:bold; color:${renk}">
+                        ${h.tur === "giris" ? "+" : "-"}${h.miktar}
+                    </div>
+                </div>`;
         });
     });
 }
