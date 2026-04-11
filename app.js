@@ -306,33 +306,37 @@ function urunEkle() {
 }
 function urunSil(id) { if(confirm("Sil?")) db.collection("stoklar").doc(id).delete(); }
 // MODAL KAPATMA (Artık kamerayı da otomatik kapatacak)
-function modalKapat() {
-    // Önce kamera açıksa onu güvenli bir şekilde durduruyoruz
+// MODAL KAPATMA (En sağlam hali)
+async function modalKapat() {
+    const modal = document.getElementById('detayModal');
+    const readerDiv = document.getElementById('modal-reader');
+    const btn = document.getElementById('modalCamBtn');
+
     if (modalQrCode) {
-        modalQrCode.stop().then(() => {
+        try {
+            await modalQrCode.stop(); // Kameranın durmasını bekle
             modalQrCode = null;
-            document.getElementById('modal-reader').style.display = "none";
-            document.getElementById('modalCamBtn').innerText = "📷";
-            // Kamera durduktan sonra modalı kapatıyoruz
-            document.getElementById('detayModal').style.display = "none";
-        }).catch(err => {
-            console.log("Kamera durdurma hatası:", err);
-            // Hata olsa bile modalı kapat
-            document.getElementById('detayModal').style.display = "none";
-        });
-    } else {
-        // Kamera açık değilse direkt kapat
-        document.getElementById('detayModal').style.display = "none";
+            readerDiv.style.display = "none";
+            btn.innerText = "📷";
+        } catch (err) {
+            console.error("Kamera durdurulurken hata oluştu:", err);
+        }
     }
+    
+    modal.style.display = "none"; // Kamera dursa da durmasa da modalı kapat
 }
+
 // MODAL İÇİ KAMERA DURDURMA (Yardımcı Fonksiyon)
-function modalKameraDurdur() {
+async function modalKameraDurdur() {
     if (modalQrCode) {
-        modalQrCode.stop().then(() => {
+        try {
+            await modalQrCode.stop();
             document.getElementById('modal-reader').style.display = "none";
             document.getElementById('modalCamBtn').innerText = "📷";
             modalQrCode = null;
-        });
+        } catch (err) {
+            console.log("Durdurma hatası:", err);
+        }
     }
 }
 verileriGetir(); hareketleriGetir();
