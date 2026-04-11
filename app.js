@@ -1,42 +1,86 @@
-import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDocs, collection, addDoc, deleteDoc } from "firebase/firestore";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+import { getFirestore, doc, setDoc, getDocs, deleteDoc, collection, addDoc } 
+  from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-// 🔑 Senin Firebase config bilgilerin
+// 🔑 Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyC7oZ-0VJQwYH7lYvZk9Zy5lXzqQkzXxXo",
-  authDomain: "stok-takip-salih.firebaseapp.com",
-  projectId: "stok-takip-salih",
-  storageBucket: "stok-takip-salih.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdef1234567890abcdef"
+  apiKey: "AIzaSyBdxkBa8K77nnLVFefpyzS-ACuxuZhhPc8",
+  authDomain: "stok-app-ca168.firebaseapp.com",
+  projectId: "stok-app-ca168",
+  storageBucket: "stok-app-ca168.appspot.com",
+  messagingSenderId: "599049285321",
+  appId: "1:599049285321:web:0c51fb5f9331ac4e20e718",
+  measurementId: "G-GH4N6W0FXH"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let stoklar = {};
-let aktifUrun = null;
-
 // Form ve tablo referansları
 const urunForm = document.getElementById("urunForm");
 const stokForm = document.getElementById("stokForm");
 const urunSelect = document.getElementById("urunSelect");
-const stokBody = document.getElementById("stokBody");
-const hareketBody = document.getElementById("hareketBody");
+const tablo = document.getElementById("tablo");
+const hareketTablo = document.getElementById("hareketTablo");
+
+let stoklar = {};
+let urunler = [];
+let html5QrCode;
+
+// ---------------- Bildirim Kutusu ----------------
+function bildirim(mesaj, tip = "success") {
+  const div = document.createElement("div");
+  div.textContent = mesaj;
+  div.style.padding = "10px";
+  div.style.margin = "10px 0";
+  div.style.borderRadius = "6px";
+  div.style.color = "#fff";
+  div.style.fontWeight = "bold";
+  div.style.textAlign = "center";
+  div.style.backgroundColor = tip === "success" ? "#2ecc71" : "#e74c3c";
+  document.body.prepend(div);
+  setTimeout(() => div.remove(), 3000);
+}
+
+// ---------------- Stokları Yükle ----------------
+async function stoklariYukle() {
+  const snapshot = await getDocs(collection(db, "stoklar"));
+  stoklar = {};
+  urunler = [];
+  snapshot.forEach(docSnap => {
+    stoklar[docSnap.id] = docSnap.data();
+    urunler.push(docSnap.id);
+  });
+  urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
+  urunler.forEach(urun => ekleUrunSecenek(urun));
+  tabloyuYenile();
+}
+
+// ---------------- Hareketleri Yükle ----------------
+async function hareketleriYukle() {
+  const snapshot = await getDocs(collection(db, "hareketler"));
+  hareketTablo.innerHTML = "";
+  snapshot.forEach(docSnap => {
+    const h = docSnap.data();
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${h.tarih}</td>
+      <td>${h.urun}</td>
+      <td>${h.tur}</td>
+      <td>${h.miktar}</td>
+    `;
+    hareketTablo.appendChild(tr);
+  });
+}
 
 // ---------------- Ürün Ekleme ----------------
 urunForm.addEventListener("submit", async e => {
   e.preventDefault();
   const urunAdi = document.getElementById("urunAdi").value.trim();
-  const urunBarkod = document.getElementById("urunBarkod").value.trim();
   if (urunAdi) {
-    await setDoc(doc(db, "stoklar", urunAdi), { 
-      giren: 0, 
-      cikan: 0, 
-      kalan: 0, 
-      barkod: urunBarkod || "" 
-    });
+    await setDoc(doc(db, "stoklar", urunAdi), { giren: 0, cikan: 0, kalan: 0, barkod: "" });
     await stoklariYukle();
+    bildirim("Ürün eklendi: " + urunAdi);
   }
   urunForm.reset();
 });
@@ -47,17 +91,14 @@ stokForm.addEventListener("submit", async e => {
   const urun = urunSelect.value;
   const miktar = parseInt(document.getElementById("miktar").value);
   const islemTuru = document.getElementById("islemTuru").value;
-  if (!urun) return alert("Lütfen ürün seçin.");
+  if (!urun) return bildirim("Lütfen ürün seçin.", "error");
   let kayit = stoklar[urun] || { giren: 0, cikan: 0, kalan: 0 };
 
   if (stokForm.dataset.duzenlenen) {
-    // 🔑 Düzenleme modunda sadece stok güncellenir, hareket eklenmez
     kayit.kalan = miktar;
-    await setDoc(doc(db, "stoklar", urun), kayit);
     stokForm.dataset.duzenlenen = "";
-    alert("Stok düzenlendi: " + urun + " → kalan: " + miktar);
+    bildirim("Stok düzenlendi: " + urun + " → kalan: " + miktar);
   } else {
-    // Normal giriş/çıkış işlemleri
     if (islemTuru === "giris") {
       kayit.giren += miktar;
       kayit.kalan += miktar;
@@ -65,68 +106,57 @@ stokForm.addEventListener("submit", async e => {
       kayit.cikan += miktar;
       kayit.kalan = Math.max(0, kayit.kalan - miktar);
     }
-
-    await setDoc(doc(db, "stoklar", urun), kayit);
-
-    // Hareket kaydı ekle
-    await addDoc(collection(db, "hareketler"), {
-      urun: urun,
-      miktar: miktar,
-      tur: islemTuru,
-      tarih: new Date().toISOString().split("T")[0]
-    });
+    bildirim("İşlem kaydedildi: " + urun + " → " + islemTuru + " " + miktar);
   }
+
+  await setDoc(doc(db, "stoklar", urun), kayit);
+
+  // Hareket kaydı ekle
+  await addDoc(collection(db, "hareketler"), {
+    urun: urun,
+    miktar: miktar,
+    tur: islemTuru,
+    tarih: new Date().toISOString().split("T")[0]
+  });
 
   await stoklariYukle();
   await hareketleriYukle();
   stokForm.reset();
 });
 
-// ---------------- Stokları Yükle ----------------
-async function stoklariYukle() {
-  const snapshot = await getDocs(collection(db, "stoklar"));
-  stoklar = {};
-  urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
-  stokBody.innerHTML = "";
-  snapshot.forEach(docSnap => {
-    stoklar[docSnap.id] = docSnap.data();
-    const kayit = stoklar[docSnap.id];
+// ---------------- Yardımcı Fonksiyonlar ----------------
+function ekleUrunSecenek(urun) {
+  const option = document.createElement("option");
+  option.value = urun;
+  option.textContent = urun;
+  urunSelect.appendChild(option);
+}
+
+function tabloyuYenile() {
+  tablo.innerHTML = "";
+  for (const u in stoklar) {
+    const kayit = stoklar[u];
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${docSnap.id}</td>
+      <td>${u}</td>
       <td>${kayit.giren}</td>
       <td>${kayit.cikan}</td>
       <td>${kayit.kalan}</td>
-      <td>${kayit.barkod || "-"}</td>
       <td>
-        <button onclick="urunDetay('${docSnap.id}')">Detay</button>
-        <button onclick="duzenleUrun('${docSnap.id}')">Düzenle</button>
-        <button onclick="silUrun('${docSnap.id}')">Sil</button>
+        <button onclick="duzenleUrun('${u}')">✏ Düzenle</button>
+        <button onclick="silUrun('${u}')">🗑 Sil</button>
       </td>
     `;
-    stokBody.appendChild(tr);
-
-    // Dropdown’a ürün ekle
-    const option = document.createElement("option");
-    option.value = docSnap.id;
-    option.textContent = docSnap.id;
-    urunSelect.appendChild(option);
-  });
+    tablo.appendChild(tr);
+  }
 }
-stoklariYukle();
 
-// ---------------- Hareketleri Yükle ----------------
-async function hareketleriYukle() {
-  const snapshot = await getDocs(collection(db, "hareketler"));
-  hareketBody.innerHTML = "";
-  snapshot.forEach(docSnap => {
-    const h = docSnap.data();
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${h.urun}</td><td>${h.tur}</td><td>${h.miktar}</td><td>${h.tarih}</td>`;
-    hareketBody.appendChild(tr);
-  });
+// ---------------- Ürün Silme ----------------
+window.silUrun = async function(urun) {
+  await deleteDoc(doc(db, "stoklar", urun));
+  stoklariYukle();
+  bildirim("Ürün silindi: " + urun, "error");
 }
-hareketleriYukle();
 
 // ---------------- Ürün Düzenleme ----------------
 window.duzenleUrun = function(urun) {
@@ -136,82 +166,54 @@ window.duzenleUrun = function(urun) {
   stokForm.dataset.duzenlenen = urun;
 }
 
-// ---------------- Ürün Silme ----------------
-window.silUrun = async function(urun) {
-  await deleteDoc(doc(db, "stoklar", urun));
-  await stoklariYukle();
+// ---------------- Yazdırma ----------------
+window.yazdirStok = function() {
+  const printContents = document.getElementById("stokTable").outerHTML;
+  const w = window.open("", "", "width=800,height=600");
+  w.document.write("<h2>Stok Listesi</h2>" + printContents);
+  w.document.close();
+  w.print();
 }
 
-// ---------------- Ürün Detay ----------------
-window.urunDetay = async function(urun) {
-  aktifUrun = urun;
-  const kayit = stoklar[urun];
-  document.getElementById("detayUrunAdi").textContent = urun;
-  document.getElementById("detayBarkod").value = kayit.barkod || "";
-  document.getElementById("detayMiktar").value = kayit.kalan;
-
-  // Hareketleri filtrele
-  const snapshot = await getDocs(collection(db, "hareketler"));
-  const detayHareketTablo = document.getElementById("detayHareketTablo");
-  detayHareketTablo.innerHTML = "";
-  snapshot.forEach(docSnap => {
-    const h = docSnap.data();
-    if (h.urun === urun) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${h.tarih}</td><td>${h.tur}</td><td>${h.miktar}</td>`;
-      detayHareketTablo.appendChild(tr);
-    }
-  });
-
-  document.getElementById("urunDetayModal").style.display = "block";
+window.yazdirHareket = function() {
+  const printContents = document.getElementById("hareketTable").outerHTML;
+  const w = window.open("", "", "width=800,height=600");
+  w.document.write("<h2>Günlük Hareketler</h2>" + printContents);
+  w.document.close();
+  w.print();
 }
 
-window.kapatDetay = function() {
-  document.getElementById("urunDetayModal").style.display = "none";
-}
-
-window.kaydetDetay = async function() {
-  if (!aktifUrun) return;
-  const yeniMiktar = parseInt(document.getElementById("detayMiktar").value);
-  const yeniBarkod = document.getElementById("detayBarkod").value.trim();
-  let kayit = stoklar[aktifUrun];
-  kayit.kalan = yeniMiktar;
-  if (yeniBarkod) kayit.barkod = yeniBarkod;
-
-  await setDoc(doc(db, "stoklar", aktifUrun), kayit);
-  await stoklariYukle();
-  alert("Stok güncellendi: " + aktifUrun + " → kalan: " + yeniMiktar + (yeniBarkod ? " barkod: " + yeniBarkod : ""));
-}
-
-// ---------------- Barkod Okutma ----------------
-// html5-qrcode kütüphanesini kullanıyorsan:
-let html5QrCode;
-
-window.startScanner = function() {
+// ---------------- Barkod Okuma ----------------
+function startScanner() {
   html5QrCode = new Html5Qrcode("reader");
   html5QrCode.start(
     { facingMode: "environment" },
     { fps: 10, qrbox: 250 },
-    qrCodeMessage => {
-      // Barkod okutulduğunda ürün seçilsin
+    (decodedText) => {
+      let bulundu = false;
       for (const [urun, kayit] of Object.entries(stoklar)) {
-        if (kayit.barkod === qrCodeMessage) {
+        if (kayit.barkod === decodedText) {
           urunSelect.value = urun;
-          alert("Barkod okundu: " + urun);
+          bildirim("Barkod okundu: " + urun + " (Barkod: " + decodedText + ")");
+          bulundu = true;
+          break;
         }
+      }
+      if (!bulundu) {
+        bildirim("Okunan barkod hiçbir ürünle eşleşmedi: " + decodedText, "error");
       }
     }
   ).catch(err => {
-    console.error("Kamera başlatılamadı:", err);
+    console.error("Kamera başlatılamadı: ", err);
   });
 }
 
-window.stopScanner = function() {
+function stopScanner() {
   if (html5QrCode) {
     html5QrCode.stop().then(() => {
-      console.log("Kamera durduruldu.");
+      console.log("Barkod okuma durduruldu.");
     }).catch(err => {
-      console.error("Kamera durdurulamadı:", err);
+      console.error("Scanner durduruldu: ", err);
     });
   }
 }
