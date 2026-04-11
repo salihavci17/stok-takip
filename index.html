@@ -109,6 +109,7 @@
 <button onclick="startScanner()">Barkod Okumayı Başlat</button>
 <div id="reader" style="width:300px;"></div>
 <button onclick="stopScanner()">Barkod Okumayı Durdur</button>
+<input type="text" id="stokArama" placeholder="Ürün ara..." style="margin-top:10px; padding:8px; width:200px;">
 
   <!-- Stok listesi -->
   <h2>📋 Stok Listesi</h2>
@@ -126,6 +127,14 @@
     <tbody id="tablo"></tbody>
 </table>
 
+<h2>📊 Stok Grafiği</h2>
+<canvas id="stokChart" width="400" height="200"></canvas>
+
+<select id="hareketFiltreUrun">
+  <option value="">Tüm Ürünler</option>
+</select>
+<input type="date" id="hareketFiltreTarih">
+<button onclick="hareketleriYukle()">Filtrele</button>
 
   <!-- Günlük hareketler -->
   <h2>📅 Günlük Hareketler</h2>
@@ -183,23 +192,38 @@
       urunler.forEach(urun => ekleUrunSecenek(urun));
       tabloyuYenile();
     }
+async function stoklariYukle() {
+  const snapshot = await getDocs(collection(db, "stoklar"));
+  stoklar = {};
+  urunler = [];
+  snapshot.forEach(docSnap => {
+    stoklar[docSnap.id] = docSnap.data();
+    urunler.push(docSnap.id);
+  });
+  urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
+  urunler.forEach(urun => ekleUrunSecenek(urun));
+  tabloyuYenile();
+
+  // 📊 stok grafiğini çiz
+  stokGrafikCiz();
+}
 
     // Günlük hareketleri yükle
     async function hareketleriYukle() {
-      const snapshot = await getDocs(collection(db, "hareketler"));
-      hareketTablo.innerHTML = "";
-      snapshot.forEach(docSnap => {
-        const h = docSnap.data();
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${h.tarih}</td>
-          <td>${h.urun}</td>
-          <td>${h.tur}</td>
-          <td>${h.miktar}</td>
-        `;
-        hareketTablo.appendChild(tr);
-      });
-    }
+  const filtreUrun = document.getElementById("hareketFiltreUrun").value;
+  const filtreTarih = document.getElementById("hareketFiltreTarih").value;
+  const snapshot = await getDocs(collection(db, "hareketler"));
+  hareketTablo.innerHTML = "";
+  snapshot.forEach(docSnap => {
+    const h = docSnap.data();
+    if (filtreUrun && h.urun !== filtreUrun) return;
+    if (filtreTarih && h.tarih !== filtreTarih) return;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${h.tarih}</td><td>${h.urun}</td><td>${h.tur}</td><td>${h.miktar}</td>`;
+    hareketTablo.appendChild(tr);
+  });
+}
+
 
     // Ürün ekleme
     urunForm.addEventListener("submit", async e => {
@@ -387,8 +411,8 @@ function stopScanner() {
 window.addEventListener("load", () => {
   stoklariYukle();
   hareketleriYukle();
- });
-
- </script>
+});
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>
