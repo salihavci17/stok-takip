@@ -149,22 +149,39 @@ async function stoklariYukle() {
   stokGrafikCiz();
 }
 
-    // Günlük hareketleri yükle
-    async function hareketleriYukle() {
+ async function hareketleriYukle() {
   const filtreUrun = document.getElementById("hareketFiltreUrun").value;
   const filtreTarih = document.getElementById("hareketFiltreTarih").value;
+
   const snapshot = await getDocs(collection(db, "hareketler"));
-  hareketTablo.innerHTML = "";
+  let hareketler = [];
+
   snapshot.forEach(docSnap => {
     const h = docSnap.data();
+
+    // 🔎 Filtreleme
     if (filtreUrun && h.urun !== filtreUrun) return;
     if (filtreTarih && h.tarih !== filtreTarih) return;
+
+    hareketler.push(h);
+  });
+
+  // 📅 Tarihe göre sıralama (en yeni en üstte)
+  hareketler.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
+
+  // Tabloyu temizle ve yeniden doldur
+  hareketTablo.innerHTML = "";
+  hareketler.forEach(h => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${h.tarih}</td><td>${h.urun}</td><td>${h.tur}</td><td>${h.miktar}</td>`;
+    tr.innerHTML = `
+      <td>${h.tarih}</td>
+      <td>${h.urun}</td>
+      <td>${h.tur}</td>
+      <td>${h.miktar}</td>
+    `;
     hareketTablo.appendChild(tr);
   });
 }
-
 
     // Ürün ekleme
     urunForm.addEventListener("submit", async e => {
