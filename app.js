@@ -26,6 +26,46 @@ function karakterTemizle(metin) {
         return harfHaritasi[harf];
     });
 }
+// Barkod okunduğunda çalışan ve listeden ürünü seçen fonksiyon
+function barkodlaUrunSec() {
+    const okunanBarkod = document.getElementById('islemBarkod').value;
+    const select = document.getElementById('urunSelect');
+    let bulundu = false;
+
+    // Tüm stokları tara, barkodu eşleşen ürünü bul
+    for (let urunId in stoklar) {
+        if (stoklar[urunId].barkod === okunanBarkod) {
+            select.value = urunId;
+            bulundu = true;
+            break;
+        }
+    }
+
+    if (!bulundu) {
+        alert("Bu barkoda ait bir ürün bulunamadı!");
+    } else {
+        // Ürün bulunduğunda adet kısmına odaklan (opsiyonel)
+        document.getElementById('islemMiktar').focus();
+    }
+}
+
+// Mevcut kameraBaslat fonksiyonunda küçük bir düzenleme (Input tetikleme için)
+async function kameraBaslat(inputId) {
+    document.getElementById('reader-wrapper').style.display = "block";
+    if(html5QrCode) await html5QrCode.stop().catch(()=>{});
+    
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+        const inputElement = document.getElementById(inputId);
+        inputElement.value = text;
+        
+        // Manuel olarak onchange olayını tetikliyoruz ki barkodlaUrunSec çalışsın
+        const event = new Event('change');
+        inputElement.dispatchEvent(event);
+        
+        kameraDurdur();
+    }).catch(err => alert("Kamera Hatası: " + err));
+}
 // --- YARDIMCI FONKSİYONLAR ---
 function tarihFormat(veri) {
     if (!veri) return "---";

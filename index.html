@@ -39,14 +39,19 @@
         </div>
 
         <div class="section">
-            <h3>Hızlı Stok İşlemi</h3>
-            <select id="urunSelect"></select>
-            <input type="number" id="islemMiktar" placeholder="Adet">
-            <div style="display:flex; gap:10px;">
-                <button onclick="stokIslem('giris')" class="btn-giris" style="flex:1;">GİRİŞ (+)</button>
-                <button onclick="stokIslem('cikis')" class="btn-cikis" style="flex:1;">ÇIKIŞ (-)</button>
-            </div>
-        </div>
+    <h3>Hızlı Stok İşlemi</h3>
+    <div style="display:flex; gap:5px; margin-bottom:10px;">
+        <select id="urunSelect" style="flex:1; margin-bottom:0;"></select>
+        <button onclick="kameraBaslat('islemBarkod')" style="background:#34495e; color:white; padding:0 15px; border-radius:10px;">📷</button>
+    </div>
+    <input type="hidden" id="islemBarkod" onchange="barkodlaUrunSec()">
+    
+    <input type="number" id="islemMiktar" placeholder="Adet">
+    <div style="display:flex; gap:10px;">
+        <button onclick="stokIslem('giris')" class="btn-giris" style="flex:1;">GİRİŞ (+)</button>
+        <button onclick="stokIslem('cikis')" class="btn-cikis" style="flex:1;">ÇIKIŞ (-)</button>
+    </div>
+</div>
 
         <div class="section" style="background:#f1f2f6;">
     <h3>Raporlama</h3>
@@ -109,7 +114,7 @@
     </div>
 <div style="text-align:center; margin-top:20px; padding-bottom:20px; color:#bdc3c7; font-size:12px;">
     Stok Takip Sistemi <br>
-    <b>Versiyon: 1.2.0</b>
+    <b>Versiyon: 1.3.0</b>
 </div>
     <script src="app.js"></script>
 </body>
