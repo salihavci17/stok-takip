@@ -15,158 +15,112 @@ let html5QrCode = null;
 let modalQrCode = null;
 let seciliUrunId = "";
 let sonRaporVerisi = [];
-// TÜRKÇE KARAKTERLERİ PDF İÇİN TEMİZLEME FONKSİYONU
+
 function karakterTemizle(metin) {
     if (!metin) return "";
-    const harfHaritasi = {
-        'ç': 'c', 'Ç': 'C', 'ğ': 'g', 'Ğ': 'G', 'ş': 's', 'Ş': 'S',
-        'ü': 'u', 'Ü': 'U', 'ö': 'o', 'Ö': 'O', 'ı': 'i', 'İ': 'I'
-    };
-    return metin.replace(/[çÇğĞşŞüÜöÖıİ]/g, function(harf) {
-        return harfHaritasi[harf];
-    });
+    const harfHaritasi = { 'ç':'c','Ç':'C','ğ':'g','Ğ':'G','ş':'s','Ş':'S','ü':'u','Ü':'U','ö':'o','Ö':'O','ı':'i','İ':'I' };
+    return metin.replace(/[çÇğĞşŞüÜöÖıİ]/g, (harf) => harfHaritasi[harf]);
 }
-// Barkod okunduğunda çalışan ve listeden ürünü seçen fonksiyon
+
 function barkodlaUrunSec() {
     const okunanBarkod = document.getElementById('islemBarkod').value;
     const select = document.getElementById('urunSelect');
     let bulundu = false;
-
-    // Tüm stokları tara, barkodu eşleşen ürünü bul
     for (let urunId in stoklar) {
         if (stoklar[urunId].barkod === okunanBarkod) {
             select.value = urunId;
-            bulundu = true;
-            break;
+            bulundu = true; break;
         }
     }
-
-    if (!bulundu) {
-        alert("Bu barkoda ait bir ürün bulunamadı!");
-    } else {
-        // Ürün bulunduğunda adet kısmına odaklan (opsiyonel)
-        document.getElementById('islemMiktar').focus();
-    }
+    if (!bulundu) alert("Bu barkoda ait bir ürün bulunamadı!");
+    else document.getElementById('islemMiktar').focus();
 }
 
-// Mevcut kameraBaslat fonksiyonunda küçük bir düzenleme (Input tetikleme için)
 async function kameraBaslat(inputId) {
     document.getElementById('reader-wrapper').style.display = "block";
     if(html5QrCode) await html5QrCode.stop().catch(()=>{});
-    
     html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
         const inputElement = document.getElementById(inputId);
         inputElement.value = text;
-        
-        // Manuel olarak onchange olayını tetikliyoruz ki barkodlaUrunSec çalışsın
         const event = new Event('change');
         inputElement.dispatchEvent(event);
-        
         kameraDurdur();
     }).catch(err => alert("Kamera Hatası: " + err));
 }
-// --- YARDIMCI FONKSİYONLAR ---
-function tarihFormat(veri) {
-    if (!veri) return "---";
-    let d;
-    if (veri.seconds) {
-        d = new Date(veri.seconds * 1000);
-    } else {
-        d = new Date(veri);
-    }
-    
-    if (isNaN(d.getTime())) return "Bilinmiyor";
-    
-    // Sadece Gün.Ay.Yıl formatı (Saat kaldırıldı)
-    const gun = String(d.getDate()).padStart(2, '0');
-    const ay = String(d.getMonth() + 1).padStart(2, '0');
-    const yil = d.getFullYear();
-    
-    return `${gun}.${ay}.${yil}`;
-}
 
-// --- ARAMA / FİLTRELEME ÖZELLİĞİ ---
-function tabloFiltrele() {
-    const input = document.getElementById("aramaKutusu").value.toUpperCase();
-    const tablo = document.getElementById("tablo");
-    const satirlar = tablo.getElementsByTagName("tr");
-
-    for (let i = 0; i < satirlar.length; i++) {
-        const urunAdi = satirlar[i].getElementsByTagName("td")[0];
-        if (urunAdi) {
-            const metin = urunAdi.textContent || urunAdi.innerText;
-            // Buraya barkodu da dahil etmek istersen stoklar objesinden kontrol eklenebilir
-            satirlar[i].style.display = metin.toUpperCase().indexOf(input) > -1 ? "" : "none";
-        }
-    }
-}
-
-// --- BARKOD SİSTEMLERİ ---
-async function kameraBaslat(inputId) {
-    document.getElementById('reader-wrapper').style.display = "block";
-    if(html5QrCode) await html5QrCode.stop().catch(()=>{});
-    html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (text) => {
-        document.getElementById(inputId).value = text;
-        kameraDurdur();
-    }).catch(err => alert("Hata: " + err));
-}
 function kameraDurdur() {
     if(html5QrCode) html5QrCode.stop().then(() => document.getElementById('reader-wrapper').style.display = "none");
 }
 
-async function modalKameraBaslat() {
-    const readerDiv = document.getElementById('modal-reader');
-    const btn = document.getElementById('modalCamBtn');
-    
-    // Eğer zaten çalışıyorsa durdur
-    if (modalQrCode) {
-        await modalQrCode.stop().catch(err => console.log("Durdurma hatası:", err));
-        modalQrCode = null;
-        readerDiv.style.display = "none";
-        btn.innerText = "📷";
-        return;
-    }
-
-    // Kamera alanını göster
-    readerDiv.style.display = "block";
-    btn.innerText = "✖";
-
-    // Yeni nesne oluştur
-    modalQrCode = new Html5Qrcode("modal-reader");
-    
-    const config = { fps: 10, qrbox: { width: 200, height: 200 } };
-
-    // Kamerayı başlat
-    modalQrCode.start(
-        { facingMode: "environment" }, // Arka kamerayı zorla
-        config,
-        (text) => { // Başarılı okuma
-            document.getElementById('editBarkod').value = text;
-            modalKameraDurdur();
-        },
-        (error) => { // Okuma devam ederken oluşan hataları sustur (loglama)
-            // console.warn(error); 
-        }
-    ).catch(err => {
-        alert("Kamera başlatılamadı! Lütfen HTTPS bağlantısı kullandığınızdan ve kamera izni verdiğinizden emin olun.");
-        console.error("Kamera Hatası:", err);
-        readerDiv.style.display = "none";
-        btn.innerText = "📷";
-    });
+function tarihFormat(veri) {
+    if (!veri) return "---";
+    let d = veri.seconds ? new Date(veri.seconds * 1000) : new Date(veri);
+    if (isNaN(d.getTime())) return "Bilinmiyor";
+    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
 }
 
-// --- VERİ ÇEKME & KRİTİK STOK KONTROLÜ ---
+function tabloFiltrele() {
+    const input = document.getElementById("aramaKutusu").value.toUpperCase();
+    const tablo = document.getElementById("tablo");
+    const satirlar = tablo.getElementsByTagName("tr");
+    for (let i = 0; i < satirlar.length; i++) {
+        const urunAdi = satirlar[i].getElementsByTagName("td")[0];
+        if (urunAdi) {
+            satirlar[i].style.display = urunAdi.textContent.toUpperCase().includes(input) ? "" : "none";
+        }
+    }
+}
+
 function verileriGetir() {
     db.collection("stoklar").onSnapshot((querySnapshot) => {
         stoklar = {};
-        querySnapshot.forEach((doc) => {
-            stoklar[doc.id] = doc.data();
-        });
-        // Veriler her güncellendiğinde tabloyu ve sipariş listesini çizen fonksiyonu çağır
+        querySnapshot.forEach((doc) => { stoklar[doc.id] = doc.data(); });
         stoklariListele(); 
     });
+}
+
+function stoklariListele() {
+    const tabloGovde = document.getElementById('tablo');
+    const select = document.getElementById('urunSelect');
+    const siparisPanel = document.getElementById('siparisPanel');
+    const siparisListesi = document.getElementById('siparisListesi');
+    const kListe = document.getElementById('kritikListe');
+    const kPanel = document.getElementById('kritikPanel');
+
+    if (!tabloGovde) return;
+    tabloGovde.innerHTML = "";
+    if (select) select.innerHTML = '<option value="">Seçin</option>';
+    if (siparisListesi) siparisListesi.innerHTML = "";
+    if (kListe) kListe.innerHTML = "";
+
+    let eksikVarMi = false;
+    const siraliAnahtarlar = Object.keys(stoklar).sort();
+
+    siraliAnahtarlar.forEach(id => {
+        const s = stoklar[id];
+        const kritik = s.kritik || 5;
+        const kalan = s.kalan || 0;
+        const renk = parseInt(kalan) <= parseInt(kritik) ? "red" : "black";
+
+        tabloGovde.innerHTML += `
+            <tr onclick="urunDetayiniGoster('${id}')"> 
+                <td>${id}</td>
+                <td style="color:${renk}; font-weight:bold;">${kalan}</td>
+                <td><button onclick="event.stopPropagation(); urunSil('${id}')" class="btn-sil">✖</button></td>
+            </tr>`;
+
+        if (select) select.innerHTML += `<option value="${id}">${id}</option>`;
+
+        if (parseInt(kalan) <= parseInt(kritik)) {
+            eksikVarMi = true;
+            if (siparisListesi) siparisListesi.innerHTML += `<li><b>${id}</b> <small>(Kalan: ${kalan})</small></li>`;
+            if (kListe) kListe.innerHTML += `<li><b>${id}</b>: Son ${kalan} adet!</li>`;
+        }
+    });
+
+    if (siparisPanel) siparisPanel.style.display = eksikVarMi ? "block" : "none";
+    if (kPanel) kPanel.style.display = eksikVarMi ? "block" : "none";
 }
 
 function hareketleriGetir() {
@@ -183,97 +137,6 @@ function hareketleriGetir() {
     });
 }
 
-// --- RAPORLAMA ---
-async function raporOlustur() {
-    const bas = document.getElementById('raporBaslangic').value;
-    const bit = document.getElementById('raporBitis').value;
-    const filtre = document.getElementById('raporFiltre').value; // Filtre değeri
-    
-    if (!bas || !bit) return alert("Tarih seç!");
-    
-    const govde = document.getElementById('raporTabloGovde');
-    govde.innerHTML = "Sorgulanıyor...";
-    let raporMap = {}; 
-    sonRaporVerisi = [];
-
-    const snap = await db.collection("hareketler").get();
-    snap.forEach(doc => {
-        const h = doc.data();
-        if (!h.tarih) return;
-        const d = h.tarih.seconds ? new Date(h.tarih.seconds * 1000) : new Date(h.tarih);
-        const f = d.toISOString().split('T')[0];
-        
-        if (f >= bas && f <= bit) {
-            // FİLTRELEME MANTIĞI
-            if (filtre === "hepsi" || h.tur === filtre) {
-                if (!raporMap[h.urun]) raporMap[h.urun] = { giris: 0, cikis: 0 };
-                
-                if (h.tur === "giris") {
-                    raporMap[h.urun].giris += parseInt(h.miktar);
-                } else {
-                    raporMap[h.urun].cikis += parseInt(h.miktar);
-                }
-            }
-        }
-    });
-
-    govde.innerHTML = "";
-    for (const u in raporMap) {
-        sonRaporVerisi.push({ Ürün: u, Giriş: raporMap[u].giris, Çıkış: raporMap[u].cikis });
-        govde.innerHTML += `<tr><td>${u}</td><td style="color:green">${raporMap[u].giris}</td><td style="color:red">${raporMap[u].cikis}</td></tr>`;
-    }
-    document.getElementById('raporSonuc').style.display = sonRaporVerisi.length ? "block" : "none";
-}
-function stoklariListele() {
-    const tabloGovde = document.getElementById('tablo');
-    const urunSelect = document.getElementById('urunSelect');
-    const siparisListesi = document.getElementById('siparisListesi');
-    const siparisPanel = document.getElementById('siparisPanel');
-
-    // İçerikleri temizle
-    tabloGovde.innerHTML = "";
-    urunSelect.innerHTML = '<option value="">Ürün Seçiniz...</option>';
-    let siparisIcerik = "";
-    let eksikVarMi = false;
-
-    // Stokları alfabetik sıralayalım
-    const siraliAnahtarlar = Object.keys(stoklar).sort();
-
-    siraliAnahtarlar.forEach(id => {
-        const s = stoklar[id];
-        
-        // 1. Tabloyu Doldur (Ana Liste)
-        const renk = parseInt(s.kalan) <= parseInt(s.kritik) ? "red" : "black";
-        tabloGovde.innerHTML += `
-          <tr onclick="urunDetayiniGoster('${id}')"> 
-        <td>${id}</td>
-        <td style="color:${renk}; font-weight:bold;">${s.kalan}</td>
-        <td><button onclick="urunSil('${id}')" class="btn-sil">✖</button></td>
-    </tr>
-`;
-
-        // 2. Hızlı İşlem Seçeneklerini Doldur
-        urunSelect.innerHTML += `<option value="${id}">${id}</option>`;
-
-        // 3. SEÇENEK B: Sipariş Önerisi Kontrolü
-        if (parseInt(s.kalan) <= parseInt(s.kritik)) {
-            // Türkçe karakter temizleme robotunu kullanarak listeye ekle
-            const temizIsim = karakterTemizle(id);
-            siparisIcerik += `<li style="margin-bottom:8px;">
-                <span style="color:#e67e22; font-weight:bold;">⚠️ ${id}</span> 
-                <small>(Kalan: ${s.kalan} / Kritik: ${s.kritik})</small>
-            </li>`;
-            eksikVarMi = true;
-        }
-    });
-
-    // Sipariş panelini göster veya gizle
-    if (siparisPanel) {
-        siparisPanel.style.display = eksikVarMi ? "block" : "none";
-        siparisListesi.innerHTML = siparisIcerik;
-    }
-}
-// --- DİĞER İŞLEMLER ---
 function stokIslem(tip) {
     const urun = document.getElementById('urunSelect').value;
     const miktar = parseInt(document.getElementById('islemMiktar').value);
@@ -283,7 +146,7 @@ function stokIslem(tip) {
     const batch = db.batch();
     batch.update(db.collection("stoklar").doc(urun), { kalan: yeni });
     batch.set(db.collection("hareketler").doc(), { urun, tur: tip, miktar, tarih: firebase.firestore.FieldValue.serverTimestamp() });
-    batch.commit().then(() => document.getElementById('islemMiktar').value = "");
+    batch.commit().then(() => { document.getElementById('islemMiktar').value = ""; });
 }
 
 function urunDetayiniGoster(id) {
@@ -293,10 +156,6 @@ function urunDetayiniGoster(id) {
     document.getElementById('editStok').value = v.kalan || 0;
     document.getElementById('editKritik').value = v.kritik || 5;
     document.getElementById('detayModal').style.display = "block";
-    db.collection("hareketler").where("urun", "==", id).orderBy("tarih", "desc").limit(5).get().then(snap => {
-        const icerik = document.getElementById('detayIcerik'); icerik.innerHTML = "<b>Son 5 Hareket:</b>";
-        snap.forEach(doc => { icerik.innerHTML += `<div>${tarihFormat(doc.data().tarih)} - ${doc.data().miktar}</div>`; });
-    });
 }
 
 function urunHepsiniGuncelle() {
@@ -307,99 +166,29 @@ function urunHepsiniGuncelle() {
     }).then(() => { modalKapat(); });
 }
 
-function excelIndir() {
-    const ws = XLSX.utils.json_to_sheet(sonRaporVerisi);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Rapor");
-    XLSX.writeFile(wb, "Rapor.xlsx");
+async function modalKapat() {
+    if (modalQrCode) { await modalQrCode.stop().catch(()=>{}); modalQrCode = null; }
+    document.getElementById('detayModal').style.display = "none";
+    document.getElementById('modal-reader').style.display = "none";
+    document.getElementById('modalCamBtn').innerText = "📷";
 }
 
-function pdfIndir() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p', 'mm', 'a4');
-
-    // Başlık Bölümü (Türkçe Karakter Kullanmıyoruz)
-    doc.setFontSize(20);
-    doc.setTextColor(44, 62, 80);
-    doc.text("STOK HAREKET RAPORU", 14, 22);
-
-    // Tarih Satırı
-    doc.setFontSize(10);
-    doc.setTextColor(120);
-    const simdi = new Date().toLocaleString('tr-TR');
-    doc.text(`Rapor Tarihi: ${simdi}`, 14, 30);
-    
-    // Mavi Çizgi
-    doc.setLineWidth(0.5);
-    doc.setDrawColor(41, 128, 185);
-    doc.line(14, 33, 196, 33);
-
-    // TABLO VERİSİNİ DÜZENLEME (Kritik Nokta Burası)
-    const temizTabloVerisi = sonRaporVerisi.map(item => [
-        karakterTemizle(item.Ürün), // Ürün isimlerini burada temizliyoruz
-        item.Giriş,
-        item.Çıkış
-    ]);
-
-    doc.autoTable({
-        head: [['URUN ADI', 'STOK GIRIS', 'STOK CIKIS']], // Başlıklar temizlendi
-        body: temizTabloVerisi,
-        startY: 38,
-        theme: 'striped',
-        styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 },
-        headStyles: { fillColor: [44, 62, 80], halign: 'center' },
-        columnStyles: {
-            0: { cellWidth: 'auto' },
-            1: { halign: 'center', fontStyle: 'bold', textColor: [39, 174, 96] },
-            2: { halign: 'center', fontStyle: 'bold', textColor: [192, 57, 43] }
-        },
-        didDrawPage: (data) => {
-            doc.setFontSize(9);
-            doc.text(`Sayfa ${data.pageNumber}`, 14, doc.internal.pageSize.height - 10);
-            doc.text("Stok Takip Sistemi tarafindan hazirlanmistir.", 100, doc.internal.pageSize.height - 10, { align: 'center' });
-        }
-    });
-
-    doc.save(`Stok_Raporu_${new Date().toLocaleDateString('tr-TR').replace(/\./g, '-')}.pdf`);
+async function modalKameraBaslat() {
+    const readerDiv = document.getElementById('modal-reader');
+    if (modalQrCode) { await modalQrCode.stop(); modalQrCode = null; readerDiv.style.display = "none"; return; }
+    readerDiv.style.display = "block";
+    modalQrCode = new Html5Qrcode("modal-reader");
+    modalQrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (text) => {
+        document.getElementById('editBarkod').value = text;
+        modalKapat();
+    }).catch(err => console.error(err));
 }
 
 function urunEkle() {
     const ad = document.getElementById('urunAdi').value;
     if(ad) db.collection("stoklar").doc(ad).set({ barkod: document.getElementById('urunBarkod').value, kalan: 0, kritik: 5 });
 }
-function urunSil(id) { if(confirm("Sil?")) db.collection("stoklar").doc(id).delete(); }
-// MODAL KAPATMA (Artık kamerayı da otomatik kapatacak)
-// MODAL KAPATMA (En sağlam hali)
-async function modalKapat() {
-    const modal = document.getElementById('detayModal');
-    const readerDiv = document.getElementById('modal-reader');
-    const btn = document.getElementById('modalCamBtn');
+function urunSil(id) { if(confirm("Silinsin mi?")) db.collection("stoklar").doc(id).delete(); }
 
-    if (modalQrCode) {
-        try {
-            await modalQrCode.stop(); // Kameranın durmasını bekle
-            modalQrCode = null;
-            readerDiv.style.display = "none";
-            btn.innerText = "📷";
-        } catch (err) {
-            console.error("Kamera durdurulurken hata oluştu:", err);
-        }
-    }
-    
-    modal.style.display = "none"; // Kamera dursa da durmasa da modalı kapat
-}
-
-// MODAL İÇİ KAMERA DURDURMA (Yardımcı Fonksiyon)
-async function modalKameraDurdur() {
-    if (modalQrCode) {
-        try {
-            await modalQrCode.stop();
-            document.getElementById('modal-reader').style.display = "none";
-            document.getElementById('modalCamBtn').innerText = "📷";
-            modalQrCode = null;
-        } catch (err) {
-            console.log("Durdurma hatası:", err);
-        }
-    }
-}
-verileriGetir(); hareketleriGetir();
+verileriGetir(); 
+hareketleriGetir();
