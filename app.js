@@ -57,7 +57,12 @@ function tarihFormat(veri) {
     if (!veri) return "---";
     let d = veri.seconds ? new Date(veri.seconds * 1000) : new Date(veri);
     if (isNaN(d.getTime())) return "Bilinmiyor";
-    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+    
+    const gun = String(d.getDate()).padStart(2, '0');
+    const ay = String(d.getMonth() + 1).padStart(2, '0');
+    const yil = d.getFullYear();
+    
+    return `${gun}.${ay}.${yil}`;
 }
 
 function tabloFiltrele() {
