@@ -78,18 +78,42 @@ function kameraDurdur() {
 
 async function modalKameraBaslat() {
     const readerDiv = document.getElementById('modal-reader');
-    if (modalQrCode) { await modalQrCode.stop(); modalQrCode = null; readerDiv.style.display = "none"; return; }
-    readerDiv.style.display = "block";
-    modalQrCode = new Html5Qrcode("modal-reader");
-    modalQrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 150 }, (text) => {
-        document.getElementById('editBarkod').value = text;
-        modalKameraDurdur();
-    });
-}
-function modalKameraDurdur() {
-    if (modalQrCode) modalQrCode.stop().then(() => {
-        document.getElementById('modal-reader').style.display = "none";
+    const btn = document.getElementById('modalCamBtn');
+    
+    // Eğer zaten çalışıyorsa durdur
+    if (modalQrCode) {
+        await modalQrCode.stop().catch(err => console.log("Durdurma hatası:", err));
         modalQrCode = null;
+        readerDiv.style.display = "none";
+        btn.innerText = "📷";
+        return;
+    }
+
+    // Kamera alanını göster
+    readerDiv.style.display = "block";
+    btn.innerText = "✖";
+
+    // Yeni nesne oluştur
+    modalQrCode = new Html5Qrcode("modal-reader");
+    
+    const config = { fps: 10, qrbox: { width: 200, height: 200 } };
+
+    // Kamerayı başlat
+    modalQrCode.start(
+        { facingMode: "environment" }, // Arka kamerayı zorla
+        config,
+        (text) => { // Başarılı okuma
+            document.getElementById('editBarkod').value = text;
+            modalKameraDurdur();
+        },
+        (error) => { // Okuma devam ederken oluşan hataları sustur (loglama)
+            // console.warn(error); 
+        }
+    ).catch(err => {
+        alert("Kamera başlatılamadı! Lütfen HTTPS bağlantısı kullandığınızdan ve kamera izni verdiğinizden emin olun.");
+        console.error("Kamera Hatası:", err);
+        readerDiv.style.display = "none";
+        btn.innerText = "📷";
     });
 }
 
