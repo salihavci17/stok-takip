@@ -1,376 +1,144 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8">
-  <title>Stok Takip Uygulaması</title>
-  <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; background:#f9fafb; }
-    h1,h2 { color:#2c3e50; }
-    form { margin-top:20px; padding:15px; background:#fff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
-    input,select,button { padding:10px; margin:5px; border-radius:6px; border:1px solid #ccc; font-size:14px; }
-    button { background:#3498db; color:#fff; border:none; cursor:pointer; transition:0.3s; }
-    button:hover { background:#2980b9; }
-    table { border-collapse:collapse; width:100%; margin-top:20px; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
-    th,td { border:1px solid #ddd; padding:12px; text-align:center; }
-    th { background:#3498db; color:#fff; }
-    tr:nth-child(even){background:#f2f2f2;}
-
-    /* Mobil uyum */
-    @media (max-width: 768px) {
-      table, thead, tbody, th, td, tr {
-        display: block;
-      }
-      th {
-        position: sticky;
-        top: 0;
-      }
-      td {
-        border: none;
-        padding: 8px;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stok Takip Sistemi ULTIMATE</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
-  <h1>Stok Takip Uygulaması</h1>
 
-  <!-- Ürün ekleme -->
-  <form id="urunForm">
-    <input type="text" id="urunAdi" placeholder="Ürün adı" required>
-    <button type="submit">Ürün Ekle</button>
-  </form>
+    <div class="container">
+        <h1>Stok Takip Sistemi</h1>
+<div id="reader" style="width: 100%; display:none; margin-bottom: 20px; border-radius: 10px; overflow: hidden;"></div>
+        <div class="section">
+            <h3>Yeni Ürün Ekle</h3>
+            <input type="text" id="urunAdi" placeholder="Ürün Adı">
+            <input type="text" id="urunBarkod" placeholder="Barkod">
+            <button onclick="urunEkle()">Ürün Ekle</button>
+        </div>
+<div style="display:flex; gap:5px;">
+    <input type="text" id="urunBarkod" placeholder="Barkod">
+    <button onclick="kameraBaslat('urunBarkod')" style="background:#34495e; padding:5px 10px;">📷</button>
+</div>
 
-  <!-- Stok işlemleri -->
-  <form id="stokForm">
-    <select id="urunSelect" required>
-      <option value="">Ürün seçin</option>
-    </select>
-    <input type="number" id="miktar" placeholder="Miktar" required>
-    <select id="islemTuru">
-      <option value="giris">Giriş</option>
-      <option value="cikis">Çıkış</option>
-    </select>
-    <button type="submit">Kaydet</button>
-  </form>
-<h2>📷 Barkod Okuma</h2>
-<button onclick="startScanner()">Barkod Okumayı Başlat</button>
-<div id="reader" style="width:300px;"></div>
-<button onclick="stopScanner()">Barkod Okumayı Durdur</button>
-<input type="text" id="stokArama" placeholder="Ürün ara..." style="margin-top:10px; padding:8px; width:200px;">
+<div style="display:flex; gap:5px; margin-top:4px;">
+    <input type="text" id="editBarkod" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:5px;">
+    <button onclick="kameraBaslat('editBarkod')" style="background:#34495e; color:white; border:none; border-radius:5px; padding:0 10px; cursor:pointer;">📷</button>
+</div>
+        <div class="section">
+            <h3>Stok Giriş / Çıkış</h3>
+            <select id="urunSelect"></select>
+            <input type="number" id="islemMiktar" placeholder="Miktar">
+            <button onclick="stokIslem('giris')" class="btn-giris">Stok Ekle (+)</button>
+            <button onclick="stokIslem('cikis')" class="btn-cikis">Stok Çıkar (-)</button>
+        </div>
 
-  <!-- Stok listesi -->
-  <h2>📋 Stok Listesi</h2>
-  <button onclick="yazdirStok()">Stok Listesini Yazdır</button>
-  <table id="stokTable">
-   <thead>
-      <tr>
-        <th>Ürün</th>
-        <th>Giren</th>
-        <th>Çıkan</th>
-        <th>Kalan</th>
-        <th>İşlem</th>
-      </tr>
-    </thead>
-    <tbody id="tablo"></tbody>
-</table>
+        <div class="section" style="background: #f1f2f6; border-left: 5px solid #34495e;">
+            <h3>📊 Gelişmiş Raporlama</h3>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
+                <input type="date" id="raporBaslangic">
+                <input type="date" id="raporBitis">
+                <button onclick="raporOlustur()" style="background: #34495e; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Sorgula</button>
+                
+                <button onclick="excelIndir()" id="btnExcel" style="display:none; background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Excel</button>
+                <button onclick="pdfIndir()" id="btnPdf" style="display:none; background: #e67e22; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">PDF</button>
+                <button onclick="raporYazdir()" id="btnYazdir" style="display:none; background: #2980b9; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Yazdır 🖨️</button>
+            </div>
 
-<h2>📊 Stok Grafiği</h2>
-<canvas id="stokChart" width="400" height="200"></canvas>
+            <div id="raporSonuc" style="display: none; background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                    <div style="flex: 1; background: #eafaf1; padding: 10px; border-radius: 5px; text-align: center;">
+                        <small>Toplam Giriş</small><br>
+                        <strong id="toplamGirisAdet" style="color: #27ae60; font-size: 18px;">0</strong>
+                    </div>
+                    <div style="flex: 1; background: #fdedec; padding: 10px; border-radius: 5px; text-align: center;">
+                        <small>Toplam Çıkış</small><br>
+                        <strong id="toplamCikisAdet" style="color: #e74c3c; font-size: 18px;">0</strong>
+                    </div>
+                </div>
+                <table id="printableTable" style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #eee;">
+                            <th style="text-align: left; padding: 8px; border: 1px solid #ddd;">Ürün</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Giriş</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Çıkış</th>
+                        </tr>
+                    </thead>
+                    <tbody id="raporTabloGovde"></tbody>
+                </table>
+            </div>
+        </div>
 
-<select id="hareketFiltreUrun">
-  <option value="">Tüm Ürünler</option>
-</select>
-<input type="date" id="hareketFiltreTarih">
-<button onclick="hareketleriYukle()">Filtrele</button>
+        <div class="section">
+            <h3>Stok Listesi</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ürün Adı</th>
+                        <th>Barkod</th>
+                        <th>Kalan</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="tablo"></tbody>
+            </table>
+        </div>
 
-  <!-- Günlük hareketler -->
-  <h2>📅 Günlük Hareketler</h2>
-   <button onclick="yazdirHareket()">Günlük Hareketleri Yazdır</button>
-    <table id="hareketTable">
-   <thead>
-      <tr>
-        <th>Tarih</th>
-        <th>Ürün</th>
-        <th>Tür</th>
-        <th>Miktar</th>
-      </tr>
-    </thead>
-    <tbody id="hareketTablo"></tbody>
-</table>
-<!-- Html5Qrcode barkod okuma kütüphanesi -->
-<script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
-  <!-- Firebase ve uygulama kodu -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDocs, deleteDoc, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+        <canvas id="stokChart"></canvas>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBdxkBa8K77nnLVFefpyzS-ACuxuZhhPc8",
-      authDomain: "stok-app-ca168.firebaseapp.com",
-      projectId: "stok-app-ca168",
-      storageBucket: "stok-app-ca168.appspot.com",
-      messagingSenderId: "599049285321",
-      appId: "1:599049285321:web:0c51fb5f9331ac4e20e718",
-      measurementId: "G-GH4N6W0FXH"
-    };
+        <div class="section">
+            <h3>Son 10 Hareket</h3>
+            <ul id="hareketListesi"></ul>
+        </div>
+    </div>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+   <div id="detayModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; backdrop-filter: blur(3px);">
+        <div style="background:white; width:90%; max-width:480px; margin:30px auto; padding:25px; border-radius:15px; position:relative; max-height:90vh; overflow-y:auto; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #3498db; padding-bottom:10px;">
+                <h2 id="detayUrunAdi" style="margin:0; color:#2c3e50; font-size: 1.2rem;">Ürün Ayarları</h2>
+                <span id="stokDurumRozet" style="padding:4px 10px; border-radius:20px; font-size:11px; font-weight:bold;"></span>
+            </div>
 
-    const urunForm = document.getElementById("urunForm");
-    const stokForm = document.getElementById("stokForm");
-    const urunSelect = document.getElementById("urunSelect");
-    const tablo = document.getElementById("tablo");
-    const hareketTablo = document.getElementById("hareketTablo");
-    const hareketFiltreUrun = document.getElementById("hareketFiltreUrun");
+            <div style="background:#f8f9fa; padding:15px; border-radius:10px; margin:15px 0; border: 1px solid #e9ecef;">
+                <h4 style="margin-top:0; color:#34495e; font-size: 14px;">✏️ Ürün Bilgilerini Güncelle</h4>
+                
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:11px; font-weight:bold; color:#7f8c8d;">Barkod No:</label>
+                    <input type="text" id="editBarkod" style="width:100%; padding:8px; margin-top:4px; border:1px solid #ddd; border-radius:5px; box-sizing: border-box;">
+                </div>
 
-    let stoklar = {};
-    let urunler = [];
-    let html5QrCode;
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <div style="flex:1;">
+                        <label style="font-size:11px; font-weight:bold; color:#7f8c8d;">Mevcut Stok:</label>
+                        <input type="number" id="editStok" style="width:100%; padding:8px; margin-top:4px; border:1px solid #ddd; border-radius:5px; box-sizing: border-box;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:11px; font-weight:bold; color:#7f8c8d;">Kritik Seviye:</label>
+                        <input type="number" id="editKritik" placeholder="Örn: 5" style="width:100%; padding:8px; margin-top:4px; border:1px solid #ddd; border-radius:5px; box-sizing: border-box;">
+                    </div>
+                </div>
 
-// Stokları yükle
-async function stoklariYukle() {
-  const snapshot = await getDocs(collection(db, "stoklar"));
-  stoklar = {};
-  urunler = [];
-  snapshot.forEach(docSnap => {
-    stoklar[docSnap.id] = docSnap.data();
-    urunler.push(docSnap.id);
-  });
-   urunSelect.innerHTML = '<option value="">Ürün seçin</option>';
-  hareketFiltreUrun.innerHTML = '<option value="">Tüm Ürünler</option>';
-  urunler.forEach(urun => {
-    ekleUrunSecenek(urun);
-    const opt = document.createElement("option");
-    opt.value = urun; opt.textContent = urun;
-    hareketFiltreUrun.appendChild(opt);
-  });
-  tabloyuYenile();
-  stokGrafikCiz();
-}
+                <button onclick="urunHepsiniGuncelle()" style="width:100%; background:#27ae60; color:white; border:none; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold;">Değişiklikleri Kaydet</button>
+            </div>
 
- async function hareketleriYukle() {
-  const filtreUrun = document.getElementById("hareketFiltreUrun").value;
-  const filtreTarih = document.getElementById("hareketFiltreTarih").value;
+            <h4 style="margin-bottom:10px; color:#34495e; font-size: 14px;">🕒 Son Hareketler</h4>
+            <div id="detayIcerik"></div>
+            
+            <button onclick="modalKapat()" style="width:100%; background:#95a5a6; color:white; border:none; padding:12px; margin-top:20px; border-radius:6px; cursor:pointer; font-weight:bold;">Kapat</button>
+        </div>
+    </div>
 
-  const snapshot = await getDocs(collection(db, "hareketler"));
-  let hareketler = [];
-
-  snapshot.forEach(docSnap => {
-    const h = docSnap.data();
-
-    // 🔎 Filtreleme
-    if (filtreUrun && h.urun !== filtreUrun) return;
-    if (filtreTarih && h.tarih !== filtreTarih) return;
-
-    hareketler.push(h);
-  });
-
-  // 📅 Tarihe göre sıralama (en yeni en üstte)
-  hareketler.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
-
-  // Tabloyu temizle ve yeniden doldur
-  hareketTablo.innerHTML = "";
-  hareketler.forEach(h => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${h.tarih}</td>
-      <td>${h.urun}</td>
-      <td>${h.tur}</td>
-      <td>${h.miktar}</td>
-    `;
-    hareketTablo.appendChild(tr);
-  });
-}
-
-    // Ürün ekleme
-    urunForm.addEventListener("submit", async e => {
-      e.preventDefault();
-      const urunAdi = document.getElementById("urunAdi").value.trim();
-      if (urunAdi) {
-        await setDoc(doc(db, "stoklar", urunAdi), { giren: 0, cikan: 0, kalan: 0, barkod: "" });
-    await stoklariYukle();
-  }
-  urunForm.reset();
-    });
-
-    // Stok işlemleri
-    stokForm.addEventListener("submit", async e => {
-      e.preventDefault();
-      const urun = urunSelect.value;
-      const miktar = parseInt(document.getElementById("miktar").value);
-      const islemTuru = document.getElementById("islemTuru").value;
-      if (!urun) return alert("Lütfen ürün seçin.");
-      let kayit = stoklar[urun] || { giren: 0, cikan: 0, kalan: 0 };
-
-      if (stokForm.dataset.duzenlenen) {
-        kayit.kalan = miktar;
-        stokForm.dataset.duzenlenen = "";
-      } else {
-        if (islemTuru === "giris") {
-          kayit.giren += miktar;
-          kayit.kalan += miktar;
-        } else {
-          kayit.cikan += miktar;
-          kayit.kalan = Math.max(0, kayit.kalan - miktar);
-        }
-      }
-
-      await setDoc(doc(db, "stoklar", urun), kayit);
-
-      // Hareket kaydı ekle
-      await addDoc(collection(db, "hareketler"), {
-        urun: urun,
-        miktar: miktar,
-        tur: islemTuru,
-        tarih: new Date().toISOString().split("T")[0]
-      });
-
-      await stoklariYukle();
-      await hareketleriYukle();
-      stokForm.reset();
-    });
-
-    function ekleUrunSecenek(urun) {
-      const option = document.createElement("option");
-      option.value = urun;
-      option.textContent = urun;
-      urunSelect.appendChild(option);
-    }
-
-    function tabloyuYenile() {
-      tablo.innerHTML = "";
-      for (const u in stoklar) {
-        const kayit = stoklar[u];
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${u}</td>
-          <td>${kayit.giren}</td>
-          <td>${kayit.cikan}</td>
-          <td>${kayit.kalan}</td>
-          <td>
-            <button onclick="duzenleUrun('${u}')">Düzenle</button>
-            <button onclick="silUrun('${u}')">Sil</button>
-          </td>
-        `;
-        tablo.appendChild(tr);
-      }
-    }
-
-    window.silUrun = async function(urun) {
-      await deleteDoc(doc(db, "stoklar", urun));
-      stoklariYukle();
-    }
-
-    window.duzenleUrun = function(urun) {
-      const kayit = stoklar[urun];
-      urunSelect.value = urun;
-      document.getElementById("miktar").value = kayit.kalan;
-      stokForm.dataset.duzenlenen = urun;
-    }
-
-// Stok listesini yazdırma
-window.yazdirStok = function() {
-  const printContents = document.getElementById("stokTable").outerHTML;
-  const w = window.open("", "", "width=800,height=600");
-  w.document.write("<h2>Stok Listesi</h2>" + printContents);
-  w.document.close();
-  w.print();
-}
-
-// Günlük hareketleri yazdırma
-window.yazdirHareket = function() {
-  const printContents = document.getElementById("hareketTable").outerHTML;
-  const w = window.open("", "", "width=800,height=600");
-  w.document.write("<h2>Günlük Hareketler</h2>" + printContents);
-  w.document.close();
-  w.print();
-}
-
-// Stok listesini yazdırma
-window.yazdirStok = function() {
-  const printContents = document.getElementById("stokTable").outerHTML;
-  const w = window.open("", "", "width=800,height=600");
-  w.document.write(`
-    <html>
-      <head>
-        <title>Stok Listesi</title>
-        <style>
-          table { border-collapse: collapse; width: 100%; }
-          th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-          th { background-color: #f2f2f2; }
-          /* İşlem sütununu gizle */
-          th:last-child, td:last-child { display: none; }
-        </style>
-      </head>
-      <body>
-        <h2>Stok Listesi</h2>
-        ${printContents}
-      </body>
-    </html>
-  `);
-  w.document.close();
-  w.print();
-}
-
-// Günlük hareketleri yazdırma
-window.yazdirHareket = function() {
-  const printContents = document.getElementById("hareketTable").outerHTML;
-  const w = window.open("", "", "width=800,height=600");
-  w.document.write(`
-    <html>
-      <head>
-        <title>Günlük Hareketler</title>
-        <style>
-          table { border-collapse: collapse; width: 100%; }
-          th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-          th { background-color: #f2f2f2; }
-        </style>
-      </head>
-      <body>
-        <h2>Günlük Hareketler</h2>
-        ${printContents}
-      </body>
-    </html>
-  `);
-  w.document.close();
-  w.print();
-}
-
-// Barkod okuma başlat
-function startScanner() {
-  html5QrCode = new Html5Qrcode("reader");
-  html5QrCode.start(
-    { facingMode: "environment" }, // Arka kamera
-    { fps: 10, qrbox: 250 },
-    (decodedText, decodedResult) => {
-      urunSelect.value = decodedText;
-      alert("Barkod okundu: " + decodedText);
-    },
-    (errorMessage) => {
-      console.log("Barkod okunamadı: ", errorMessage);
-    }
-  ).catch(err => {
-    console.error("Kamera başlatılamadı: ", err);
-  });
-}
-
-function stopScanner() {
-  if (html5QrCode) {
-    html5QrCode.stop().then(() => {
-      console.log("Barkod okuma durduruldu.");
-    }).catch(err => {
-      console.error("Durdurulamadı: ", err);
-    });
-  }
-}
-
-// Sayfa yüklenince stokları ve hareketleri yükle + barkod başlat
-window.addEventListener("load", () => {
-  stoklariYukle();
-  hareketleriYukle();
-});
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

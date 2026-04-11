@@ -1,68 +1,17 @@
-body {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  margin: 20px;
-  background-color: #f9fafb;
-  color: #333;
-}
-
-h1, h2 {
-  color: #2c3e50;
-}
-
-form {
-  margin-top: 20px;
-  padding: 15px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-input, select, button {
-  padding: 10px;
-  margin: 5px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  font-size: 14px;
-}
-
-button {
-  background-color: #3498db;
-  color: white;
-  border: none;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-button:hover {
-  background-color: #2980b9;
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-  margin-top: 20px;
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-th, td {
-  border: 1px solid #ddd;
-  padding: 12px;
-  text-align: center;
-}
-
-th {
-  background-color: #3498db;
-  color: white;
-}
-
-tr:nth-child(even) {
-  background-color: #f2f2f2;
-}
-
-tr:last-child {
-  font-weight: bold;
-  background: #eaeaea;
-}
+* { box-sizing: border-box; font-family: sans-serif; }
+body { background: #f0f2f5; padding: 20px; }
+.container { max-width: 800px; margin: auto; }
+.card { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+.input-group { display: flex; gap: 10px; flex-wrap: wrap; }
+input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #ddd; }
+button { cursor: pointer; border: none; font-weight: bold; }
+.btn-primary { background: #3498db; color: white; flex: 1; }
+.btn-success { background: #27ae60; color: white; flex: 1; }
+.btn-danger { background: #e74c3c; color: white; flex: 1; }
+.btn-sil { background: #eee; color: #c0392b; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+.stok-az { background: #fff5f5; color: #e74c3c; font-weight: bold; }
+.header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.search-input { width: 200px; }
+@media (max-width: 500px) { .input-group { flex-direction: column; } .search-input { width: 100%; } }
