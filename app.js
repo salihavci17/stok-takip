@@ -136,26 +136,34 @@ function hareketleriGetir() {
         
         liste.innerHTML = ""; // Listeyi temizle
 
+        if (snap.empty) {
+            liste.innerHTML = "<div style='text-align:center; color:gray;'>Henüz hareket yok.</div>";
+            return;
+        }
+
         snap.forEach(doc => {
             const h = doc.data();
-            const renk = h.tur === "giris" ? "#27ae60" : "#e74c3c"; // Yeşil / Kırmızı
-            const simge = h.tur === "giris" ? "➕" : "➖";
+            const renk = h.tur === "giris" ? "#27ae60" : "#e74c3c";
             
-            // Eğer tarih verisi henüz sunucudan gelmediyse "İşleniyor..." yaz
-            const tarihYazisi = h.tarih ? tarihFormat(h.tarih) : "İşleniyor...";
+            // BUGÜNKÜ HAREKETLERİN GÖRÜNMESİ İÇİN KRİTİK KONTROL:
+            // Firebase sunucusundan tarih henüz gelmediyse o anki saati kullan
+            let tarihObje = h.tarih;
+            if (!tarihObje) {
+                tarihObje = new Date(); // Eğer null ise bugünü/şu anı kullan
+            }
 
             liste.innerHTML += `
                 <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                        <span style="font-weight:bold; color:${renk}">${simge} ${h.urun}</span>
+                        <span style="font-weight:bold; color:${renk}">${h.tur === "giris" ? "➕" : "➖"} ${h.urun}</span>
                         <br>
-                        <small style="color:#7f8c8d;">${tarihYazisi}</small>
+                        <small style="color:#7f8c8d;">${tarihFormat(tarihObje)}</small>
                     </div>
-                    <div style="font-weight:bold; color:${renk}">
-                        ${h.tur === "giris" ? "+" : "-"}${h.miktar}
-                    </div>
+                    <div style="font-weight:bold; color:${renk}">${h.miktar} Adet</div>
                 </div>`;
         });
+    }, (error) => {
+        console.error("Hareketler yüklenirken hata:", error);
     });
 }
 
@@ -167,7 +175,14 @@ function stokIslem(tip) {
     const yeni = tip === 'giris' ? (mevcutStok + miktar) : (mevcutStok - miktar);
     const batch = db.batch();
     batch.update(db.collection("stoklar").doc(urun), { kalan: yeni });
-    batch.set(db.collection("hareketler").doc(), { urun, tur: tip, miktar, tarih: firebase.firestore.FieldValue.serverTimestamp() });
+    // app.js içinde stokIslem fonksiyonunu bul ve bu kısmı güncelle:
+batch.set(db.collection("hareketler").doc(), { 
+    urun, 
+    tur: tip, 
+    miktar: parseInt(miktar), 
+    // stokIslem fonksiyonu içindeki tarih satırını bununla değiştir:
+    tarih: firebase.firestore.Timestamp.fromDate(new Date()),
+});
     batch.commit().then(() => { document.getElementById('islemMiktar').value = ""; });
 }
 
@@ -211,6 +226,118 @@ function urunEkle() {
     if(ad) db.collection("stoklar").doc(ad).set({ barkod: document.getElementById('urunBarkod').value, kalan: 0, kritik: 5 });
 }
 function urunSil(id) { if(confirm("Silinsin mi?")) db.collection("stoklar").doc(id).delete(); }
+// --- RAPORLAMA FONKSİYONLARI ---
 
+async function raporOlustur() {
+    const bas = document.getElementById('raporBaslangic').value;
+    const bit = document.getElementById('raporBitis').value;
+    const filtre = document.getElementById('raporFiltre').value;
+    const govde = document.getElementById('raporTabloGovde');
+
+    if (!bas || !bit) return alert("Lütfen tarih aralığı seçin!");
+
+    // Başlangıç gününün en başı (00:00:00)
+    const d1 = new Date(bas + "T00:00:00");
+    // Bitiş gününün en sonu (23:59:59)
+    const d2 = new Date(bit + "T23:59:59");
+
+    try {
+        const snap = await db.collection("hareketler")
+            .where("tarih", ">=", firebase.firestore.Timestamp.fromDate(d1))
+            .where("tarih", "<=", firebase.firestore.Timestamp.fromDate(d2))
+            .get();
+
+        sonRaporVerisi = [];
+        let özet = {};
+
+        if (snap.empty) {
+            alert("Bu tarihler arasında kayıt bulunamadı!");
+            document.getElementById('raporSonuc').style.display = "none";
+            return;
+        }
+
+        snap.forEach(doc => {
+            const h = doc.data();
+            // Eğer Firebase'de tarih "string" olarak kaldıysa bu sorgu boş döner.
+            // Eski verileri görmek için Firebase panelinden manuel düzeltme gerekebilir.
+            
+            if (filtre !== "hepsi" && h.tur !== filtre) return;
+
+            if (!özet[h.urun]) özet[h.urun] = { giris: 0, cikis: 0 };
+            const m = parseInt(h.miktar) || 0;
+            if (h.tur === "giris") özet[h.urun].giris += m;
+            else özet[h.urun].cikis += m;
+        });
+
+        govde.innerHTML = "";
+        for (let u in özet) {
+            sonRaporVerisi.push({ "Ürün": u, "Giriş": özet[u].giris, "Çıkış": özet[u].cikis });
+            govde.innerHTML += `<tr><td>${u}</td><td style="color:green;">${özet[u].giris}</td><td style="color:red;">${özet[u].cikis}</td></tr>`;
+        }
+        document.getElementById('raporSonuc').style.display = "block";
+
+    } catch (e) {
+        console.error("Hata:", e);
+    }
+}
+// Excel Olarak İndirme
+function excelIndir() {
+    if (sonRaporVerisi.length === 0) {
+        alert("İndirilecek veri bulunamadı. Önce rapor oluşturun.");
+        return;
+    }
+    
+    // Veriyi Excel sayfasına dönüştür
+    const ws = XLSX.utils.json_to_sheet(sonRaporVerisi);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Stok Raporu");
+    
+    // Dosyayı indir
+    XLSX.writeFile(wb, "Stok_Raporu.xlsx");
+}
+// PDF Olarak İndirme
+// PDF Olarak İndirme (Karakter Düzenlenmiş)
+function pdfIndir() {
+    if (sonRaporVerisi.length === 0) {
+        alert("İndirilecek veri bulunamadı. Önce rapor oluşturun.");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // Başlığı temizle
+    const baslik = karakterTemizle("Stok Takip Sistemi - Hareket Raporu");
+    doc.text(baslik, 14, 15);
+    
+    // Verileri temizleyerek PDF tablosuna dönüştür
+    const tabloVerisi = sonRaporVerisi.map(item => [
+        karakterTemizle(item["Ürün"]),
+        item["Giriş"],
+        item["Çıkış"]
+    ]);
+
+    doc.autoTable({
+        startY: 20,
+        // Başlıkları da temizleyelim
+        head: [[karakterTemizle('Ürün Adı'), karakterTemizle('Toplam Giriş'), karakterTemizle('Toplam Çıkış')]],
+        body: tabloVerisi,
+        theme: 'grid',
+        headStyles: { fillColor: [52, 152, 219] },
+        styles: { font: 'helvetica', fontSize: 10 }
+    });
+
+    doc.save("Stok_Raporu.pdf");
+}
+
+// Yardımcı Fonksiyon: Türkçe karakterleri İngilizce karşılıklarına çevirir
+function karakterTemizle(metin) {
+    if (!metin) return "";
+    const harfHaritasi = { 
+        'ç':'c','Ç':'C','ğ':'g','Ğ':'G','ş':'s','Ş':'S','ü':'u','Ü':'U','ö':'o','Ö':'O','ı':'i','İ':'I' 
+    };
+    return metin.replace(/[çÇğĞşŞüÜöÖıİ]/g, (harf) => harfHaritasi[harf]);
+}
+// BU İKİ SATIR DOSYANIN EN SONUNDA VE TEK BAŞINA OLMALI
 verileriGetir(); 
 hareketleriGetir();
