@@ -144,3 +144,10 @@ td:last-child { border-right: 1px solid #f1f4f8; border-radius: 0 10px 10px 0; }
     h1 { font-size: 1.5rem; margin-top: 10px; }
     .section { padding: 15px; }
 }
+/* Hareket silme butonu efekti */
+button[onclick^="hareketSil"]:active {
+    transform: scale(0.9);
+}
+button[onclick^="hareketSil"]:hover {
+    color: #c0392b !important;
+}

@@ -127,46 +127,55 @@ function stoklariListele() {
     if (siparisPanel) siparisPanel.style.display = eksikVarMi ? "block" : "none";
     if (kPanel) kPanel.style.display = eksikVarMi ? "block" : "none";
 }
+// html değişkeninin başladığı yerdeki başlık kısmına bir <th> ekle:
+let html = `
+    <table style="width:100%">
+        <thead>
+            <tr>
+                <th>Tarih</th>
+                <th>Ürün</th>
+                <th>Mkt</th>
+                <th></th> 
+            </tr>
+        </thead>
+        <tbody>`;
 
+// app.js içindeki fonksiyonu bu şekilde güncelle:
 function hareketleriGetir() {
-    // Firebase'den en son 15 hareketi tarih sırasına göre çekiyoruz
-    db.collection("hareketler").orderBy("tarih", "desc").limit(15).onSnapshot((snap) => {
-        const liste = document.getElementById('hareketListesi');
-        if (!liste) return;
+    db.collection("hareketler").orderBy("tarih", "desc").limit(10).onSnapshot(snap => {
+        const govde = document.getElementById("hareketlerTablo");
+        if (!govde) return;
         
-        liste.innerHTML = ""; // Listeyi temizle
-
-        if (snap.empty) {
-            liste.innerHTML = "<div style='text-align:center; color:gray;'>Henüz hareket yok.</div>";
-            return;
-        }
-
+        let html = "";
         snap.forEach(doc => {
             const h = doc.data();
-            const renk = h.tur === "giris" ? "#27ae60" : "#e74c3c";
-            
-            // BUGÜNKÜ HAREKETLERİN GÖRÜNMESİ İÇİN KRİTİK KONTROL:
-            // Firebase sunucusundan tarih henüz gelmediyse o anki saati kullan
-            let tarihObje = h.tarih;
-            if (!tarihObje) {
-                tarihObje = new Date(); // Eğer null ise bugünü/şu anı kullan
+            const id = doc.id; // Belge ID'sini buradan alıyoruz
+            const renk = h.tur === "giris" ? "green" : "red";
+            const sembol = h.tur === "giris" ? "+" : "-";
+
+            // Tarih formatı
+            let tarihYazi = "";
+            if (h.tarih) {
+                const d = h.tarih.toDate ? h.tarih.toDate() : new Date(h.tarih);
+                tarihYazi = d.toLocaleString('tr-TR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
             }
 
-            liste.innerHTML += `
-                <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <span style="font-weight:bold; color:${renk}">${h.tur === "giris" ? "➕" : "➖"} ${h.urun}</span>
-                        <br>
-                        <small style="color:#7f8c8d;">${tarihFormat(tarihObje)}</small>
-                    </div>
-                    <div style="font-weight:bold; color:${renk}">${h.miktar} Adet</div>
-                </div>`;
+            html += `
+                <tr>
+                    <td style="font-size:11px;">${tarihYazi}</td>
+                    <td style="font-weight:bold;">${h.urun}</td>
+                    <td style="color:${renk}; font-weight:bold;">${sembol}${h.miktar}</td>
+                    <td style="text-align:center;">
+                        <button onclick="hareketSil('${id}', '${h.urun}', ${h.miktar}, '${h.tur}')" 
+                                style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:18px;">
+                            🗑️
+                        </button>
+                    </td>
+                </tr>`;
         });
-    }, (error) => {
-        console.error("Hareketler yüklenirken hata:", error);
+        govde.innerHTML = html;
     });
 }
-
 function stokIslem(tip) {
     const urun = document.getElementById('urunSelect').value;
     const miktar = parseInt(document.getElementById('islemMiktar').value);
@@ -175,14 +184,12 @@ function stokIslem(tip) {
     const yeni = tip === 'giris' ? (mevcutStok + miktar) : (mevcutStok - miktar);
     const batch = db.batch();
     batch.update(db.collection("stoklar").doc(urun), { kalan: yeni });
-    // app.js içinde stokIslem fonksiyonunu bul ve bu kısmı güncelle:
-batch.set(db.collection("hareketler").doc(), { 
-    urun, 
-    tur: tip, 
-    miktar: parseInt(miktar), 
-    // stokIslem fonksiyonu içindeki tarih satırını bununla değiştir:
-    tarih: firebase.firestore.Timestamp.fromDate(new Date()),
-});
+    batch.set(db.collection("hareketler").doc(), { 
+        urun, 
+        tur: tip, 
+        miktar: parseInt(miktar), 
+        tarih: firebase.firestore.Timestamp.fromDate(new Date())
+    });
     batch.commit().then(() => { document.getElementById('islemMiktar').value = ""; });
 }
 
@@ -229,16 +236,17 @@ function urunSil(id) { if(confirm("Silinsin mi?")) db.collection("stoklar").doc(
 // --- RAPORLAMA FONKSİYONLARI ---
 
 async function raporOlustur() {
+    // Senin index.html dosmandaki doğru ID'leri kullanıyoruz
     const bas = document.getElementById('raporBaslangic').value;
     const bit = document.getElementById('raporBitis').value;
     const filtre = document.getElementById('raporFiltre').value;
     const govde = document.getElementById('raporTabloGovde');
+    const sonucDiv = document.getElementById('raporSonuc');
 
     if (!bas || !bit) return alert("Lütfen tarih aralığı seçin!");
 
-    // Başlangıç gününün en başı (00:00:00)
+    // Tarihleri Firebase'in anlayacağı formata çevir (Günün başlangıcı ve bitişi)
     const d1 = new Date(bas + "T00:00:00");
-    // Bitiş gününün en sonu (23:59:59)
     const d2 = new Date(bit + "T23:59:59");
 
     try {
@@ -249,37 +257,65 @@ async function raporOlustur() {
 
         sonRaporVerisi = [];
         let özet = {};
+        let genelGirisToplam = 0;
+        let genelCikisToplam = 0;
 
         if (snap.empty) {
-            alert("Bu tarihler arasında kayıt bulunamadı!");
-            document.getElementById('raporSonuc').style.display = "none";
+            alert("Seçili tarihlerde kayıt bulunamadı!");
+            if(sonucDiv) sonucDiv.style.display = "none";
             return;
         }
 
         snap.forEach(doc => {
             const h = doc.data();
-            // Eğer Firebase'de tarih "string" olarak kaldıysa bu sorgu boş döner.
-            // Eski verileri görmek için Firebase panelinden manuel düzeltme gerekebilir.
-            
             if (filtre !== "hepsi" && h.tur !== filtre) return;
 
             if (!özet[h.urun]) özet[h.urun] = { giris: 0, cikis: 0 };
             const m = parseInt(h.miktar) || 0;
-            if (h.tur === "giris") özet[h.urun].giris += m;
-            else özet[h.urun].cikis += m;
+            
+            if (h.tur === "giris") {
+                özet[h.urun].giris += m;
+                genelGirisToplam += m;
+            } else {
+                özet[h.urun].cikis += m;
+                genelCikisToplam += m;
+            }
         });
 
+        // Tabloyu temizle ve doldur
         govde.innerHTML = "";
         for (let u in özet) {
+            // İndirme listesine ekle
             sonRaporVerisi.push({ "Ürün": u, "Giriş": özet[u].giris, "Çıkış": özet[u].cikis });
-            govde.innerHTML += `<tr><td>${u}</td><td style="color:green;">${özet[u].giris}</td><td style="color:red;">${özet[u].cikis}</td></tr>`;
+            
+            // Tabloya satır ekle
+            govde.innerHTML += `
+                <tr>
+                    <td>${u}</td>
+                    <td style="color:green; font-weight:bold;">${özet[u].giris}</td>
+                    <td style="color:red; font-weight:bold;">${özet[u].cikis}</td>
+                </tr>`;
         }
-        document.getElementById('raporSonuc').style.display = "block";
+
+        // --- GENEL TOPLAM SATIRI (TABLONUN EN ALTI) ---
+        govde.innerHTML += `
+            <tr style="background-color: #f1f4f8; border-top: 2px solid #2c3e50;">
+                <td style="font-weight:bold; color:#2c3e50;">GENEL TOPLAM</td>
+                <td style="color:green; font-weight:800; font-size:1.1em;">${genelGirisToplam}</td>
+                <td style="color:red; font-weight:800; font-size:1.1em;">${genelCikisToplam}</td>
+            </tr>`;
+
+        // PDF/Excel listesine toplamı da ekle (Karakter temizleme fonksiyonun bunu düzeltecektir)
+        sonRaporVerisi.push({ "Ürün": "GENEL TOPLAM", "Giriş": genelGirisToplam, "Çıkış": genelCikisToplam });
+
+        if(sonucDiv) sonucDiv.style.display = "block";
 
     } catch (e) {
-        console.error("Hata:", e);
+        console.error("Rapor Hatası:", e);
+        alert("Rapor hazırlanırken bir hata oluştu.");
     }
 }
+
 // Excel Olarak İndirme
 function excelIndir() {
     if (sonRaporVerisi.length === 0) {
@@ -337,6 +373,26 @@ function karakterTemizle(metin) {
         'ç':'c','Ç':'C','ğ':'g','Ğ':'G','ş':'s','Ş':'S','ü':'u','Ü':'U','ö':'o','Ö':'O','ı':'i','İ':'I' 
     };
     return metin.replace(/[çÇğĞşŞüÜöÖıİ]/g, (harf) => harfHaritasi[harf]);
+}
+async function hareketSil(hareketId, urunAd, miktar, tur) {
+    if (!confirm(`${urunAd} işlemini silmek istiyor musunuz? Stok geri düzeltilecek.`)) return;
+
+    try {
+        // 1. Hareketi sil
+        await db.collection("hareketler").doc(hareketId).delete();
+
+        // 2. Stoğu iade et (Giriş siliniyorsa azalt, çıkış siliniyorsa artır)
+        const m = parseInt(miktar);
+        const fark = (tur === "giris") ? -m : m;
+
+        await db.collection("stoklar").doc(urunAd).update({
+            stok: firebase.firestore.FieldValue.increment(fark)
+        });
+
+        alert("İşlem başarıyla geri alındı.");
+    } catch (e) {
+        alert("Hata: " + e.message);
+    }
 }
 // BU İKİ SATIR DOSYANIN EN SONUNDA VE TEK BAŞINA OLMALI
 verileriGetir(); 
