@@ -210,33 +210,48 @@ async function urunDetayiniGoster(id) {
 async function urunHepsiniGuncelle() {
     if (!seciliUrunId) return;
 
-    // Formdaki değerleri al
-    const yeniAd = document.getElementById('editUrunAd').value.trim();
-    const yeniBarkod = document.getElementById('editBarkod').value.trim();
-    const yeniStok = document.getElementById('editStok').value;
-    const yeniKritik = document.getElementById('editKritik').value;
+    // Formdaki giriş alanlarını alıyoruz
+    const adInput = document.getElementById('editUrunAd');
+    const barkodInput = document.getElementById('editBarkod');
+    const stokInput = document.getElementById('editStok');
+    const kritikInput = document.getElementById('editKritik');
 
-    // Güncellenecek veriyi hazırla (Sadece değişenleri veya mevcutları koruyarak)
-    const guncellenecekVeri = {
-        ad: yeniAd,
-        barkod: yeniBarkod,
-        kalan: parseInt(yeniStok) || 0, // 'kalan' ismini kullandığından emin ol
-        kritik: parseInt(yeniKritik) || 5
-    };
+    // Mevcut veriyi hafızadan (stoklar objesinden) alıyoruz
+    const mevcutVeri = stoklar[seciliUrunId] || {};
 
-    // Firebase Güncelleme
-    db.collection("stoklar").doc(seciliUrunId).update(guncellenecekVeri)
-    .then(() => {
-        // İşlem başarılı olunca hareketi kaydet (Stok değiştiyse)
-        hareketKaydet(seciliUrunId, "Güncelleme", yeniStok);
+    // --- KRİTİK NOKTA BURASI ---
+    // Eğer isim kutusu boşsa, "İsimsiz Ürün" yazmak yerine mevcutVeri.ad (eski ismi) kullan diyoruz.
+    const yeniAd = adInput.value.trim() !== "" ? adInput.value.trim() : mevcutVeri.ad;
+    
+    // Aynı mantığı diğerleri için de uyguluyoruz (Boş bırakılırsa eskisi kalsın)
+    const yeniBarkod = barkodInput.value.trim() !== "" ? barkodInput.value.trim() : (mevcutVeri.barkod || "");
+    const yeniStok = stokInput.value !== "" ? Number(stokInput.value) : (mevcutVeri.kalan || 0);
+    const yeniKritik = kritikInput.value !== "" ? Number(kritikInput.value) : (mevcutVeri.kritik || 5);
+
+    try {
+        // Firebase Güncelleme
+        await db.collection("stoklar").doc(seciliUrunId).update({
+            ad: yeniAd,
+            barkod: yeniBarkod,
+            kalan: yeniStok,
+            kritik: yeniKritik
+        });
+
+        // Hareket kaydı (Log) tutma
+        if (typeof hareketKaydet === "function") {
+            hareketKaydet(seciliUrunId, "Güncelleme", yeniStok);
+        }
+
+        alert("Bilgiler başarıyla güncellendi!");
         
-        alert("Ürün başarıyla güncellendi.");
-        modalKapat(); // Modalı kapat
-    })
-    .catch((error) => {
-        console.error("Güncelleme hatası: ", error);
-        alert("Hata oluştu: " + error.message);
-    });
+        // Modalı Kapat
+        const modal = document.getElementById('detayModal');
+        if (modal) modal.style.display = "none";
+        
+    } catch (e) {
+        console.error("Güncelleme hatası:", e);
+        alert("Hata oluştu: " + e.message);
+    }
 }
 
 async function modalKapat() {
@@ -598,6 +613,16 @@ function siparisListesiYazdir() {
     
     // Yazdır ve pencereyi kapat
     pencere.print();
+}
+function hareketKaydet(urunId, islemTuru, miktar) {
+    const urunAd = stoklar[urunId] ? stoklar[urunId].ad : urunId;
+    db.collection("hareketler").add({
+        urun: urunAd,
+        urunId: urunId,
+        tur: islemTuru,
+        miktar: parseInt(miktar),
+        tarih: firebase.firestore.Timestamp.fromDate(new Date())
+    }).catch(err => console.error("Hareket kaydı başarısız:", err));
 }
 // BU İKİ SATIR DOSYANIN EN SONUNDA VE TEK BAŞINA OLMALI
 verileriGetir(); 
