@@ -109,7 +109,7 @@ function stoklariListele() {
         const renk = parseInt(kalan) <= parseInt(kritik) ? "red" : "black";
 
         tabloGovde.innerHTML += `
-            tr.onclick = () => urunDetayGetir(doc.id);
+            <tr onclick="urunDetayiniGoster('${id}')"> 
                 <td>${id}</td>
                 <td style="color:${renk}; font-weight:bold;">${kalan}</td>
                 <td><button onclick="event.stopPropagation(); urunSil('${id}')" class="btn-sil">✖</button></td>
@@ -193,130 +193,39 @@ function stokIslem(tip) {
     batch.commit().then(() => { document.getElementById('islemMiktar').value = ""; });
 }
 
-async function urunDetayGetir(urunAd) {
-    seciliUrunId = urunAd;
-    try {
-        const doc = await db.collection("stoklar").doc(urunAd).get();
-        if (doc.exists) {
-            const veri = doc.data();
-            
-            // Burası çok önemli: editUrunAd giriş kutusuna ürün adını yazar
-            const adGiris = document.getElementById('editUrunAd');
-            if (adGiris) {
-                adGiris.value = doc.id;
-            }
-
-            document.getElementById('editBarkod').value = veri.barkod || "";
-            document.getElementById('editStok').value = veri.stok || 0;
-            document.getElementById('editKritik').value = veri.kritik || 0;
-
-            // Modalı açan satır
-            document.getElementById('detayModal').style.display = "flex";
-            hareketleriGetir(urunAd);
-        }
-    } catch (e) {
-        console.error("Hata oluştu:", e);
-    }
+function urunDetayiniGoster(id) {
+    seciliUrunId = id; const v = stoklar[id];
+    document.getElementById('detayUrunAdi').innerText = id;
+    document.getElementById('editBarkod').value = v.barkod || "";
+    document.getElementById('editStok').value = v.kalan || 0;
+    document.getElementById('editKritik').value = v.kritik || 5;
+    document.getElementById('detayModal').style.display = "block";
 }
 
-async function urunHepsiniGuncelle() {
-    const yeniAd = document.getElementById('editUrunAd').value.trim();
-    const eskiAd = seciliUrunId;
-    const yeniBarkod = document.getElementById('editBarkod').value;
-    const yeniStok = parseInt(document.getElementById('editStok').value);
-    const yeniKritik = parseInt(document.getElementById('editKritik').value);
+function urunHepsiniGuncelle() {
+    db.collection("stoklar").doc(seciliUrunId).update({
+        barkod: document.getElementById('editBarkod').value,
+        kalan: parseInt(document.getElementById('editStok').value),
+        kritik: parseInt(document.getElementById('editKritik').value)
+    }).then(() => { modalKapat(); });
+}
 
-    if (!yeniAd) return alert("Ürün adı boş olamaz!");
-
-    try {
-        const urunRef = db.collection("stoklar");
-
-        if (yeniAd !== eskiAd) {
-            // İSİM DEĞİŞTİ: Yeni belge oluştur, eskiyi sil
-            await urunRef.doc(yeniAd).set({
-                barkod: yeniBarkod,
-                stok: yeniStok,
-                kritik: yeniKritik
-            });
-            await urunRef.doc(eskiAd).delete();
-            alert("Ürün ismi değiştirildi ve bilgiler güncellendi.");
-        } else {
-            // İSİM AYNI: Sadece mevcut olanı güncelle
-            await urunRef.doc(eskiAd).update({
-                barkod: yeniBarkod,
-                stok: yeniStok,
-                kritik: yeniKritik
-            });
-            alert("Bilgiler güncellendi.");
-        }
-
-        modalKapat();
-        stokListesiGetir();
-    } catch (e) {
-        console.error("Güncelleme hatası:", e);
-        alert("Güncelleme yapılamadı.");
-    }
+async function modalKapat() {
+    if (modalQrCode) { await modalQrCode.stop().catch(()=>{}); modalQrCode = null; }
+    document.getElementById('detayModal').style.display = "none";
+    document.getElementById('modal-reader').style.display = "none";
+    document.getElementById('modalCamBtn').innerText = "📷";
 }
 
 async function modalKameraBaslat() {
-    const readerDiv = document.getElementById('modalReader');
-    if (!readerDiv) return;
-
-    // 1. Ana sayfadaki tarayıcıyı durdur (çakışma önleyici)
-    if (html5QrCode && html5QrCode.isScanning) {
-        await html5QrCode.stop().catch(() => {});
-        document.getElementById('reader-wrapper').style.display = "none";
-    }
-
-    // 2. Eğer modal kamerası zaten açıksa temizle
-    if (modalQrCode) {
-        try { await modalQrCode.stop(); } catch(e) {}
-        modalQrCode = null;
-    }
-
+    const readerDiv = document.getElementById('modal-reader');
+    if (modalQrCode) { await modalQrCode.stop(); modalQrCode = null; readerDiv.style.display = "none"; return; }
     readerDiv.style.display = "block";
-    modalQrCode = new Html5Qrcode("modalReader");
-    
-    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
-
-    modalQrCode.start(
-        { facingMode: "environment" }, 
-        config, 
-        async (text) => {
-            // 3. Barkodu inputa yaz
-            const barkodInput = document.getElementById('editBarkod');
-            if (barkodInput) {
-                barkodInput.value = text;
-                barkodInput.style.backgroundColor = "#e1f5fe"; // Okunduğunu belli etmek için hafif mavi yap
-            }
-
-            // 4. SADECE KAMERAYI KAPAT (Modal açık kalmaya devam eder)
-            if (modalQrCode) {
-                await modalQrCode.stop().catch(() => {});
-                modalQrCode = null;
-            }
-            readerDiv.style.display = "none";
-            
-            // Kullanıcıya sesli veya görsel ufak bir onay
-            console.log("Barkod okundu ve kamera kapatıldı.");
-        }
-    ).catch(err => {
-        console.error("Kamera Hatası:", err);
-    });
-}
-
-// Modal Kapatma fonksiyonun sadece sen bastığında çalışacak
-async function modalKapat() {
-    if (modalQrCode) {
-        await modalQrCode.stop().catch(() => {});
-        modalQrCode = null;
-    }
-    document.getElementById('detayModal').style.display = "none";
-    document.getElementById('modalReader').style.display = "none";
-    
-    // Rengi sıfırla
-    const barkodInput = document.getElementById('editBarkod');
-    if(barkodInput) barkodInput.style.backgroundColor = "white";
+    modalQrCode = new Html5Qrcode("modal-reader");
+    modalQrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (text) => {
+        document.getElementById('editBarkod').value = text;
+        modalKapat();
+    }).catch(err => console.error(err));
 }
 
 function urunEkle() {
