@@ -477,6 +477,37 @@ function detayGoster(id) {
               detayIcerik.innerHTML = "Veriler alınamadı.";
           });
     }
+}function modalKameraBaslat() {
+    // Eğer hali hazırda bir tarayıcı açıksa kapat
+    if (modalQrCode) {
+        modalQrCode.stop().then(() => {
+            document.getElementById('reader-modal').style.display = 'none';
+            modalQrCode = null;
+        });
+        return;
+    }
+
+    const readerDiv = document.getElementById('reader-modal');
+    if (readerDiv) readerDiv.style.display = 'block';
+
+    modalQrCode = new Html5Qrcode("reader-modal");
+    
+    modalQrCode.start(
+        { facingMode: "environment" }, 
+        { fps: 10, qrbox: { width: 250, height: 150 } },
+        (decodedText) => {
+            // Barkod okununca inputa yaz ve kamerayı kapat
+            document.getElementById('editBarkod').value = decodedText;
+            modalQrCode.stop();
+            readerDiv.style.display = 'none';
+            modalQrCode = null;
+        },
+        (errorMessage) => {
+            // Okuma hatalarını konsola yazma (çok sık tetiklenir)
+        }
+    ).catch((err) => {
+        alert("Kamera başlatılamadı: " + err);
+    });
 }
 
 // --- MODALI KAPATMA FONKSİYONU ---
