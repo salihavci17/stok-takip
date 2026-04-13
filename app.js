@@ -195,19 +195,56 @@ function stokIslem(tip) {
 
 function urunDetayiniGoster(id) {
     seciliUrunId = id; const v = stoklar[id];
-    document.getElementById('detayUrunAdi').innerText = id;
+    document.getElementById('editUrunAd').value = doc.id;
     document.getElementById('editBarkod').value = v.barkod || "";
     document.getElementById('editStok').value = v.kalan || 0;
     document.getElementById('editKritik').value = v.kritik || 5;
     document.getElementById('detayModal').style.display = "block";
 }
 
-function urunHepsiniGuncelle() {
-    db.collection("stoklar").doc(seciliUrunId).update({
-        barkod: document.getElementById('editBarkod').value,
-        kalan: parseInt(document.getElementById('editStok').value),
-        kritik: parseInt(document.getElementById('editKritik').value)
-    }).then(() => { modalKapat(); });
+async function urunHepsiniGuncelle() {
+    const yeniAd = document.getElementById('editUrunAd').value.trim();
+    const eskiAd = seciliUrunId; 
+    const yeniBarkod = document.getElementById('editBarkod').value;
+    const yeniStok = parseInt(document.getElementById('editStok').value);
+    const yeniKritik = parseInt(document.getElementById('editKritik').value);
+
+    if (!yeniAd) return alert("Ürün adı boş olamaz!");
+
+    try {
+        const urunRef = db.collection("stoklar");
+
+        // EĞER İSİM DEĞİŞTİYSE (Örn: "Marlboro" idi, "Marlboro Touch" olduysa)
+        if (yeniAd !== eskiAd) {
+            // 1. Yeni isimle yeni bir belge oluştur
+            await urunRef.doc(yeniAd).set({
+                barkod: yeniBarkod,
+                stok: yeniStok,
+                kritik: yeniKritik
+            });
+            // 2. Eski isimli belgeyi sil
+            await urunRef.doc(eskiAd).delete();
+            
+            // 3. Hareketler tablosundaki ürün adlarını da güncellemek istersen 
+            // buraya ekleme yapılabilir ama şu an için ana stok kaydını taşıyoruz.
+            
+            alert("Ürün adı ve bilgileri başarıyla taşındı ve güncellendi!");
+        } else {
+            // EĞER İSİM AYNIYSA (Sadece stok veya barkod değiştiyse)
+            await urunRef.doc(eskiAd).update({
+                barkod: yeniBarkod,
+                stok: yeniStok,
+                kritik: yeniKritik
+            });
+            alert("Bilgiler güncellendi!");
+        }
+
+        modalKapat();
+        stokListesiGetir(); // Listeyi yenile
+    } catch (e) {
+        console.error("Güncelleme hatası:", e);
+        alert("Güncelleme sırasında bir hata oluştu.");
+    }
 }
 
 async function modalKameraBaslat() {
