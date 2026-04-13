@@ -214,39 +214,41 @@ async function modalKameraBaslat() {
     const readerDiv = document.getElementById('modalReader');
     if (!readerDiv) return;
 
-    // Ana sayfadaki tarayıcı açıksa çakışmasın diye durdur
+    // 1. Ana sayfadaki tarayıcıyı tamamen durdur ve temizle (Çakışma önleyici)
     if (html5QrCode && html5QrCode.isScanning) {
         await html5QrCode.stop().catch(() => {});
         document.getElementById('reader-wrapper').style.display = "none";
     }
 
+    // 2. Eğer modal kamerası zaten oluşturulmuşsa temizle
     if (modalQrCode) {
-        await modalQrCode.stop().catch(() => {});
+        try { await modalQrCode.stop(); } catch(e) {}
         modalQrCode = null;
     }
 
     readerDiv.style.display = "block";
     modalQrCode = new Html5Qrcode("modalReader");
     
-    const config = { fps: 15, qrbox: { width: 250, height: 150 } };
+    // FPS değerini biraz düşürerek telefon işlemcisini rahatlatıyoruz
+    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
 
     modalQrCode.start(
         { facingMode: "environment" }, 
         config, 
         async (text) => {
-            // ÖNEMLİ: Önce barkodu yazıyoruz
-            const input = document.getElementById('editBarkod');
-            if(input) {
-                input.value = text;
-                // Görsel geri bildirim için kutuyu anlık parlatabiliriz
-                input.style.backgroundColor = "#e1f5fe";
+            // ÖNEMLİ: Barkodu önce değişkene al ve hemen input'a yaz
+            const barkodInput = document.getElementById('editBarkod');
+            if (barkodInput) {
+                barkodInput.value = text;
+                // Değişikliği tetiklemek için manuel event gönder (Garanti yöntem)
+                barkodInput.dispatchEvent(new Event('input'));
             }
-            
-            // Telefonun işlemi tamamlaması için yarım saniye (500ms) bekle
+
+            // 3. Veriyi yazdıktan sonra kısa bir bekleme (Delay) ekliyoruz
+            // Bu, telefonun veriyi kaydetmesine izin verir
             setTimeout(async () => {
                 await modalKapat();
-                input.style.backgroundColor = "white";
-            }, 500);
+            }, 300); // 300 milisaniye bekleme
         }
     ).catch(err => {
         console.error("Kamera Hatası:", err);
