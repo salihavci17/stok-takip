@@ -214,13 +214,13 @@ async function modalKameraBaslat() {
     const readerDiv = document.getElementById('modalReader');
     if (!readerDiv) return;
 
-    // 1. Ana sayfadaki tarayıcıyı tamamen durdur ve temizle (Çakışma önleyici)
+    // 1. Ana sayfadaki tarayıcıyı durdur (çakışma önleyici)
     if (html5QrCode && html5QrCode.isScanning) {
         await html5QrCode.stop().catch(() => {});
         document.getElementById('reader-wrapper').style.display = "none";
     }
 
-    // 2. Eğer modal kamerası zaten oluşturulmuşsa temizle
+    // 2. Eğer modal kamerası zaten açıksa temizle
     if (modalQrCode) {
         try { await modalQrCode.stop(); } catch(e) {}
         modalQrCode = null;
@@ -229,43 +229,46 @@ async function modalKameraBaslat() {
     readerDiv.style.display = "block";
     modalQrCode = new Html5Qrcode("modalReader");
     
-    // FPS değerini biraz düşürerek telefon işlemcisini rahatlatıyoruz
     const config = { fps: 10, qrbox: { width: 250, height: 150 } };
 
     modalQrCode.start(
         { facingMode: "environment" }, 
         config, 
         async (text) => {
-            // ÖNEMLİ: Barkodu önce değişkene al ve hemen input'a yaz
+            // 3. Barkodu inputa yaz
             const barkodInput = document.getElementById('editBarkod');
             if (barkodInput) {
                 barkodInput.value = text;
-                // Değişikliği tetiklemek için manuel event gönder (Garanti yöntem)
-                barkodInput.dispatchEvent(new Event('input'));
+                barkodInput.style.backgroundColor = "#e1f5fe"; // Okunduğunu belli etmek için hafif mavi yap
             }
 
-            // 3. Veriyi yazdıktan sonra kısa bir bekleme (Delay) ekliyoruz
-            // Bu, telefonun veriyi kaydetmesine izin verir
-            setTimeout(async () => {
-                await modalKapat();
-            }, 300); // 300 milisaniye bekleme
+            // 4. SADECE KAMERAYI KAPAT (Modal açık kalmaya devam eder)
+            if (modalQrCode) {
+                await modalQrCode.stop().catch(() => {});
+                modalQrCode = null;
+            }
+            readerDiv.style.display = "none";
+            
+            // Kullanıcıya sesli veya görsel ufak bir onay
+            console.log("Barkod okundu ve kamera kapatıldı.");
         }
     ).catch(err => {
         console.error("Kamera Hatası:", err);
     });
 }
 
+// Modal Kapatma fonksiyonun sadece sen bastığında çalışacak
 async function modalKapat() {
     if (modalQrCode) {
-        try {
-            await modalQrCode.stop();
-        } catch (e) {
-            console.log("Kamera zaten durmuş.");
-        }
+        await modalQrCode.stop().catch(() => {});
         modalQrCode = null;
     }
     document.getElementById('detayModal').style.display = "none";
     document.getElementById('modalReader').style.display = "none";
+    
+    // Rengi sıfırla
+    const barkodInput = document.getElementById('editBarkod');
+    if(barkodInput) barkodInput.style.backgroundColor = "white";
 }
 
 function urunEkle() {
