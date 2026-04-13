@@ -151,3 +151,21 @@ button[onclick^="hareketSil"]:active {
 button[onclick^="hareketSil"]:hover {
     color: #c0392b !important;
 }
+/* style.css dosyasının sonuna ekle */
+#detayModal label {
+    display: block;
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #666;
+}
+
+#detayModal input {
+    border-radius: 5px;
+    outline: none;
+}
+
+#detayModal input:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+}

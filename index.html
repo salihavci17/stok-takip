@@ -111,29 +111,35 @@
     </div>
 </div>
 
-    <div id="detayModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999;">
-        <div style="background:white; width:92%; max-width:400px; margin:20px auto; padding:20px; border-radius:10px;">
-            <h2 id="detayUrunAdi">Ayarlar</h2>
-            <div id="modal-reader" style="display:none; width:100%; min-height: 250px; background: #000; margin-bottom:10px; border-radius:8px; overflow:hidden;"></div>
-            <div style="background:#f8f9fa; padding:15px; border-radius:8px;">
-                <label>Barkod:</label>
-                <div style="display:flex; gap:5px; margin-bottom:10px;">
-                    <input type="text" id="editBarkod" style="flex:1; padding:8px;">
-                    <button id="modalCamBtn" onclick="modalKameraBaslat()" style="background:#34495e; color:white; border:none; padding:0 15px; border-radius:5px;">📷</button>
-                </div>
-                <div style="display:flex; gap:5px;">
-                    <div style="flex:1;"><label>Stok:</label><input type="number" id="editStok" style="width:100%; padding:8px;"></div>
-                    <div style="flex:1;"><label>Kritik:</label><input type="number" id="editKritik" style="width:100%; padding:8px;"></div>
-                </div>
-                <button onclick="urunHepsiniGuncelle()" style="width:100%; margin-top:15px; background:#27ae60; color:white; padding:12px; border:none; font-weight:bold;">GÜNCELLE</button>
-            </div>
-            <div id="detayIcerik" style="font-size:12px; max-height:150px; overflow-y:auto; margin-top:10px;"></div>
-           <button onclick="modalKapat()" style="width:100%; margin-top:15px; padding:10px; background:#95a5a6; color:white; border:none;">KAPAT</button>
+    <div id="detayModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+    <div style="background:white; width:100%; max-width:400px; padding:20px; border-radius:15px;">
+        <h3>Ürün Düzenle</h3>
+        
+        <label>Ürün Adı (Değiştirebilirsiniz):</label>
+        <input type="text" id="editUrunAd" style="width:100%; padding:10px; margin-bottom:10px; background:#fff; border:1px solid #ccc;">
+        
+        <label>Barkod:</label>
+        <div style="display:flex; gap:5px; margin-bottom:10px;">
+            <input type="text" id="editBarkod" style="flex:1; padding:8px;">
+            <button id="modalCamBtn" onclick="modalKameraBaslat()" style="background:#34495e; color:white; border:none; padding:0 15px; border-radius:5px;">📷</button>
         </div>
+
+        <div style="display:flex; gap:5px;">
+            <div style="flex:1;"><label>Stok:</label><input type="number" id="editStok" style="width:100%; padding:8px;"></div>
+            <div style="flex:1;"><label>Kritik Seviye:</label><input type="number" id="editKritik" style="width:100%; padding:8px;"></div>
+        </div>
+
+        <button onclick="urunHepsiniGuncelle()" style="width:100%; margin-top:15px; background:#27ae60; color:white; padding:12px; border:none; font-weight:bold; border-radius:8px;">TÜMÜNÜ GÜNCELLE</button>
+        
+        <h4 style="margin-top:20px; border-bottom:1px solid #ddd;">Son Hareketler</h4>
+        <div id="detayIcerik" style="font-size:12px; max-height:150px; overflow-y:auto; margin-top:10px;"></div>
+        
+        <button onclick="modalKapat()" style="width:100%; margin-top:15px; padding:10px; background:#eee; border:none; border-radius:8px;">Kapat</button>
     </div>
+</div>
 <div style="text-align:center; margin-top:20px; padding-bottom:20px; color:#bdc3c7; font-size:12px;">
     Stok Takip Sistemi <br>
-    <b>Versiyon: 1.6.0</b>
+    <b>Versiyon: 1.6.9</b>
 </div>
 
     <script src="app.js?v=1.1"></script>

@@ -88,15 +88,12 @@ function verileriGetir() {
 function stoklariListele() {
     const tabloGovde = document.getElementById('tablo');
     const select = document.getElementById('urunSelect');
-    const siparisPanel = document.getElementById('siparisPanel');
-    const siparisListesi = document.getElementById('siparisListesi');
     const kListe = document.getElementById('kritikListe');
     const kPanel = document.getElementById('kritikPanel');
 
     if (!tabloGovde) return;
     tabloGovde.innerHTML = "";
     if (select) select.innerHTML = '<option value="">Seçin</option>';
-    if (siparisListesi) siparisListesi.innerHTML = "";
     if (kListe) kListe.innerHTML = "";
 
     let eksikVarMi = false;
@@ -104,27 +101,32 @@ function stoklariListele() {
 
     siraliAnahtarlar.forEach(id => {
         const s = stoklar[id];
+        
+        // ÖNEMLİ: Hem 'stok' hem 'kalan' ihtimalini kontrol ediyoruz
+        const miktar = (s.stok !== undefined) ? s.stok : (s.kalan !== undefined ? s.kalan : 0);
         const kritik = s.kritik || 5;
-        const kalan = s.kalan || 0;
-        const renk = parseInt(kalan) <= parseInt(kritik) ? "red" : "black";
+        const ad = s.ad || id;
+        
+        const renk = parseInt(miktar) <= parseInt(kritik) ? "#e74c3c" : "#2c3e50";
 
+        // Tablo satırı
         tabloGovde.innerHTML += `
-            <tr onclick="urunDetayiniGoster('${id}')"> 
-                <td>${id}</td>
-                <td style="color:${renk}; font-weight:bold;">${kalan}</td>
-                <td><button onclick="event.stopPropagation(); urunSil('${id}')" class="btn-sil">✖</button></td>
+            <tr onclick="detayGoster('${id}')" style="cursor:pointer;"> 
+                <td style="font-weight:500;">${ad}</td>
+                <td style="color:${renk}; font-weight:bold;">${miktar}</td>
+                <td style="text-align:center;">
+                    <button onclick="event.stopPropagation(); urunSil('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer;">✖</button>
+                </td>
             </tr>`;
 
-        if (select) select.innerHTML += `<option value="${id}">${id}</option>`;
+        if (select) select.innerHTML += `<option value="${id}">${ad}</option>`;
 
-        if (parseInt(kalan) <= parseInt(kritik)) {
+        if (parseInt(miktar) <= parseInt(kritik) && kListe) {
             eksikVarMi = true;
-            if (siparisListesi) siparisListesi.innerHTML += `<li><b>${id}</b> <small>(Kalan: ${kalan})</small></li>`;
-            if (kListe) kListe.innerHTML += `<li><b>${id}</b>: Son ${kalan} adet!</li>`;
+            kListe.innerHTML += `<li>${ad}: <strong>${miktar}</strong></li>`;
         }
     });
 
-    if (siparisPanel) siparisPanel.style.display = eksikVarMi ? "block" : "none";
     if (kPanel) kPanel.style.display = eksikVarMi ? "block" : "none";
 }
 // html değişkeninin başladığı yerdeki başlık kısmına bir <th> ekle:
@@ -193,21 +195,37 @@ function stokIslem(tip) {
     batch.commit().then(() => { document.getElementById('islemMiktar').value = ""; });
 }
 
-function urunDetayiniGoster(id) {
-    seciliUrunId = id; const v = stoklar[id];
-    document.getElementById('detayUrunAdi').innerText = id;
+async function urunDetayiniGoster(id) {
+    seciliUrunId = id; 
+    const v = stoklar[id];
+    document.getElementById('detayUrunAdi').innerText = v.urun.ad; //= id;
     document.getElementById('editBarkod').value = v.barkod || "";
     document.getElementById('editStok').value = v.kalan || 0;
     document.getElementById('editKritik').value = v.kritik || 5;
-    document.getElementById('detayModal').style.display = "block";
+    document.getElementById('detayModal').style.display = 'flex';
+    hareketleriGetir(id);
 }
 
-function urunHepsiniGuncelle() {
-    db.collection("stoklar").doc(seciliUrunId).update({
-        barkod: document.getElementById('editBarkod').value,
-        kalan: parseInt(document.getElementById('editStok').value),
-        kritik: parseInt(document.getElementById('editKritik').value)
-    }).then(() => { modalKapat(); });
+async function urunHepsiniGuncelle() {
+    const yeniAd = document.getElementById('editUrunAdi').value; // Yeni ismi al
+    const yeniBarkod = document.getElementById('editBarkod').value;
+    const yeniStok = Number(document.getElementById('editStok').value);
+    const yeniKritik = Number(document.getElementById('editKritik').value);
+
+    if (!yeniAd) { alert("Ürün adı boş olamaz!"); return; }
+
+    try {
+        await db.collection("stoklar").doc(seciliUrunId).update({
+            ad: yeniAd, // İsmi güncelle
+            barkod: yeniBarkod,
+            stok: yeniStok,
+            kritik: yeniKritik
+        });
+        alert("Ürün başarıyla güncellendi!");
+        modalKapat();
+    } catch (e) {
+        alert("Güncelleme hatası: " + e.message);
+    }
 }
 
 async function modalKapat() {
@@ -392,6 +410,80 @@ async function hareketSil(hareketId, urunAd, miktar, tur) {
         alert("İşlem başarıyla geri alındı.");
     } catch (e) {
         alert("Hata: " + e.message);
+    }
+}
+// --- ÜRÜN DETAY MODALINI AÇAN FONKSİYON ---
+function detayGoster(id) {
+    seciliUrunId = id;
+    const v = stoklar[id]; 
+
+    if (!v) {
+        console.error("Ürün verisi bulunamadı!");
+        return;
+    }
+
+    // 1. Kutuları doldur (kalan ve stok karmaşasını çözdük)
+    const adInput = document.getElementById('editUrunAd');
+    if (adInput) adInput.value = v.ad || "";
+
+    const barkodInput = document.getElementById('editBarkod');
+    if (barkodInput) barkodInput.value = v.barkod || "";
+
+    const stokInput = document.getElementById('editStok');
+    if (stokInput) stokInput.value = v.kalan || 0; // Senin veritabanında 'kalan' yazıyor
+
+    const kritikInput = document.getElementById('editKritik');
+    if (kritikInput) kritikInput.value = v.kritik || 5;
+
+    // 2. Modalı aç
+    const modal = document.getElementById('detayModal');
+    if (modal) modal.style.display = "flex";
+
+    // 3. SON HAREKETLER BURASI (Aradığın kısım)
+    const detayIcerik = document.getElementById('detayIcerik');
+    if (detayIcerik) {
+        detayIcerik.innerHTML = "Yükleniyor...";
+        
+        db.collection("hareketler")
+          .where("urunId", "==", id)
+          .orderBy("tarih", "desc")
+          .limit(10)
+          .get()
+          .then((querySnapshot) => {
+              detayIcerik.innerHTML = "";
+              if (querySnapshot.empty) {
+                  detayIcerik.innerHTML = "<p style='color:gray;'>Henüz hareket yok.</p>";
+                  return;
+              }
+              querySnapshot.forEach((doc) => {
+                  const h = doc.data();
+                  // Tarihi okunabilir yapalım
+                  const t = h.tarih ? new Date(h.tarih.seconds * 1000).toLocaleString('tr-TR') : "Bilinmiyor";
+                  
+                  // h.islem ve h.miktar veritabanındaki isimlerle aynı olmalı
+                  const islem = h.islem || "İşlem"; 
+                  const miktar = h.miktar || 0;
+
+                  detayIcerik.innerHTML += `
+                      <div style="border-bottom:1px solid #eee; padding:8px 0; display:flex; justify-content:space-between;">
+                          <span><strong>${t}</strong></span>
+                          <span>${islem}: <strong>${miktar}</strong></span>
+                      </div>
+                  `;
+              });
+          })
+          .catch(err => {
+              console.error("Hareketler yüklenemedi:", err);
+              detayIcerik.innerHTML = "Veriler alınamadı.";
+          });
+    }
+}
+
+// --- MODALI KAPATMA FONKSİYONU ---
+function modalKapat() {
+    const modal = document.getElementById('detayModal');
+    if (modal) {
+        modal.style.display = "none";
     }
 }
 // BU İKİ SATIR DOSYANIN EN SONUNDA VE TEK BAŞINA OLMALI
