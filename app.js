@@ -208,25 +208,35 @@ async function urunDetayiniGoster(id) {
 }
 
 async function urunHepsiniGuncelle() {
-    const yeniAd = document.getElementById('editUrunAdi').value; // Yeni ismi al
-    const yeniBarkod = document.getElementById('editBarkod').value;
-    const yeniStok = Number(document.getElementById('editStok').value);
-    const yeniKritik = Number(document.getElementById('editKritik').value);
+    if (!seciliUrunId) return;
 
-    if (!yeniAd) { alert("Ürün adı boş olamaz!"); return; }
+    // Formdaki değerleri al
+    const yeniAd = document.getElementById('editUrunAd').value.trim();
+    const yeniBarkod = document.getElementById('editBarkod').value.trim();
+    const yeniStok = document.getElementById('editStok').value;
+    const yeniKritik = document.getElementById('editKritik').value;
 
-    try {
-        await db.collection("stoklar").doc(seciliUrunId).update({
-            ad: yeniAd, // İsmi güncelle
-            barkod: yeniBarkod,
-            stok: yeniStok,
-            kritik: yeniKritik
-        });
-        alert("Ürün başarıyla güncellendi!");
-        modalKapat();
-    } catch (e) {
-        alert("Güncelleme hatası: " + e.message);
-    }
+    // Güncellenecek veriyi hazırla (Sadece değişenleri veya mevcutları koruyarak)
+    const guncellenecekVeri = {
+        ad: yeniAd,
+        barkod: yeniBarkod,
+        kalan: parseInt(yeniStok) || 0, // 'kalan' ismini kullandığından emin ol
+        kritik: parseInt(yeniKritik) || 5
+    };
+
+    // Firebase Güncelleme
+    db.collection("stoklar").doc(seciliUrunId).update(guncellenecekVeri)
+    .then(() => {
+        // İşlem başarılı olunca hareketi kaydet (Stok değiştiyse)
+        hareketKaydet(seciliUrunId, "Güncelleme", yeniStok);
+        
+        alert("Ürün başarıyla güncellendi.");
+        modalKapat(); // Modalı kapat
+    })
+    .catch((error) => {
+        console.error("Güncelleme hatası: ", error);
+        alert("Hata oluştu: " + error.message);
+    });
 }
 
 async function modalKapat() {
@@ -523,8 +533,14 @@ function modalKameraBaslat() {
 // --- MODALI KAPATMA FONKSİYONU ---
 function modalKapat() {
     const modal = document.getElementById('detayModal');
-    if (modal) {
-        modal.style.display = "none";
+    if (modal) modal.style.display = "none";
+    
+    // Eğer kamera açıksa onu da durdur
+    if (modalQrCode) {
+        modalQrCode.stop().then(() => {
+            document.getElementById('reader-modal').style.display = 'none';
+            modalQrCode = null;
+        });
     }
 }
 // --- SİPARİŞ LİSTESİNİ PDF YAPMA ---
