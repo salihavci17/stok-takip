@@ -211,21 +211,50 @@ function urunHepsiniGuncelle() {
 }
 
 async function modalKapat() {
-    if (modalQrCode) { await modalQrCode.stop().catch(()=>{}); modalQrCode = null; }
+    // Kamerayı durdur ve temizle
+    if (modalQrCode) { 
+        try { await modalQrCode.stop(); } catch(e) {} 
+        modalQrCode = null; 
+    }
+    
+    // Modal ve kamera alanını gizle
     document.getElementById('detayModal').style.display = "none";
-    document.getElementById('modal-reader').style.display = "none";
-    document.getElementById('modalCamBtn').innerText = "📷";
+    const reader = document.getElementById('modalReader');
+    if (reader) reader.style.display = "none";
+    
+    // Buton metnini sıfırla (varsa)
+    const camBtn = document.getElementById('modalCamBtn');
+    if (camBtn) camBtn.innerText = "📷";
 }
 
 async function modalKameraBaslat() {
-    const readerDiv = document.getElementById('modal-reader');
-    if (modalQrCode) { await modalQrCode.stop(); modalQrCode = null; readerDiv.style.display = "none"; return; }
+    // ÖNEMLİ: Senin HTML dosmandaki doğru ID "modalReader"
+    const readerDiv = document.getElementById('modalReader');
+    if (!readerDiv) return;
+
+    // Eğer zaten açıksa kapat (Aç-Kapat mantığı)
+    if (modalQrCode) { 
+        await modalQrCode.stop().catch(()=>{}); 
+        modalQrCode = null; 
+        readerDiv.style.display = "none"; 
+        return; 
+    }
+
     readerDiv.style.display = "block";
-    modalQrCode = new Html5Qrcode("modal-reader");
-    modalQrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (text) => {
-        document.getElementById('editBarkod').value = text;
-        modalKapat();
-    }).catch(err => console.error(err));
+    modalQrCode = new Html5Qrcode("modalReader");
+    
+    modalQrCode.start(
+        { facingMode: "environment" }, 
+        { fps: 10, qrbox: { width: 250, height: 150 } }, 
+        (text) => {
+            // Barkodu yaz ve modalKapat fonksiyonunu çağırarak her şeyi temizle
+            document.getElementById('editBarkod').value = text;
+            modalKapat(); 
+        }
+    ).catch(err => {
+        console.error("Kamera başlatma hatası:", err);
+        alert("Kamera açılamadı. Lütfen izinleri kontrol edin.");
+    });
 }
 
 function urunEkle() {
