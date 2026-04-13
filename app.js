@@ -211,42 +211,36 @@ function urunHepsiniGuncelle() {
 }
 
 async function modalKapat() {
-    // Kamerayı durdur ve temizle
-    if (modalQrCode) { 
-        try { await modalQrCode.stop(); } catch(e) {} 
-        modalQrCode = null; 
+    // Kamerayı tamamen durdurmadan modalı kapatma
+    if (modalQrCode) {
+        await modalQrCode.stop().catch(() => {});
+        modalQrCode = null;
     }
-    
-    // Modal ve kamera alanını gizle
     document.getElementById('detayModal').style.display = "none";
-    const reader = document.getElementById('modalReader');
-    if (reader) reader.style.display = "none";
-    
-    // Buton metnini sıfırla (varsa)
-    const camBtn = document.getElementById('modalCamBtn');
-    if (camBtn) camBtn.innerText = "📷";
+    document.getElementById('modalReader').style.display = "none";
 }
 
 async function modalKameraBaslat() {
-    const readerDiv = document.getElementById('modalReader'); // Doğru ID
-    
-    // Hata kontrolü: Eğer HTML'de bu ID yoksa uyar
-    if (!readerDiv) {
-        alert("HATA: HTML dosyasında 'modalReader' ID'si bulunamadı!");
+    const readerDiv = document.getElementById('modalReader');
+    if (!readerDiv) return alert("Hata: modalReader bulunamadı!");
+
+    // 1. Önce ana sayfadaki kamerayı durdur (Çakışmayı önlemek için ŞART)
+    if (html5QrCode && html5QrCode.isScanning) {
+        await html5QrCode.stop().catch(() => {});
+        document.getElementById('reader-wrapper').style.display = "none";
+    }
+
+    // 2. Eğer modal kamerası zaten açıksa kapat (Aç-Kapat mantığı)
+    if (modalQrCode) {
+        await modalQrCode.stop().catch(() => {});
+        modalQrCode = null;
+        readerDiv.style.display = "none";
         return;
     }
 
-    // Eğer zaten açıksa (ikinci kez basıldıysa) kapat
-    if (modalQrCode) { 
-        try { await modalQrCode.stop(); } catch(e) {}
-        modalQrCode = null; 
-        readerDiv.style.display = "none"; 
-        return; 
-    }
-
-    // Kamerayı göster ve başlat
+    // 3. Kamerayı başlat
     readerDiv.style.display = "block";
-    modalQrCode = new Html5Qrcode("modalReader"); // ID burada da aynı olmalı
+    modalQrCode = new Html5Qrcode("modalReader");
     
     const config = { fps: 10, qrbox: { width: 250, height: 150 } };
 
@@ -254,13 +248,12 @@ async function modalKameraBaslat() {
         { facingMode: "environment" }, 
         config, 
         (text) => {
-            // Barkod okundu
             document.getElementById('editBarkod').value = text;
-            modalKapat(); // Başarılıysa her şeyi kapat
+            modalKapat(); // Okuyunca her şeyi temizle
         }
     ).catch(err => {
-        console.error("Kamera Hatası:", err);
-        alert("Kamera başlatılamadı! Lütfen kamera izni verdiğinizden emin olun.");
+        console.error("Kamera hatası:", err);
+        alert("Kamera başlatılamadı! Lütfen izinleri kontrol edin.");
     });
 }
 
