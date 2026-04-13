@@ -109,7 +109,7 @@ function stoklariListele() {
         const renk = parseInt(kalan) <= parseInt(kritik) ? "red" : "black";
 
         tabloGovde.innerHTML += `
-            <tr onclick="urunDetayiniGoster('${id}')"> 
+            tr.onclick = () => urunDetayGetir(doc.id);
                 <td>${id}</td>
                 <td style="color:${renk}; font-weight:bold;">${kalan}</td>
                 <td><button onclick="event.stopPropagation(); urunSil('${id}')" class="btn-sil">✖</button></td>
@@ -195,17 +195,27 @@ function stokIslem(tip) {
 
 async function urunDetayGetir(urunAd) {
     seciliUrunId = urunAd;
-    const doc = await db.collection("stoklar").doc(urunAd).get();
-    if (doc.exists) {
-        const veri = doc.data();
-        // BURASI DEĞİŞTİ: modalUrunAd yerine editUrunAd.value kullanıyoruz
-        document.getElementById('editUrunAd').value = doc.id; 
-        document.getElementById('editBarkod').value = veri.barkod || "";
-        document.getElementById('editStok').value = veri.stok || 0;
-        document.getElementById('editKritik').value = veri.kritik || 0;
+    try {
+        const doc = await db.collection("stoklar").doc(urunAd).get();
+        if (doc.exists) {
+            const veri = doc.data();
+            
+            // Burası çok önemli: editUrunAd giriş kutusuna ürün adını yazar
+            const adGiris = document.getElementById('editUrunAd');
+            if (adGiris) {
+                adGiris.value = doc.id;
+            }
 
-        document.getElementById('detayModal').style.display = "flex";
-        hareketleriGetir(urunAd);
+            document.getElementById('editBarkod').value = veri.barkod || "";
+            document.getElementById('editStok').value = veri.stok || 0;
+            document.getElementById('editKritik').value = veri.kritik || 0;
+
+            // Modalı açan satır
+            document.getElementById('detayModal').style.display = "flex";
+            hareketleriGetir(urunAd);
+        }
+    } catch (e) {
+        console.error("Hata oluştu:", e);
     }
 }
 
@@ -222,29 +232,29 @@ async function urunHepsiniGuncelle() {
         const urunRef = db.collection("stoklar");
 
         if (yeniAd !== eskiAd) {
-            // İsim değiştiyse yeni isimle kaydet, eskiyi sil
+            // İSİM DEĞİŞTİ: Yeni belge oluştur, eskiyi sil
             await urunRef.doc(yeniAd).set({
                 barkod: yeniBarkod,
                 stok: yeniStok,
                 kritik: yeniKritik
             });
             await urunRef.doc(eskiAd).delete();
-            alert("Ürün adı ve bilgileri güncellendi!");
+            alert("Ürün ismi değiştirildi ve bilgiler güncellendi.");
         } else {
-            // İsim aynıysa sadece güncelle
+            // İSİM AYNI: Sadece mevcut olanı güncelle
             await urunRef.doc(eskiAd).update({
                 barkod: yeniBarkod,
                 stok: yeniStok,
                 kritik: yeniKritik
             });
-            alert("Bilgiler güncellendi!");
+            alert("Bilgiler güncellendi.");
         }
 
         modalKapat();
         stokListesiGetir();
     } catch (e) {
-        console.error("Hata:", e);
-        alert("İşlem başarısız.");
+        console.error("Güncelleme hatası:", e);
+        alert("Güncelleme yapılamadı.");
     }
 }
 
