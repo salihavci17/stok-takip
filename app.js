@@ -193,18 +193,25 @@ function stokIslem(tip) {
     batch.commit().then(() => { document.getElementById('islemMiktar').value = ""; });
 }
 
-function urunDetayiniGoster(id) {
-    seciliUrunId = id; const v = stoklar[id];
-    document.getElementById('editUrunAd').value = doc.id;
-    document.getElementById('editBarkod').value = v.barkod || "";
-    document.getElementById('editStok').value = v.kalan || 0;
-    document.getElementById('editKritik').value = v.kritik || 5;
-    document.getElementById('detayModal').style.display = "block";
+async function urunDetayGetir(urunAd) {
+    seciliUrunId = urunAd;
+    const doc = await db.collection("stoklar").doc(urunAd).get();
+    if (doc.exists) {
+        const veri = doc.data();
+        // BURASI DEĞİŞTİ: modalUrunAd yerine editUrunAd.value kullanıyoruz
+        document.getElementById('editUrunAd').value = doc.id; 
+        document.getElementById('editBarkod').value = veri.barkod || "";
+        document.getElementById('editStok').value = veri.stok || 0;
+        document.getElementById('editKritik').value = veri.kritik || 0;
+
+        document.getElementById('detayModal').style.display = "flex";
+        hareketleriGetir(urunAd);
+    }
 }
 
 async function urunHepsiniGuncelle() {
     const yeniAd = document.getElementById('editUrunAd').value.trim();
-    const eskiAd = seciliUrunId; 
+    const eskiAd = seciliUrunId;
     const yeniBarkod = document.getElementById('editBarkod').value;
     const yeniStok = parseInt(document.getElementById('editStok').value);
     const yeniKritik = parseInt(document.getElementById('editKritik').value);
@@ -214,23 +221,17 @@ async function urunHepsiniGuncelle() {
     try {
         const urunRef = db.collection("stoklar");
 
-        // EĞER İSİM DEĞİŞTİYSE (Örn: "Marlboro" idi, "Marlboro Touch" olduysa)
         if (yeniAd !== eskiAd) {
-            // 1. Yeni isimle yeni bir belge oluştur
+            // İsim değiştiyse yeni isimle kaydet, eskiyi sil
             await urunRef.doc(yeniAd).set({
                 barkod: yeniBarkod,
                 stok: yeniStok,
                 kritik: yeniKritik
             });
-            // 2. Eski isimli belgeyi sil
             await urunRef.doc(eskiAd).delete();
-            
-            // 3. Hareketler tablosundaki ürün adlarını da güncellemek istersen 
-            // buraya ekleme yapılabilir ama şu an için ana stok kaydını taşıyoruz.
-            
-            alert("Ürün adı ve bilgileri başarıyla taşındı ve güncellendi!");
+            alert("Ürün adı ve bilgileri güncellendi!");
         } else {
-            // EĞER İSİM AYNIYSA (Sadece stok veya barkod değiştiyse)
+            // İsim aynıysa sadece güncelle
             await urunRef.doc(eskiAd).update({
                 barkod: yeniBarkod,
                 stok: yeniStok,
@@ -240,10 +241,10 @@ async function urunHepsiniGuncelle() {
         }
 
         modalKapat();
-        stokListesiGetir(); // Listeyi yenile
+        stokListesiGetir();
     } catch (e) {
-        console.error("Güncelleme hatası:", e);
-        alert("Güncelleme sırasında bir hata oluştu.");
+        console.error("Hata:", e);
+        alert("İşlem başarısız.");
     }
 }
 
