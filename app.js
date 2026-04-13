@@ -87,47 +87,48 @@ function verileriGetir() {
 
 function stoklariListele() {
     const tabloGovde = document.getElementById('tablo');
-    const select = document.getElementById('urunSelect');
-    const kListe = document.getElementById('kritikListe');
-    const kPanel = document.getElementById('kritikPanel');
+    const oPanel = document.getElementById('otoSiparisPanel');
+    const oListe = document.getElementById('otoSiparisListesi');
 
     if (!tabloGovde) return;
     tabloGovde.innerHTML = "";
-    if (select) select.innerHTML = '<option value="">Seçin</option>';
-    if (kListe) kListe.innerHTML = "";
+    if (oListe) oListe.innerHTML = ""; 
 
-    let eksikVarMi = false;
+    let kritikUrunVarMi = false;
     const siraliAnahtarlar = Object.keys(stoklar).sort();
 
     siraliAnahtarlar.forEach(id => {
         const s = stoklar[id];
-        
-        // ÖNEMLİ: Hem 'stok' hem 'kalan' ihtimalini kontrol ediyoruz
-        const miktar = (s.stok !== undefined) ? s.stok : (s.kalan !== undefined ? s.kalan : 0);
-        const kritik = s.kritik || 5;
         const ad = s.ad || id;
         
-        const renk = parseInt(miktar) <= parseInt(kritik) ? "#e74c3c" : "#2c3e50";
+        // ÖNEMLİ: Veritabanındaki 'kalan' ismini kontrol ediyoruz
+        const miktar = (s.kalan !== undefined) ? s.kalan : (s.stok || 0);
+        const kritik = s.kritik || 5;
 
-        // Tablo satırı
+        // 1. Ana Tablo Satırını Oluştur
+        const renk = parseInt(miktar) <= parseInt(kritik) ? "#e74c3c" : "#2c3e50";
         tabloGovde.innerHTML += `
-            <tr onclick="detayGoster('${id}')" style="cursor:pointer;"> 
+            <tr onclick="detayGoster('${id}')" style="cursor:pointer;">
                 <td style="font-weight:500;">${ad}</td>
                 <td style="color:${renk}; font-weight:bold;">${miktar}</td>
                 <td style="text-align:center;">
-                    <button onclick="event.stopPropagation(); urunSil('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer;">✖</button>
+                    <button onclick="event.stopPropagation(); urunSil('${id}')" style="background:none; border:none; color:#e74c3c; font-size:18px; cursor:pointer;">✖</button>
                 </td>
             </tr>`;
 
-        if (select) select.innerHTML += `<option value="${id}">${ad}</option>`;
-
-        if (parseInt(miktar) <= parseInt(kritik) && kListe) {
-            eksikVarMi = true;
-            kListe.innerHTML += `<li>${ad}: <strong>${miktar}</strong></li>`;
+        // 2. OTOMATİK SİPARİŞ KONTROLÜ
+        if (parseInt(miktar) <= parseInt(kritik)) {
+            kritikUrunVarMi = true;
+            if (oListe) {
+                oListe.innerHTML += `<li>${ad} <span style="font-size:0.8rem; font-weight:normal;">(Kalan: ${miktar} / Limit: ${kritik})</span></li>`;
+            }
         }
     });
 
-    if (kPanel) kPanel.style.display = eksikVarMi ? "block" : "none";
+    // 3. Paneli göster veya gizle
+    if (oPanel) {
+        oPanel.style.display = kritikUrunVarMi ? "block" : "none";
+    }
 }
 // html değişkeninin başladığı yerdeki başlık kısmına bir <th> ekle:
 let html = `
@@ -417,11 +418,18 @@ function detayGoster(id) {
     seciliUrunId = id;
     const v = stoklar[id]; 
 
-    if (!v) {
-        console.error("Ürün verisi bulunamadı!");
-        return;
-    }
+    if (!v) return;
 
+    document.getElementById('editUrunAd').value = v.ad || "";
+    document.getElementById('editBarkod').value = v.barkod || "";
+    
+    // BURAYI DÜZELTTİK: Veritabanındaki isme (kalan) göre çektik
+    document.getElementById('editStok').value = v.kalan || 0; 
+    document.getElementById('editKritik').value = v.kritik || 5;
+
+    document.getElementById('detayModal').style.display = "flex";
+    
+    // Hareketleri listeleme kısmı aşağıda devam ediyor...
     // 1. Kutuları doldur (kalan ve stok karmaşasını çözdük)
     const adInput = document.getElementById('editUrunAd');
     if (adInput) adInput.value = v.ad || "";
@@ -477,36 +485,38 @@ function detayGoster(id) {
               detayIcerik.innerHTML = "Veriler alınamadı.";
           });
     }
-}function modalKameraBaslat() {
-    // Eğer hali hazırda bir tarayıcı açıksa kapat
+}
+function modalKameraBaslat() {
+    const readerDiv = document.getElementById('reader-modal');
+    
+    // Eğer zaten açıksa kapat (Toggle özelliği)
     if (modalQrCode) {
         modalQrCode.stop().then(() => {
-            document.getElementById('reader-modal').style.display = 'none';
+            readerDiv.style.display = 'none';
             modalQrCode = null;
-        });
+        }).catch(err => console.error(err));
         return;
     }
 
-    const readerDiv = document.getElementById('reader-modal');
-    if (readerDiv) readerDiv.style.display = 'block';
-
+    readerDiv.style.display = 'block';
     modalQrCode = new Html5Qrcode("reader-modal");
     
     modalQrCode.start(
         { facingMode: "environment" }, 
-        { fps: 10, qrbox: { width: 250, height: 150 } },
+        { fps: 10, qrbox: { width: 250, height: 200 } },
         (decodedText) => {
-            // Barkod okununca inputa yaz ve kamerayı kapat
             document.getElementById('editBarkod').value = decodedText;
-            modalQrCode.stop();
-            readerDiv.style.display = 'none';
-            modalQrCode = null;
+            // Başarılı okumada kamerayı otomatik kapat
+            modalQrCode.stop().then(() => {
+                readerDiv.style.display = 'none';
+                modalQrCode = null;
+            });
         },
-        (errorMessage) => {
-            // Okuma hatalarını konsola yazma (çok sık tetiklenir)
-        }
+        (errorMessage) => { /* Okuma denemeleri hatasını gizle */ }
     ).catch((err) => {
-        alert("Kamera başlatılamadı: " + err);
+        console.error("Kamera Hatası:", err);
+        alert("Kamera izni verilmedi veya cihazda kamera bulunamadı.");
+        readerDiv.style.display = 'none';
     });
 }
 
@@ -516,6 +526,62 @@ function modalKapat() {
     if (modal) {
         modal.style.display = "none";
     }
+}
+// --- SİPARİŞ LİSTESİNİ PDF YAPMA ---
+function siparisListesiPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    const listeItems = document.querySelectorAll("#otoSiparisListesi li");
+    if (listeItems.length === 0) {
+        alert("Sipariş listesi şu an boş!");
+        return;
+    }
+
+    let satirlar = [];
+    listeItems.forEach((item) => {
+        // Liste içeriğini metin olarak al
+        satirlar.push([item.innerText]);
+    });
+
+    // PDF Başlığı ve İçeriği
+    doc.setFontSize(18);
+    doc.text("Siparis Listesi", 14, 20);
+    doc.setFontSize(10);
+    doc.text("Tarih: " + new Date().toLocaleString('tr-TR'), 14, 28);
+
+    doc.autoTable({
+        startY: 35,
+        head: [['Urun Bilgisi (Mevcut / Kritik)']],
+        body: satirlar,
+        theme: 'grid',
+        headStyles: { fillColor: [231, 76, 60] } // Kırmızı başlık
+    });
+
+    doc.save("siparis_listesi.pdf");
+}
+
+// --- SİPARİŞ LİSTESİNİ DİREKT YAZDIRMA ---
+function siparisListesiYazdir() {
+    const listeIcerik = document.getElementById("otoSiparisListesi").innerHTML;
+    if (!listeIcerik || listeIcerik.trim() === "") {
+        alert("Yazdırılacak ürün bulunamadı!");
+        return;
+    }
+
+    // Geçici bir yazdırma penceresi oluştur
+    const pencere = window.open('', '', 'height=600,width=800');
+    pencere.document.write('<html><head><title>Sipariş Listesi</title>');
+    pencere.document.write('<style>body{font-family:sans-serif; padding:20px;} h2{color:#e74c3c;} li{margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;}</style>');
+    pencere.document.write('</head><body>');
+    pencere.document.write('<h2>🛒 Sipariş Listesi</h2>');
+    pencere.document.write('<p>Tarih: ' + new Date().toLocaleString('tr-TR') + '</p>');
+    pencere.document.write('<ul>' + listeIcerik + '</ul>');
+    pencere.document.write('</body></html>');
+    pencere.document.close();
+    
+    // Yazdır ve pencereyi kapat
+    pencere.print();
 }
 // BU İKİ SATIR DOSYANIN EN SONUNDA VE TEK BAŞINA OLMALI
 verileriGetir(); 
