@@ -210,51 +210,60 @@ function urunHepsiniGuncelle() {
     }).then(() => { modalKapat(); });
 }
 
-async function modalKapat() {
-    // Kamerayı tamamen durdurmadan modalı kapatma
-    if (modalQrCode) {
-        await modalQrCode.stop().catch(() => {});
-        modalQrCode = null;
-    }
-    document.getElementById('detayModal').style.display = "none";
-    document.getElementById('modalReader').style.display = "none";
-}
-
 async function modalKameraBaslat() {
     const readerDiv = document.getElementById('modalReader');
-    if (!readerDiv) return alert("Hata: modalReader bulunamadı!");
+    if (!readerDiv) return;
 
-    // 1. Önce ana sayfadaki kamerayı durdur (Çakışmayı önlemek için ŞART)
+    // Ana sayfadaki tarayıcı açıksa çakışmasın diye durdur
     if (html5QrCode && html5QrCode.isScanning) {
         await html5QrCode.stop().catch(() => {});
         document.getElementById('reader-wrapper').style.display = "none";
     }
 
-    // 2. Eğer modal kamerası zaten açıksa kapat (Aç-Kapat mantığı)
     if (modalQrCode) {
         await modalQrCode.stop().catch(() => {});
         modalQrCode = null;
-        readerDiv.style.display = "none";
-        return;
     }
 
-    // 3. Kamerayı başlat
     readerDiv.style.display = "block";
     modalQrCode = new Html5Qrcode("modalReader");
     
-    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+    const config = { fps: 15, qrbox: { width: 250, height: 150 } };
 
     modalQrCode.start(
         { facingMode: "environment" }, 
         config, 
-        (text) => {
-            document.getElementById('editBarkod').value = text;
-            modalKapat(); // Okuyunca her şeyi temizle
+        async (text) => {
+            // ÖNEMLİ: Önce barkodu yazıyoruz
+            const input = document.getElementById('editBarkod');
+            if(input) {
+                input.value = text;
+                // Görsel geri bildirim için kutuyu anlık parlatabiliriz
+                input.style.backgroundColor = "#e1f5fe";
+            }
+            
+            // Telefonun işlemi tamamlaması için yarım saniye (500ms) bekle
+            setTimeout(async () => {
+                await modalKapat();
+                input.style.backgroundColor = "white";
+            }, 500);
         }
     ).catch(err => {
-        console.error("Kamera hatası:", err);
-        alert("Kamera başlatılamadı! Lütfen izinleri kontrol edin.");
+        console.error("Kamera Hatası:", err);
     });
+}
+
+async function modalKapat() {
+    if (modalQrCode) {
+        try {
+            await modalQrCode.stop();
+        } catch (e) {
+            console.log("Kamera zaten durmuş.");
+        }
+        modalQrCode = null;
+    }
+    document.getElementById('detayModal').style.display = "none";
+    document.getElementById('modalReader').style.display = "none";
 }
 
 function urunEkle() {
