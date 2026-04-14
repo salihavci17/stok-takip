@@ -152,48 +152,64 @@ function hareketleriGetir() {
         let html = "";
         snap.forEach(doc => {
             const h = doc.data();
-            const id = doc.id; // Belge ID'sini buradan alıyoruz
+            const id = doc.id; // Belge ID'si (silme işlemi için gerekli)
             const renk = h.tur === "giris" ? "green" : "red";
             const sembol = h.tur === "giris" ? "+" : "-";
 
-            // Tarih formatı
+            // --- BURAYI GÜNCELLEDİK ---
+            const gorunurIsim = h.urun || h.urunId || "Bilinmeyen Ürün";
+            const miktar = h.miktar || 0;
+            const tur = h.tur || h.islem || "bilinmiyor";
+
             let tarihYazi = "";
             if (h.tarih) {
                 const d = h.tarih.toDate ? h.tarih.toDate() : new Date(h.tarih);
                 tarihYazi = d.toLocaleString('tr-TR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
             }
 
+            // Tablo satırını oluşturuyoruz
             html += `
                 <tr>
                     <td style="font-size:11px;">${tarihYazi}</td>
-                    <td style="font-weight:bold;">${h.urun}</td>
-                    <td style="color:${renk}; font-weight:bold;">${sembol}${h.miktar}</td>
+                    <td style="font-weight:bold;">${gorunurIsim}</td>
+                    <td style="color:${renk}; font-weight:bold;">${sembol}${miktar}</td>
                     <td style="text-align:center;">
-                        <button onclick="hareketSil('${id}', '${h.urun}', ${h.miktar}, '${h.tur}')" 
+                        <button onclick="hareketSil('${id}', '${gorunurIsim}', ${miktar}, '${tur}')" 
                                 style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:18px;">
                             🗑️
                         </button>
                     </td>
                 </tr>`;
+            // --- GÜNCELLEME BİTTİ ---
         });
         govde.innerHTML = html;
     });
 }
 function stokIslem(tip) {
-    const urun = document.getElementById('urunSelect').value;
+    const urunId = document.getElementById('urunSelect').value;
     const miktar = parseInt(document.getElementById('islemMiktar').value);
-    if(!urun || !miktar) return;
-    const mevcutStok = parseInt(stoklar[urun].kalan) || 0;
+    if(!urunId || !miktar) return;
+
+    const mevcutStok = parseInt(stoklar[urunId].kalan) || 0;
+    const urunIsmi = stoklar[urunId].ad || urunId; // Gerçek ismi alıyoruz
     const yeni = tip === 'giris' ? (mevcutStok + miktar) : (mevcutStok - miktar);
+
     const batch = db.batch();
-    batch.update(db.collection("stoklar").doc(urun), { kalan: yeni });
+    batch.update(db.collection("stoklar").doc(urunId), { kalan: yeni });
+    
     batch.set(db.collection("hareketler").doc(), { 
-        urun, 
+        urunId: urunId,
+        urun: urunIsmi, // İsmi açıkça kaydediyoruz
         tur: tip, 
+        islem: tip,
         miktar: parseInt(miktar), 
         tarih: firebase.firestore.Timestamp.fromDate(new Date())
     });
-    batch.commit().then(() => { document.getElementById('islemMiktar').value = ""; });
+
+    batch.commit().then(() => { 
+        document.getElementById('islemMiktar').value = "";
+        alert("İşlem Başarılı");
+    });
 }
 
 async function urunDetayiniGoster(id) {
@@ -210,50 +226,38 @@ async function urunDetayiniGoster(id) {
 async function urunHepsiniGuncelle() {
     if (!seciliUrunId) return;
 
-    // Formdaki giriş alanlarını alıyoruz
+    // HTML'den kutuları alıyoruz
     const adInput = document.getElementById('editUrunAd');
     const barkodInput = document.getElementById('editBarkod');
     const stokInput = document.getElementById('editStok');
     const kritikInput = document.getElementById('editKritik');
 
-    // Mevcut veriyi hafızadan (stoklar objesinden) alıyoruz
     const mevcutVeri = stoklar[seciliUrunId] || {};
 
-    // --- KRİTİK NOKTA BURASI ---
-    // Eğer isim kutusu boşsa, "İsimsiz Ürün" yazmak yerine mevcutVeri.ad (eski ismi) kullan diyoruz.
-    const yeniAd = adInput.value.trim() !== "" ? adInput.value.trim() : mevcutVeri.ad;
-    
-    // Aynı mantığı diğerleri için de uyguluyoruz (Boş bırakılırsa eskisi kalsın)
-    const yeniBarkod = barkodInput.value.trim() !== "" ? barkodInput.value.trim() : (mevcutVeri.barkod || "");
-    const yeniStok = stokInput.value !== "" ? Number(stokInput.value) : (mevcutVeri.kalan || 0);
-    const yeniKritik = kritikInput.value !== "" ? Number(kritikInput.value) : (mevcutVeri.kritik || 5);
+    // Kutu boşsa eski ismi kullan, değilse yeni yazılanı al
+    const yeniAd = adInput.value.trim() !== "" ? adInput.value.trim() : (mevcutVeri.ad || seciliUrunId);
+    const yeniBarkod = barkodInput.value.trim();
+    const yeniStok = Number(stokInput.value);
+    const yeniKritik = Number(kritikInput.value);
 
     try {
-        // Firebase Güncelleme
+        // Firebase'e gönder
         await db.collection("stoklar").doc(seciliUrunId).update({
             ad: yeniAd,
             barkod: yeniBarkod,
-            kalan: yeniStok,
+            kalan: yeniStok, 
             kritik: yeniKritik
         });
-
-        // Hareket kaydı (Log) tutma
-        if (typeof hareketKaydet === "function") {
-            hareketKaydet(seciliUrunId, "Güncelleme", yeniStok);
-        }
-
-        alert("Bilgiler başarıyla güncellendi!");
         
-        // Modalı Kapat
-        const modal = document.getElementById('detayModal');
-        if (modal) modal.style.display = "none";
+        // İşlemi günlüğe kaydet (2. adımdaki fonksiyonu çağırır)
+        hareketKaydet(seciliUrunId, "Güncelleme", yeniStok);
         
+        alert("Başarıyla güncellendi!");
+        modalKapat();
     } catch (e) {
-        console.error("Güncelleme hatası:", e);
         alert("Hata oluştu: " + e.message);
     }
 }
-
 async function modalKapat() {
     if (modalQrCode) { await modalQrCode.stop().catch(()=>{}); modalQrCode = null; }
     document.getElementById('detayModal').style.display = "none";
@@ -418,24 +422,31 @@ function karakterTemizle(metin) {
     };
     return metin.replace(/[çÇğĞşŞüÜöÖıİ]/g, (harf) => harfHaritasi[harf]);
 }
-async function hareketSil(hareketId, urunAd, miktar, tur) {
-    if (!confirm(`${urunAd} işlemini silmek istiyor musunuz? Stok geri düzeltilecek.`)) return;
+async function hareketSil(docId, urunAd, miktar, tur) {
+    if (!confirm(`${urunAd} ürününe ait ${miktar} adetlik ${tur} işlemini silmek ve stoğu geri almak istiyor musunuz?`)) return;
 
     try {
-        // 1. Hareketi sil
-        await db.collection("hareketler").doc(hareketId).delete();
+        // 1. Ürünün veritabanındaki ID'sini bul (İsimden ID'ye ulaşıyoruz)
+        const urunId = Object.keys(stoklar).find(key => stoklar[key].ad === urunAd) || urunAd;
+        const urunRef = db.collection("stoklar").doc(urunId);
+        const urunDoc = await urunRef.get();
 
-        // 2. Stoğu iade et (Giriş siliniyorsa azalt, çıkış siliniyorsa artır)
-        const m = parseInt(miktar);
-        const fark = (tur === "giris") ? -m : m;
+        if (urunDoc.exists) {
+            const mevcutStok = urunDoc.data().kalan || 0;
+            // İşlem girişse stoktan düş, çıkışsa stoğa geri ekle (ters işlem)
+            const yeniStok = tur === "giris" ? (mevcutStok - miktar) : (mevcutStok + miktar);
+            
+            // 2. Stoğu güncelle
+            await urunRef.update({ kalan: yeniStok });
+        }
 
-        await db.collection("stoklar").doc(urunAd).update({
-            stok: firebase.firestore.FieldValue.increment(fark)
-        });
-
-        alert("İşlem başarıyla geri alındı.");
-    } catch (e) {
-        alert("Hata: " + e.message);
+        // 3. Hareket kaydını sil
+        await db.collection("hareketler").doc(docId).delete();
+        
+        alert("İşlem silindi ve stok başarıyla geri alındı.");
+    } catch (error) {
+        console.error("Silme hatası:", error);
+        alert("Hata oluştu: " + error.message);
     }
 }
 // --- ÜRÜN DETAY MODALINI AÇAN FONKSİYON ---
@@ -617,12 +628,12 @@ function siparisListesiYazdir() {
 function hareketKaydet(urunId, islemTuru, miktar) {
     const urunAd = stoklar[urunId] ? stoklar[urunId].ad : urunId;
     db.collection("hareketler").add({
-        urun: urunAd,
         urunId: urunId,
-        tur: islemTuru,
-        miktar: parseInt(miktar),
+        urun: urunAd,
+        islem: islemTuru,
+        miktar: Number(miktar),
         tarih: firebase.firestore.Timestamp.fromDate(new Date())
-    }).catch(err => console.error("Hareket kaydı başarısız:", err));
+    });
 }
 // BU İKİ SATIR DOSYANIN EN SONUNDA VE TEK BAŞINA OLMALI
 verileriGetir(); 
