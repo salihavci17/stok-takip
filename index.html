@@ -47,11 +47,14 @@
             <input type="text" id="urunAdi" placeholder="Ürün İsmi">
             <div style="display:flex; gap:5px; margin-top:5px;">
                 <input type="text" id="urunBarkod" placeholder="Barkod" style="flex:1;">
-                <button onclick="kameraBaslat('urunBarkod')" style="background:#34495e; color:white; padding:0 15px; border-radius:5px;">📷</button>
+                <button onclick="yeniUrunKameraBaslat('urunBarkod')" style="background:#34495e; color:white; padding:0 15px; border-radius:5px;">📷</button>
             </div>
             <button onclick="urunEkle()" style="margin-top:10px; width:100%;">Kaydet</button>
         </div>
-
+<div id="reader-wrapper-ekle" style="display:none;">
+    <div id="reader-ekle"></div>
+    <button onclick="yeniUrunKameraDurdur()" style="background:#e74c3c; color:white;">KAMERAYI KAPAT</button>
+</div>
         <div class="section">
     <h3>Hızlı Stok İşlemi</h3>
     <div style="display:flex; gap:5px; margin-bottom:10px;">
@@ -66,7 +69,10 @@
         <button onclick="stokIslem('cikis')" class="btn-cikis" style="flex:1;">ÇIKIŞ (-)</button>
     </div>
 </div>
-
+<div id="reader-wrapper" style="display:none;">
+    <div id="reader"></div>
+    <button onclick="anaKameraDurdur()" style="background:#e74c3c; color:white;">KAMERAYI KAPAT</button>
+</div>
         <div class="section" style="background:#f1f2f6;">
     <h3>Raporlama</h3>
     <div style="display:flex; gap:5px; margin-bottom:10px;">
@@ -149,9 +155,9 @@
 </div>
 <div style="text-align:center; margin-top:20px; padding-bottom:20px; color:#bdc3c7; font-size:12px;">
     Stok Takip Sistemi <br>
-    <b>Versiyon: 6.0.0</b>
+    <b>Versiyon: 6.1.0</b>
 </div>
 
-    <script src="app.js?v=2.3"></script>
+    <script src="app.js?v=3.0"></script>
 </body>
 </html>

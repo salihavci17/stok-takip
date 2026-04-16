@@ -635,56 +635,68 @@ function hareketKaydet(urunId, islemTuru, miktar) {
         tarih: firebase.firestore.Timestamp.fromDate(new Date())
     });
 }
-// ANA KAMERAYI BAŞLATMA (Hızlı Stok İşlemi İçin)
+// --- KAMERA YÖNETİMİ ---
+
+// 1. Hızlı Stok İşlemi İçin Kamera
 async function anaKameraBaslat() {
     const readerElement = document.getElementById('reader-wrapper');
     readerElement.style.display = 'block';
 
-    // Eğer zaten bir kamera açıksa önce onu durdur (Donmayı önler)
     if (html5QrCode) {
-        try {
-            await html5QrCode.stop();
-        } catch (e) { console.log("Eski kamera temizlendi"); }
+        try { await html5QrCode.stop(); } catch (e) {}
         html5QrCode = null;
     }
 
     html5QrCode = new Html5Qrcode("reader");
-
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
     html5QrCode.start(
         { facingMode: "environment" },
-        config,
+        { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
-            // Barkod okununca ürünü seç
             const bulunanId = Object.keys(stoklar).find(id => stoklar[id].barkod === decodedText);
             if (bulunanId) {
                 document.getElementById('urunSelect').value = bulunanId;
-                anaKameraDurdur(); // Okuma başarılıysa kapat
-                alert("Ürün Seçildi: " + (stoklar[bulunanId].ad || bulunanId));
+                anaKameraDurdur();
+                alert("Ürün Bulundu!");
             } else {
-                alert("Barkod sistemde kayıtlı değil: " + decodedText);
+                alert("Barkod Kayıtlı Değil: " + decodedText);
             }
-        },
-        (errorMessage) => { /* Tarama sürüyor... */ }
-    ).catch((err) => {
-        alert("Kamera açma hatası! İzinleri kontrol edin.");
-        readerElement.style.display = 'none';
-    });
+        }
+    ).catch(err => console.error("Kamera başlatma hatası:", err));
 }
 
-// ANA KAMERAYI DURDURMA
 async function anaKameraDurdur() {
-    const readerElement = document.getElementById('reader-wrapper');
     if (html5QrCode) {
-        try {
-            await html5QrCode.stop();
-            html5QrCode = null;
-        } catch (err) {
-            console.error("Durdurma hatası:", err);
-        }
+        try { await html5QrCode.stop(); html5QrCode = null; } catch (e) {}
     }
-    if (readerElement) readerElement.style.display = 'none';
+    document.getElementById('reader-wrapper').style.display = 'none';
+}
+
+// 2. Yeni Ürün Ekleme İçin Kamera
+async function yeniUrunKameraBaslat() {
+    const readerElement = document.getElementById('reader-wrapper-ekle');
+    readerElement.style.display = 'block';
+
+    if (modalQrCode) {
+        try { await modalQrCode.stop(); } catch (e) {}
+        modalQrCode = null;
+    }
+
+    modalQrCode = new Html5Qrcode("reader-ekle");
+    modalQrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        (decodedText) => {
+            document.getElementById('urunBarkod').value = decodedText;
+            yeniUrunKameraDurdur();
+        }
+    ).catch(err => console.error("Modal kamera hatası:", err));
+}
+
+async function yeniUrunKameraDurdur() {
+    if (modalQrCode) {
+        try { await modalQrCode.stop(); modalQrCode = null; } catch (e) {}
+    }
+    document.getElementById('reader-wrapper-ekle').style.display = 'none';
 }
 // BU İKİ SATIR DOSYANIN EN SONUNDA VE TEK BAŞINA OLMALI
 verileriGetir(); 
