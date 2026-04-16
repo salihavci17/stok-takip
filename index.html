@@ -20,7 +20,7 @@
 
         <div id="reader-wrapper" style="display:none; margin-bottom: 20px; border: 3px solid #3498db; border-radius: 10px; overflow: hidden;">
             <div id="reader" style="width: 100%;"></div>
-            <button onclick="kameraDurdur()" style="width:100%; background:#e74c3c; color:white; padding:15px; border:none; font-weight:bold;">✖ KAPAT</button>
+            <button onclick="anaKameraDurdur()" style="width:100%; background:#e74c3c; color:white; padding:15px; border:none; font-weight:bold;">✖ KAPAT</button>
         </div>
 
         <div id="kritikPanel" style="display:none; background: #fff5f5; border: 2px solid #feb2b2; padding: 10px; border-radius: 8px; margin-bottom: 20px;">
@@ -56,7 +56,7 @@
     <h3>Hızlı Stok İşlemi</h3>
     <div style="display:flex; gap:5px; margin-bottom:10px;">
         <select id="urunSelect" style="flex:1; margin-bottom:0;"></select>
-        <button onclick="kameraBaslat('islemBarkod')" style="background:#34495e; color:white; padding:0 15px; border-radius:10px;">📷</button>
+        <button onclick="anaKameraBaslat('islemBarkod')" style="background:#34495e; color:white; padding:0 15px; border-radius:10px;">📷</button>
     </div>
     <input type="hidden" id="islemBarkod" onchange="barkodlaUrunSec()">
     

@@ -635,6 +635,57 @@ function hareketKaydet(urunId, islemTuru, miktar) {
         tarih: firebase.firestore.Timestamp.fromDate(new Date())
     });
 }
+// ANA KAMERAYI BAŞLATMA (Hızlı Stok İşlemi İçin)
+async function anaKameraBaslat() {
+    const readerElement = document.getElementById('reader-wrapper');
+    readerElement.style.display = 'block';
+
+    // Eğer zaten bir kamera açıksa önce onu durdur (Donmayı önler)
+    if (html5QrCode) {
+        try {
+            await html5QrCode.stop();
+        } catch (e) { console.log("Eski kamera temizlendi"); }
+        html5QrCode = null;
+    }
+
+    html5QrCode = new Html5Qrcode("reader");
+
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+            // Barkod okununca ürünü seç
+            const bulunanId = Object.keys(stoklar).find(id => stoklar[id].barkod === decodedText);
+            if (bulunanId) {
+                document.getElementById('urunSelect').value = bulunanId;
+                anaKameraDurdur(); // Okuma başarılıysa kapat
+                alert("Ürün Seçildi: " + (stoklar[bulunanId].ad || bulunanId));
+            } else {
+                alert("Barkod sistemde kayıtlı değil: " + decodedText);
+            }
+        },
+        (errorMessage) => { /* Tarama sürüyor... */ }
+    ).catch((err) => {
+        alert("Kamera açma hatası! İzinleri kontrol edin.");
+        readerElement.style.display = 'none';
+    });
+}
+
+// ANA KAMERAYI DURDURMA
+async function anaKameraDurdur() {
+    const readerElement = document.getElementById('reader-wrapper');
+    if (html5QrCode) {
+        try {
+            await html5QrCode.stop();
+            html5QrCode = null;
+        } catch (err) {
+            console.error("Durdurma hatası:", err);
+        }
+    }
+    if (readerElement) readerElement.style.display = 'none';
+}
 // BU İKİ SATIR DOSYANIN EN SONUNDA VE TEK BAŞINA OLMALI
 verileriGetir(); 
 hareketleriGetir();
