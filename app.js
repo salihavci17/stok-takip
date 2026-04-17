@@ -310,7 +310,7 @@ function urunEkle() {
             ad: ad 
         })
         .then(() => {
-            alert("Ürün başarıyla eklendi!");
+            alert("✅ Harika! Yeni ürün kataloğumuza başarıyla kaydedildi.");
             
             // --- KUTULARI SİLME ---
             adInput.value = "";
