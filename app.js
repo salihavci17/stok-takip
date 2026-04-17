@@ -296,8 +296,33 @@ async function modalKameraBaslat() {
 }
 
 function urunEkle() {
-    const ad = document.getElementById('urunAdi').value;
-    if(ad) db.collection("stoklar").doc(ad).set({ barkod: document.getElementById('urunBarkod').value, kalan: 0, kritik: 5 });
+    const adInput = document.getElementById('urunAdi');
+    const barkodInput = document.getElementById('urunBarkod');
+    
+    const ad = adInput.value.trim();
+    const barkod = barkodInput.value.trim();
+
+    if (ad) {
+        db.collection("stoklar").doc(ad).set({ 
+            barkod: barkod, 
+            kalan: 0, 
+            kritik: 5,
+            ad: ad 
+        })
+        .then(() => {
+            alert("Ürün başarıyla eklendi!");
+            
+            // --- KUTULARI SİLME ---
+            adInput.value = "";
+            barkodInput.value = "";
+            
+            // Eklendikten sonra listeyi görmesi için otomatik olarak Liste sekmesine geçirebilirsin (İsteğe bağlı)
+            // sekmeAc(null, 'stok-listesi-sekme'); 
+        })
+        .catch(error => alert("Hata: " + error));
+    } else {
+        alert("Lütfen ürün adını girin!");
+    }
 }
 function urunSil(id) { if(confirm("Silinsin mi?")) db.collection("stoklar").doc(id).delete(); }
 // --- RAPORLAMA FONKSİYONLARI ---
@@ -728,6 +753,29 @@ async function yeniUrunKameraDurdur() {
         try { await modalQrCode.stop(); modalQrCode = null; } catch (e) {}
     }
     document.getElementById('reader-wrapper-ekle').style.display = 'none';
+}
+function sekmeAc(evt, sekmeAdi) {
+    var i, tabcontent, tablinks;
+    
+    // Tüm içerikleri gizle
+    tabcontent = document.getElementsByClassName("tab-content");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
+
+    // Tüm butonların rengini sıfırla
+    tablinks = document.getElementsByClassName("tab-btn");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].style.backgroundColor = "";
+        tablinks[i].style.color = "";
+        tablinks[i].classList.remove("active");
+    }
+
+    // Seçilen sekmeyi göster ve butonu boya
+    document.getElementById(sekmeAdi).style.display = "block";
+    evt.currentTarget.style.backgroundColor = "#3498db";
+    evt.currentTarget.style.color = "white";
+    evt.currentTarget.classList.add("active");
 }
 // BU İKİ SATIR DOSYANIN EN SONUNDA VE TEK BAŞINA OLMALI
 verileriGetir(); 

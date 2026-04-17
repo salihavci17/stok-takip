@@ -17,6 +17,12 @@
 
     <div class="container">
         <h1>📦 Stok Takip Pro</h1>
+       <div class="tab-menu" style="display: flex; gap: 5px; margin-bottom: 20px; background: #eee; padding: 5px; border-radius: 10px;">
+    <button class="tab-btn active" onclick="sekmeAc(event, 'hizli-islem-sekme')" style="flex:1; padding:10px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; background-color:#3498db; color:white;">⚡ Hızlı İşlem</button>
+    <button class="tab-btn" onclick="sekmeAc(event, 'stok-listesi-sekme')" style="flex:1; padding:10px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">📋 Liste</button>
+    <button class="tab-btn" onclick="sekmeAc(event, 'yeni-urun-sekme')" style="flex:1; padding:10px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">➕ Yeni</button>
+    <button class="tab-btn" onclick="sekmeAc(event, 'hareketler-sekme')" style="flex:1; padding:10px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">🕒 Hareketler</button>
+</div>
         <div id="kritikPanel" style="display:none; background: #fff5f5; border: 2px solid #feb2b2; padding: 10px; border-radius: 8px; margin-bottom: 20px;">
             <h4 style="color: #c53030; margin: 0 0 5px 0;">⚠️ Azalan Ürünler!</h4>
             <ul id="kritikListe" style="margin:0; padding-left:20px; color:#c53030; font-size:13px;"></ul>
@@ -36,7 +42,7 @@
         🖨️ YAZDIR
     </button>
 </div>
-        <div class="section">
+        <div id="yeni-urun-sekme" class="tab-content" style="display:none;">
             <h3>Yeni Ürün</h3>
             <input type="text" id="urunAdi" placeholder="Ürün İsmi">
             <div style="display:flex; gap:5px; margin-top:5px;">
@@ -49,7 +55,8 @@
     <div id="reader-ekle"></div>
     <button onclick="yeniUrunKameraDurdur()" style="background:#e74c3c; color:white;">KAMERAYI KAPAT</button>
 </div>
-        <div class="section">
+       <div id="hizli-islem-sekme" class="tab-content" style="display:block;">
+  <button class="tab-btn active" onclick="sekmeAc(event, 'hizli-islem-sekme')" style="flex:1; padding:10px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; background-color:#3498db; color:white;">⚡ Hızlı İşlem</button>      
     <h3>Hızlı Stok İşlemi</h3>
    <div class="card">
     <h3>⚡ Hızlı İşlem</h3>
@@ -101,7 +108,7 @@
             </div>
         </div>
 
-        <div class="section">
+        <div id="stok-listesi-sekme" class="tab-content" style="display:none;">
             <h3>Stok Listesi</h3>
             <input type="text" id="aramaKutusu" placeholder="Ürün veya Barkod Ara..." onkeyup="tabloFiltrele()" style="margin-bottom:10px; border: 2px solid #3498db;">
             <table style="width:100%;" id="anaStokTablosu">
@@ -111,7 +118,7 @@
         </div>
 
         <div class="section">
-            <div class="section">
+       <div id="hareketler-sekme" class="tab-content" style="display:none;">
     <h2>🕒 Son Hareketler</h2>
     <div id="hareketlerListesi">
         <table style="width:100%">
@@ -157,11 +164,64 @@
         <button onclick="modalKapat()" style="width:100%; margin-top:15px; padding:10px; background:#eee; border:none; border-radius:8px;">Kapat</button>
     </div>
 </div>
-<div style="text-align:center; margin-top:20px; padding-bottom:20px; color:#bdc3c7; font-size:12px;">
-    Stok Takip Sistemi <br>
-    <b>Versiyon: 6.1.0</b>
-</div>
+<div style="
+    margin-top: 50px; 
+    padding: 25px 15px; 
+    background: linear-gradient(145deg, #2c3e50, #000000); 
+    border-radius: 20px 20px 0 0; 
+    text-align: center; 
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
+">
+    <div style="
+        font-family: 'Courier New', Courier, monospace; 
+        color: #f1c40f; 
+        font-size: 11px; 
+        letter-spacing: 3px; 
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    ">
+        Production Credits
+    </div>
+    
+    <h2 style="
+        margin: 0; 
+        color: #ffffff; 
+        font-size: 18px; 
+        font-weight: 300; 
+        letter-spacing: 2px;
+    ">
+        DIRECTED BY <span style="font-weight: 800; color: #3498db;">SALA</span> & <span style="font-weight: 800; color: #9b59b6;">GEMINI</span>
+    </h2>
 
+    <div style="
+        margin-top: 15px; 
+        height: 1px; 
+        background: linear-gradient(to right, transparent, #555, transparent); 
+        width: 80%; 
+        margin-left: 10%
+    "></div>
+
+    <p style="
+        margin-top: 15px; 
+        color: #bdc3c7; 
+        font-size: 12px; 
+        font-style: italic;
+    ">
+        "Smart Inventory Solutions for Professionals"
+    </p>
+    
+    <div style="
+        display: inline-block;
+        margin-top: 10px;
+        padding: 4px 12px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 50px;
+        color: #ecf0f1;
+        font-size: 10px;
+    ">
+        Build Version: 2.6.0
+    </div>
+</div>
     <script src="app.js?v=3.0"></script>
 </body>
 </html>
