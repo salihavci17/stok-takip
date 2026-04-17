@@ -58,7 +58,9 @@
         <div class="section">
     <h3>Hızlı Stok İşlemi</h3>
     <div style="display:flex; gap:5px; margin-bottom:10px;">
-        <select id="urunSelect" style="flex:1; margin-bottom:0;"></select>
+       <select id="urunSelect" style="width:100%; padding:10px; margin-bottom:10px;">
+    <option value="">Ürün Seçin</option>
+</select>
         <button onclick="anaKameraBaslat('islemBarkod')" style="background:#34495e; color:white; padding:0 15px; border-radius:10px;">📷</button>
     </div>
     <input type="hidden" id="islemBarkod" onchange="barkodlaUrunSec()">

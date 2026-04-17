@@ -646,31 +646,43 @@ async function anaKameraBaslat() {
         try { await html5QrCode.stop(); } catch (e) {}
         html5QrCode = null;
     }
-
     html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
-            const bulunanId = Object.keys(stoklar).find(id => stoklar[id].barkod === decodedText);
+            console.log("Okunan Barkod:", decodedText);
+            const bulunanId = Object.keys(stoklar).find(id => {
+                return stoklar[id].barkod && stoklar[id].barkod.toString().trim() === decodedText.trim();
+            });
+
             if (bulunanId) {
-                document.getElementById('urunSelect').value = bulunanId;
-                anaKameraDurdur();
-                alert("Ürün Bulundu!");
+                const selectBox = document.getElementById('urunSelect');
+                if (selectBox) {
+                    selectBox.value = bulunanId; // Ürünü seç
+                    anaKameraDurdur(); // Kamerayı kapat
+                    alert("Ürün Otomatik Seçildi: " + (stoklar[bulunanId].ad || bulunanId));
+                }
             } else {
-                alert("Barkod Kayıtlı Değil: " + decodedText);
+                alert("Bu barkod ( " + decodedText + " ) herhangi bir ürünle eşleşmedi!");
             }
         }
-    ).catch(err => console.error("Kamera başlatma hatası:", err));
+    ).catch(err => console.error("Kamera hatası:", err));
 }
-
 async function anaKameraDurdur() {
+    const readerElement = document.getElementById('reader-wrapper');
     if (html5QrCode) {
-        try { await html5QrCode.stop(); html5QrCode = null; } catch (e) {}
+        try {
+            await html5QrCode.stop(); // Kameranın tamamen durmasını bekle
+            html5QrCode = null; // Belleği temizle
+        } catch (err) {
+            console.error("Kamera durdurulamadı:", err);
+        }
     }
-    document.getElementById('reader-wrapper').style.display = 'none';
+    if (readerElement) {
+        readerElement.style.display = 'none'; // Ekranı gizle
+    }
 }
-
 // 2. Yeni Ürün Ekleme İçin Kamera
 async function yeniUrunKameraBaslat() {
     const readerElement = document.getElementById('reader-wrapper-ekle');
