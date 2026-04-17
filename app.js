@@ -80,8 +80,27 @@ function tabloFiltrele() {
 function verileriGetir() {
     db.collection("stoklar").onSnapshot((querySnapshot) => {
         stoklar = {};
-        querySnapshot.forEach((doc) => { stoklar[doc.id] = doc.data(); });
-        stoklariListele(); 
+        
+        // --- SEÇİM KUTUSUNU BUL VE SIFIRLA ---
+        const urunSelect = document.getElementById("urunSelect");
+        if (urunSelect) {
+            urunSelect.innerHTML = '<option value="">Ürün Seçin</option>';
+        }
+
+        querySnapshot.forEach((doc) => {
+            const veri = doc.data();
+            stoklar[doc.id] = veri;
+
+            // --- HER ÜRÜNÜ SEÇİM KUTUSUNA EKLE ---
+            if (urunSelect) {
+                const option = document.createElement("option");
+                option.value = doc.id; // Firebase'deki benzersiz ID
+                option.textContent = veri.ad || doc.id; // Görünecek isim
+                urunSelect.appendChild(option);
+            }
+        });
+
+        stoklariListele(); // Tabloyu güncelleyen mevcut fonksiyonun
     });
 }
 
