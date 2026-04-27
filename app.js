@@ -15,6 +15,7 @@ let html5QrCode = null;
 let modalQrCode = null;
 let seciliUrunId = "";
 let sonRaporVerisi = [];
+let sepet = []; // Seçilen ürünleri burada tutacağız
 
 function karakterTemizle(metin) {
     if (!metin) return "";
@@ -89,21 +90,31 @@ function stoklariListele() {
     let genelToplamAdet = 0; 
     let kritikUrunVarMi = false;
     let grupluStoklar = {};
-    let tabloHTML = ""; // Biriktirme değişkeni
+    let tabloHTML = "";
 
+    // Gruplandırma mantığı aynı kalıyor
     Object.keys(stoklar).forEach(id => {
         const s = stoklar[id];
-        // Veri anahtarını kontrol edin: s.urunAd mı yoksa s.ad mi?
         const ad = s.urunAd || s.ad || "İsimsiz Ürün"; 
         const grup = s.grup || "Genel";
-        
         if (!grupluStoklar[grup]) grupluStoklar[grup] = [];
         grupluStoklar[grup].push({ id, ad, ...s });
     });
 
-    Object.keys(grupluStoklar).sort().forEach(grupAdi => {
-        tabloHTML += `<tr><td colspan="3" style="background:#f1c40f; font-weight:bold; padding:8px;">${grupAdi}</td></tr>`;
+    Object.keys(grupluStoklar).sort().forEach((grupAdi, index) => {
+        // Her grup için benzersiz bir ID oluşturuyoruz (örneğin: grup-0, grup-1)
+        const grupId = "grup-" + index;
+
+        // Grup Başlığı (Tıklanabilir yaptık)
+        tabloHTML += `
+            <tr onclick="grupToggle('${grupId}')" style="cursor:pointer; background:#f1c40f;">
+                <td colspan="3" style="font-weight:bold; padding:10px; border-bottom:1px solid #d4ac0d;">
+                    📂 ${grupAdi} <span style="float:right; font-size:10px;">(Aç/Kapat)</span>
+                </td>
+            </tr>
+        `;
         
+        // Ürün satırlarını bu grubun ID'sine sahip bir sınıfa koyuyoruz
         grupluStoklar[grupAdi].forEach(urun => {
             const miktar = parseInt(urun.kalan) || 0;
             const kritik = parseInt(urun.kritik) || 5;
@@ -111,10 +122,12 @@ function stoklariListele() {
             const renk = miktar <= kritik ? "#e74c3c" : "#2c3e50";
             
             tabloHTML += `
-                <tr onclick="detayGoster('${urun.id}')" style="cursor:pointer;">
-                    <td style="padding:8px;">${urun.ad}</td>
+                <tr class="${grupId}" onclick="detayGoster('${urun.id}')" style="cursor:pointer; display:none;">
+                    <td style="padding:8px; padding-left:20px;">${urun.ad}</td>
                     <td style="color:${renk}; font-weight:bold; padding:8px;">${miktar}</td>
-                    <td style="text-align:center;"><button onclick="event.stopPropagation(); urunSil('${urun.id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer;">✖</button></td>
+                    <td style="text-align:center;">
+                        <button onclick="event.stopPropagation(); urunSil('${urun.id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer;">✖</button>
+                    </td>
                 </tr>`;
 
             if (miktar <= kritik) {
@@ -124,12 +137,22 @@ function stoklariListele() {
         });
     });
 
-    // TEK SEFERDE GÜNCELLEME (Hızlandırıcı)
     tabloGovde.innerHTML = tabloHTML;
-    
     const toplamEl = document.getElementById('toplamStok');
     if (toplamEl) toplamEl.innerText = genelToplamAdet;
     if (oPanel) oPanel.style.display = kritikUrunVarMi ? "block" : "none";
+}
+
+// Grupları açıp kapatan yeni yardımcı fonksiyonumuz (Bunu app.js'in en altına ekleyebilirsin)
+function grupToggle(id) {
+    const satirlar = document.getElementsByClassName(id);
+    for (let satir of satirlar) {
+        if (satir.style.display === "none") {
+            satir.style.display = "table-row";
+        } else {
+            satir.style.display = "none";
+        }
+    }
 }
 function hareketleriGetir() {
     db.collection("hareketler").orderBy("tarih", "desc").limit(50).onSnapshot(snap => {
@@ -175,12 +198,23 @@ function hareketleriGetir() {
 // --- İŞLEMLER ---
 function stokIslem(tip) {
     const urunId = document.getElementById('urunSelect').value;
-    const miktar = parseInt(document.getElementById('islemMiktar').value);
-    if(!urunId || !miktar) return;
+    const miktarInput = document.getElementById('islemMiktar');
+    const tarihInput = document.getElementById('islemTarihi'); // Yeni ekledik
+    
+    const miktar = parseInt(miktarInput.value);
+    if(!urunId || !miktar) {
+        alert("Lütfen ürün ve miktar seçin!");
+        return;
+    }
 
     const mevcutStok = parseInt(stoklar[urunId].kalan) || 0;
-    const urunIsmi = stoklar[urunId].ad || urunId; 
+    const urunIsmi = stoklar[urunId].urunAd || stoklar[urunId].ad || urunId; 
     const yeni = tip === 'giris' ? (mevcutStok + miktar) : (mevcutStok - miktar);
+
+    // Tarih seçimi kontrolü
+    const secilenTarih = tarihInput.value;
+    // Eğer tarih seçilmediyse bugünü al, seçildiyse o tarihi kullan
+    const islemTarihi = secilenTarih ? new Date(secilenTarih + "T00:00:00") : new Date();
 
     const batch = db.batch();
     batch.update(db.collection("stoklar").doc(urunId), { kalan: yeni });
@@ -191,13 +225,15 @@ function stokIslem(tip) {
         tur: tip, 
         islem: tip,
         miktar: parseInt(miktar), 
-        tarih: firebase.firestore.Timestamp.fromDate(new Date())
+        // Seçilen tarihi Firestore'a kaydediyoruz
+        tarih: firebase.firestore.Timestamp.fromDate(islemTarihi)
     });
 
     batch.commit().then(() => { 
-        document.getElementById('islemMiktar').value = "";
+        miktarInput.value = "";
+        tarihInput.value = ""; // İşlem sonrası tarih kutusunu temizle
         alert("İşlem Başarılı");
-    });
+    }).catch(err => alert("Hata: " + err.message));
 }
 
 function urunEkle() {
@@ -532,7 +568,67 @@ function sekmeAc(evt, sekmeAdi) {
     if (secilenSekme) secilenSekme.style.display = "block";
     if (evt) evt.currentTarget.classList.add("active");
 }
+// 1. Sepete Ekleme
+function sepeteEkle() {
+    const urunId = document.getElementById('urunSelect').value;
+    const miktar = parseInt(document.getElementById('islemMiktar').value);
+    
+    if (!urunId || !miktar) return alert("Lütfen ürün ve miktar seçin!");
 
+    const urun = stoklar[urunId];
+    sepet.push({ id: urunId, ad: urun.urunAd || urun.ad, miktar: miktar });
+    
+    sepetiGuncelle();
+}
+
+// 2. Sepeti Ekranda Gösterme
+function sepetiGuncelle() {
+    const liste = document.getElementById('sepetListesi');
+    const butonlar = document.getElementById('sepetButonlar');
+    liste.innerHTML = "";
+    
+    sepet.forEach((item, index) => {
+        liste.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span>${item.ad} x ${item.miktar}</span>
+            <button onclick="sepettenCikar(${index})" style="background:none; border:none; color:red; cursor:pointer;">X</button>
+        </div>`;
+    });
+    
+    butonlar.style.display = sepet.length > 0 ? "flex" : "none";
+}
+
+// 3. Sepetten Çıkarma
+function sepettenCikar(index) {
+    sepet.splice(index, 1);
+    sepetiGuncelle();
+}
+
+// 4. Toplu İşlem (Batch)
+async function topluIslem(tip) {
+    if (sepet.length === 0) return;
+    const batch = db.batch();
+
+    sepet.forEach(item => {
+        const urunRef = db.collection("stoklar").doc(item.id);
+        const mevcut = parseInt(stoklar[item.id].kalan) || 0;
+        const yeni = tip === 'giris' ? (mevcut + item.miktar) : (mevcut - item.miktar);
+        
+        batch.update(urunRef, { kalan: yeni });
+        
+        batch.set(db.collection("hareketler").doc(), {
+            urunId: item.id,
+            urun: item.ad,
+            tur: tip,
+            miktar: item.miktar,
+            tarih: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    });
+
+    await batch.commit();
+    sepet = [];
+    sepetiGuncelle();
+    alert("Toplu işlem başarıyla tamamlandı!");
+}
 // Başlangıç tetikleyicileri
 verileriGetir(); 
 hareketleriGetir();
