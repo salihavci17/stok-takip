@@ -570,17 +570,22 @@ function sekmeAc(evt, sekmeAdi) {
 }
 // 1. Sepete Ekleme
 function sepeteEkle() {
-    const urunId = document.getElementById('urunSelect').value;
-    const miktar = parseInt(document.getElementById('islemMiktar').value);
+    const urunSelect = document.getElementById('urunSelect');
+    const miktarInput = document.getElementById('islemMiktar');
+    const urunId = urunSelect.value;
+    const miktar = parseInt(miktarInput.value);
     
     if (!urunId || !miktar) return alert("Lütfen ürün ve miktar seçin!");
 
     const urun = stoklar[urunId];
     sepet.push({ id: urunId, ad: urun.urunAd || urun.ad, miktar: miktar });
     
+    // İşlem sonrası kutucukları temizle
+    urunSelect.value = "";
+    miktarInput.value = "";
+    
     sepetiGuncelle();
 }
-
 // 2. Sepeti Ekranda Gösterme
 function sepetiGuncelle() {
     const liste = document.getElementById('sepetListesi');
@@ -606,6 +611,12 @@ function sepettenCikar(index) {
 // 4. Toplu İşlem (Batch)
 async function topluIslem(tip) {
     if (sepet.length === 0) return;
+    
+    // Tarih kontrolü
+    const tarihInput = document.getElementById('islemTarihi');
+    const secilenTarih = tarihInput.value;
+    const islemTarihi = secilenTarih ? new Date(secilenTarih + "T00:00:00") : new Date();
+    
     const batch = db.batch();
 
     sepet.forEach(item => {
@@ -620,13 +631,18 @@ async function topluIslem(tip) {
             urun: item.ad,
             tur: tip,
             miktar: item.miktar,
-            tarih: firebase.firestore.FieldValue.serverTimestamp()
+            // Buraya seçilen tarih ekleniyor
+            tarih: firebase.firestore.Timestamp.fromDate(islemTarihi)
         });
     });
 
     await batch.commit();
+    
+    // İşlem sonrası sepeti ve tarih kutusunu temizle
     sepet = [];
+    tarihInput.value = ""; 
     sepetiGuncelle();
+    
     alert("Toplu işlem başarıyla tamamlandı!");
 }
 // Başlangıç tetikleyicileri
