@@ -87,7 +87,8 @@ function stoklariListele() {
     
     if (!tabloGovde) return;
     
-    let genelToplamAdet = 0; 
+    let genelToplamAdet = 0;
+    let kritikUrunSayisi = 0; 
     let kritikUrunVarMi = false;
     let grupluStoklar = {};
     let tabloHTML = "";
@@ -132,11 +133,14 @@ function stoklariListele() {
 
             if (miktar <= kritik) {
                 kritikUrunVarMi = true;
+                kritikUrunSayisi++;
                 if (oListe) oListe.innerHTML += `<li>${urun.ad} (Kalan: ${miktar})</li>`;
             }
         });
     });
-
+// Dashboard rakamlarını güncelle
+document.getElementById('dashToplam').innerText = genelToplamAdet;
+document.getElementById('dashKritik').innerText = kritikUrunSayisi;
     tabloGovde.innerHTML = tabloHTML;
     const toplamEl = document.getElementById('toplamStok');
     if (toplamEl) toplamEl.innerText = genelToplamAdet;
@@ -286,107 +290,70 @@ async function hareketSil(docId, urunAd, miktar, tur) {
 }
 
 // --- MODAL VE GÜNCELLEME İŞLEMLERİ (KLONLAR TEMİZLENDİ) ---
+// app.js içindeki ilgili fonksiyonları bu güncellenmiş halleriyle değiştirin
+
+// 1. Modalı Açma ve Verileri Doldurma
 function detayGoster(id) {
     seciliUrunId = id;
     const u = stoklar[id];
     
-    if (!u) {
-        console.error("Ürün bulunamadı!");
-        return;
-    }
+    if (!u) return;
 
-    // Modal inputlarını doldur
-    document.getElementById('modalUrunAd').value = u.urunAd || "";
+    // Alanları doğru şekilde eşleştiriyoruz
+    document.getElementById('modalUrunAd').value = u.urunAd || u.ad || "";
     document.getElementById('modalBarkod').value = u.barkod || "";
-    document.getElementById('modalMiktar').value = u.miktar || 0;
+    // Veritabanında 'kalan' olarak tutulan değer Mevcut Stok kutusuna
+    document.getElementById('modalMiktar').value = parseInt(u.kalan) || 0; 
+    // Veritabanında 'kritik' olarak tutulan değer Kritik Seviye kutusuna
+    document.getElementById('modalKritik').value = parseInt(u.kritik) || 5; 
     document.getElementById('modalGrup').value = u.grup || "Genel";
     
-    // MODALI AÇ
-    const modal = document.getElementById('detayModal');
-    if (modal) {
-        modal.style.display = 'block';
-    } else {
-        console.error("Modal elementi sayfada bulunamadı!");
-    }
+    document.getElementById('detayModal').style.display = 'block';
 
-    // 2. HAREKETLERİ GETİR (Bu blok artık fonksiyonun İÇİNDE)
+    // Hareketleri getir
     const detayIcerik = document.getElementById('detayIcerik');
-    if (detayIcerik) {
-        detayIcerik.innerHTML = "Yükleniyor...";
-        
-        // Buradaki "id" artık fonksiyon parametresinden geliyor
-        db.collection("hareketler")
-            .where("urunId", "==", id)
-            .orderBy("tarih", "desc")
-            .limit(10)
-            .get()
-            .then((querySnapshot) => {
-                detayIcerik.innerHTML = "";
-                if (querySnapshot.empty) {
-                    detayIcerik.innerHTML = "<p style='color:gray;'>Henüz hareket yok.</p>";
-                    return;
-                }
-                
-                querySnapshot.forEach((doc) => {
-                    const h = doc.data();
-                    const t = h.tarih ? new Date(h.tarih.seconds * 1000).toLocaleString('tr-TR') : "Bilinmiyor";
-                    const islem = h.tur || h.islem || "İşlem"; 
-                    const miktar = h.miktar || 0;
-
-                    detayIcerik.innerHTML += `
-                        <div style="border-bottom:1px solid #eee; padding:8px 0; display:flex; justify-content:space-between;">
-                            <span><strong>${t}</strong></span>
-                            <span>${islem}: <strong>${miktar}</strong></span>
-                        </div>
-                    `;
-                });
-            })
-            .catch(err => {
-                console.error(err);
-                detayIcerik.innerHTML = "Veriler alınamadı.";
+    detayIcerik.innerHTML = "Yükleniyor...";
+    
+    db.collection("hareketler")
+        .where("urunId", "==", id)
+        .orderBy("tarih", "desc")
+        .limit(10)
+        .get()
+        .then((querySnapshot) => {
+            detayIcerik.innerHTML = querySnapshot.empty ? "<p>Hareket yok.</p>" : "";
+            querySnapshot.forEach((doc) => {
+                const h = doc.data();
+                const t = h.tarih ? h.tarih.toDate().toLocaleString('tr-TR') : "---";
+                detayIcerik.innerHTML += `
+                    <div style="border-bottom:1px solid #eee; padding:5px 0; display:flex; justify-content:space-between;">
+                        <span>${t}</span>
+                        <span><strong>${h.tur}: ${h.miktar}</strong></span>
+                    </div>`;
             });
-    }
+        });
 }
+
+// 2. Verileri Kaydetme (Güncelleme)
 async function urunGuncelle() {
     const yeniAd = document.getElementById('modalUrunAd').value;
     const yeniBarkod = document.getElementById('modalBarkod').value;
-    const yeniMiktar = document.getElementById('modalMiktar').value;
+    const yeniMiktar = document.getElementById('modalMiktar').value; // Mevcut Stok
+    const yeniKritik = document.getElementById('modalKritik').value; // Kritik Seviye
     const yeniGrup = document.getElementById('modalGrup').value;
 
-    // Mevcut (eski) ürün bilgilerini alalım ki boş bırakılanları koruyabilelim
-    const eskiUrun = stoklar[seciliUrunId];
-
     try {
-        // Eğer yeniAd boşsa, eski adı kullan; değilse yeni adı kullan
-        const finalAd = (yeniAd && yeniAd.trim() !== "") ? yeniAd : (eskiUrun.urunAd || eskiUrun.ad);
-
-        // Güncelleme işlemi
         await db.collection("stoklar").doc(seciliUrunId).update({
-            urunAd: finalAd,
+            urunAd: yeniAd,
             barkod: yeniBarkod,
-            miktar: parseInt(yeniMiktar) || 0,
+            kalan: parseInt(yeniMiktar) || 0, // Firestore'da 'kalan' miktar demek
+            kritik: parseInt(yeniKritik) || 0, // Firestore'da 'kritik' seviye demek
             grup: yeniGrup
         });
 
-        // Hareket kaydı
-        await db.collection("hareketler").add({
-            urunId: seciliUrunId,
-            urun: finalAd,
-            tur: "Güncelleme",
-            islem: "Ürün Bilgileri Düzenlendi",
-            miktar: parseInt(yeniMiktar) || 0,
-            tarih: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        alert("✅ Başarıyla güncellendi!");
-        
-        // Modalı kapat ve listeyi yenile (sayfa yenilenmez)
+        alert("✅ Bilgiler güncellendi.");
         document.getElementById('detayModal').style.display = 'none';
-        stoklariListele(); 
-
     } catch (e) {
-        console.error("Güncelleme hatası: ", e);
-        alert("✖ Hata oluştu: " + e.message);
+        alert("Hata: " + e.message);
     }
 }
 function modalKapat() {
@@ -593,14 +560,16 @@ function sepetiGuncelle() {
     liste.innerHTML = "";
     
     sepet.forEach((item, index) => {
-        liste.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-            <span>${item.ad} x ${item.miktar}</span>
-            <button onclick="sepettenCikar(${index})" style="background:none; border:none; color:red; cursor:pointer;">X</button>
-        </div>`;
+        liste.innerHTML += `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:5px; border-bottom:1px solid #eee;">
+                <span>${item.ad} (<strong>${item.miktar}</strong>)</span>
+                <button onclick="sepettenCikar(${index})" style="background:none; border:none; color:red; font-weight:bold;">X</button>
+            </div>`;
     });
-    
+
     butonlar.style.display = sepet.length > 0 ? "flex" : "none";
 }
+
 
 // 3. Sepetten Çıkarma
 function sepettenCikar(index) {
@@ -643,8 +612,64 @@ async function topluIslem(tip) {
     tarihInput.value = ""; 
     sepetiGuncelle();
     
-    alert("Toplu işlem başarıyla tamamlandı!");
+    alert("✅ Toplu işlem başarıyla tamamlandı!");
 }
+function bugunOzetiniGetir() {
+    const bugun = new Date();
+    bugun.setHours(0,0,0,0);
+    
+    db.collection("hareketler")
+        .where("tarih", ">=", firebase.firestore.Timestamp.fromDate(bugun))
+        .onSnapshot(snap => {
+            let girisCount = 0;
+            snap.forEach(doc => {
+                if(doc.data().tur === "giris") girisCount += parseInt(doc.data().miktar || 0);
+            });
+            const dashGiris = document.getElementById('dashGiris');
+            if(dashGiris) dashGiris.innerText = girisCount;
+        });
+}
+
+// Uygulama açıldığında çalıştır
+bugunOzetiniGetir();
+function populerUrunuHesapla() {
+    // Son 30 gündeki hareketleri analiz et
+    const otuzGunOnce = new Date();
+    otuzGunOnce.setDate(otuzGunOnce.getDate() - 30);
+
+    db.collection("hareketler")
+        .where("tarih", ">=", firebase.firestore.Timestamp.fromDate(otuzGunOnce))
+        .onSnapshot(snap => {
+            let hareketSayaci = {};
+
+            snap.forEach(doc => {
+                const urunAdi = doc.data().urun || "Bilinmeyen";
+                // Ürün bazlı hareket sayılarını topla
+                hareketSayaci[urunAdi] = (hareketSayaci[urunAdi] || 0) + 1;
+            });
+
+            // En yüksek değere sahip olanı bul
+            let enCokUrun = "-";
+            let maxHareket = 0;
+
+            for (const [urun, sayi] of Object.entries(hareketSayaci)) {
+                if (sayi > maxHareket) {
+                    maxHareket = sayi;
+                    enCokUrun = urun;
+                }
+            }
+
+            const dashPopuler = document.getElementById('dashPopuler');
+            if (dashPopuler) {
+                // Eğer ürün ismi çok uzunsa kısaltarak göster
+                dashPopuler.innerText = enCokUrun.length > 12 ? enCokUrun.substring(0, 10) + '..' : enCokUrun;
+                dashPopuler.title = enCokUrun; // Üzerine gelince tam isim görünsün
+            }
+        });
+}
+
+// Uygulama açıldığında çalışması için tetikleyicilerin olduğu yere ekle
+populerUrunuHesapla();
 // Başlangıç tetikleyicileri
 verileriGetir(); 
 hareketleriGetir();

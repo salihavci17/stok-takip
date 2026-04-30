@@ -188,3 +188,19 @@ button[onclick^="hareketSil"]:hover {
     max-width: 500px;
     border-radius: 10px;
 }
+/* Mobil Uygulama Modu Ayarları */
+body {
+    overscroll-behavior-y: contain; /* Sayfayı aşağı kaydırınca yenilenmeyi (pull-to-refresh) engeller */
+    user-select: none; /* Metinlerin kazara seçilmesini engeller, uygulama hissi verir */
+    -webkit-user-select: none;
+}
+
+#dashboard {
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15) !important;
+}
+
+/* Tab butonlarına basıldığında efekt */
+.tab-btn:active {
+    transform: scale(0.95);
+    background-color: #2980b9 !important;
+}

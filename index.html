@@ -17,6 +17,26 @@
 
     <div class="container">
         <h1>📦 Stok Takip Pro</h1>
+        <!-- Dashboard (Özet Paneli) Başlangıcı -->
+<div id="dashboard" class="section" style="display: flex; gap: 10px; padding: 15px; background: linear-gradient(135deg, #2c3e50, #34495e); border: none; margin-bottom: 20px; border-radius: 15px;">
+    <div style="flex: 1; text-align: center; color: white;">
+        <small style="opacity: 0.8; font-size: 10px; display: block;">TOPLAM STOK</small>
+        <div id="dashToplam" style="font-size: 20px; font-weight: bold;">0</div>
+    </div>
+    <div style="flex: 1; text-align: center; color: #f1c40f;">
+        <small style="opacity: 0.8; font-size: 10px; display: block;">KRİTİK ÜRÜN</small>
+        <div id="dashKritik" style="font-size: 20px; font-weight: bold;">0</div>
+    </div>
+    <div style="flex: 1; text-align: center; color: #2ecc71;">
+        <small style="opacity: 0.8; font-size: 10px; display: block;">BUGÜN GİRİŞ</small>
+        <div id="dashGiris" style="font-size: 20px; font-weight: bold;">0</div>
+    </div>
+    <div style="flex: 1.5; text-align: center; color: #3498db; border-left: 1px solid rgba(255,255,255,0.1);">
+    <small style="opacity: 0.8; font-size: 10px; display: block;">POPÜLER ÜRÜN</small>
+    <div id="dashPopuler" style="font-size: 14px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top: 5px;">-</div>
+</div>
+</div>
+<!-- Dashboard Bitişi -->
        <div class="tab-menu" style="display: flex; gap: 5px; margin-bottom: 20px; background: #eee; padding: 5px; border-radius: 10px;">
     <button class="tab-btn active" onclick="sekmeAc(event, 'hizli-islem-sekme')" style="flex:1; padding:10px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; background-color:#3498db; color:white;">⚡ Hızlı İşlem</button>
     <button class="tab-btn" onclick="sekmeAc(event, 'stok-listesi-sekme')" style="flex:1; padding:10px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">📋 Liste</button>
@@ -80,6 +100,7 @@
         <button onclick="stokIslem('cikis')" class="btn-cikis" style="flex:1;">ÇIKIŞ (-)</button>
         <button onclick="sepeteEkle()" style="width:100%; margin-top:5px; background:#9b59b6; color:white; border:none; padding:10px; border-radius:5px;">➕ Sepete Ekle</button>
         </div>
+        
 </div>
 <div id="sepetAlani" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 10px;">
     <h4 style="margin: 0 0 10px 0;">🛒 Sepetiniz:</h4>
@@ -87,6 +108,15 @@
     <div id="sepetButonlar" style="margin-top: 10px; display: none; gap: 5px;">
         <button onclick="topluIslem('giris')" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:5px;">Toplu Giriş</button>
         <button onclick="topluIslem('cikis')" style="flex:1; background:#e67e22; color:white; border:none; padding:10px; border-radius:5px;">Toplu Çıkış</button>
+    </div>
+    <div id="sepetKapsayici" style="margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 15px;">
+    <h4 style="color: #2c3e50; margin-bottom: 10px;">🛒 İşlem Sepeti</h4>
+    <div id="sepetListesi" style="max-height: 150px; overflow-y: auto; background: #fff; border-radius: 5px; padding: 5px; margin-bottom: 10px; border: 1px solid #eee;">
+        </div>
+    <div id="sepetButonlar" style="display: none; gap: 10px;">
+        <button onclick="topluIslem('giris')" class="btn-giris" style="flex:1; background: #27ae60;">Toplu Giriş Onayla</button>
+        <button onclick="topluIslem('cikis')" class="btn-cikis" style="flex:1; background: #e67e22;">Toplu Çıkış Onayla</button>
+    </div>
     </div>
 </div>
 <div id="reader-wrapper" style="display:none;">
@@ -144,25 +174,52 @@
     </div>
 </div>
 
-  <div id="detayModal" class="modal" style="display:none;">
-    <div class="modal-content">
-        <h3>Ürün Düzenle</h3>
-        <input type="text" id="modalUrunAd" placeholder="Ürün Adı">
-        <input type="text" id="modalBarkod" placeholder="Barkod">
-        <input type="number" id="modalMiktar" placeholder="Miktar">
+  <!-- index.html içindeki detayModal kısmını bu şekilde değiştirin -->
+<div id="detayModal" class="modal" style="display:none;">
+    <div class="modal-content" style="padding: 20px; border-radius: 15px;">
+        <h3 style="border-bottom: 2px solid #3498db; padding-bottom: 10px;">📦 Ürün Düzenle</h3>
         
-        <select id="modalGrup">
-            <option value="Tekel">Tekel</option>
-            <option value="Winston">Winston</option>
-            <option value="P & M">P & M</option>
-        </select>
-        
-        <button onclick="urunGuncelle()">KAYDET</button>
-        <button onclick="document.getElementById('detayModal').style.display='none'">İPTAL</button>
+        <div style="margin-top: 15px;">
+            <label style="font-weight: bold; display: block; font-size: 13px; margin-bottom: 5px;">Ürün Adı:</label>
+            <input type="text" id="modalUrunAd" placeholder="Ürün Adı">
+        </div>
 
-        <h4 style="margin-top:20px; border-bottom:1px solid #ddd;">Son Hareketler</h4>
-        <div id="detayIcerik" style="font-size:12px; max-height:150px; overflow-y:auto; margin-top:10px;"></div>
+        <div style="margin-top: 10px;">
+            <label style="font-weight: bold; display: block; font-size: 13px; margin-bottom: 5px;">Barkod:</label>
+            <input type="text" id="modalBarkod" placeholder="Barkod">
+        </div>
+
+        <!-- Miktar ve Kritik Seviye Yan Yana -->
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <div style="flex: 1;">
+                <label style="font-weight: bold; display: block; font-size: 13px; color: #2c3e50; margin-bottom: 5px;">Mevcut Stok:</label>
+                <input type="number" id="modalMiktar" placeholder="Miktar" style="border: 2px solid #3498db; width: 100%;">
+            </div>
+            <div style="flex: 1;">
+                <label style="font-weight: bold; display: block; font-size: 13px; color: #e74c3c; margin-bottom: 5px;">Kritik Seviye:</label>
+                <input type="number" id="modalKritik" placeholder="Kritik" style="border: 2px solid #e74c3c; width: 100%;">
+            </div>
+        </div>
         
+        <div style="margin-top: 10px;">
+            <label style="font-weight: bold; display: block; font-size: 13px; margin-bottom: 5px;">Ürün Grubu:</label>
+            <select id="modalGrup" style="width: 100%; padding: 8px;">
+                <option value="Tekel">Tekel</option>
+                <option value="Winston">Winston</option>
+                <option value="P & M">P & M</option>
+                <option value="Genel">Genel</option>
+            </select>
+        </div>
+        
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button onclick="urunGuncelle()" style="flex: 2; background: #27ae60; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">GÜNCELLE</button>
+            <button onclick="document.getElementById('detayModal').style.display='none'" style="flex: 1; background: #95a5a6; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer;">İPTAL</button>
+        </div>
+
+        <h4 style="margin-top:25px; border-bottom:1px solid #ddd; color: #7f8c8d;">🕒 Son Hareketler</h4>
+        <div id="detayIcerik" style="font-size:12px; max-height:120px; overflow-y:auto; margin-top:10px; background: #f9f9f9; padding: 5px;"></div>
+    </div>
+</div>
         <button onclick="document.getElementById('detayModal').style.display='none'" style="width:100%; margin-top:15px; padding:10px; background:#eee; border:none; border-radius:8px;">Kapat</button>
     </div>
 </div>
