@@ -15,10 +15,12 @@
 <!-- Android için tema rengi -->
 <meta name="theme-color" content="#3498db">
 <script>
- if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./service-worker.js') // Başına ./ ekledik
-    .then(() => console.log("Service Worker Kayıt Başarılı"))
-    .catch(err => console.log("SW Hatası:", err));
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+        .then(reg => console.log("SW Kayıtlı", reg))
+        .catch(err => console.log("SW Hatası", err));
+    });
 }
 </script>
     <title>Stok Takip Sistemi v6</title>
