@@ -11,9 +11,11 @@
 <meta name="apple-mobile-web-app-title" content="Stok Takip">
 
 <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js');
-  }
+ if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js') // Başına ./ ekledik
+    .then(() => console.log("Service Worker Kayıt Başarılı"))
+    .catch(err => console.log("SW Hatası:", err));
+}
 </script>
     <title>Stok Takip Sistemi v6</title>
    <link rel="stylesheet" href="style.css?v=1.8">
