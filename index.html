@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2897/2897785.png">
 <!-- iOS için uygulama modu -->
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Stok Takip">
 <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2897/2897785.png">
@@ -303,6 +303,7 @@ if ('serviceWorker' in navigator) {
         Build Version: 2.6.0
     </div>
 </div>
-    <script src="app.js"></script>
+   <!-- v8 yerine v10 modüler yapıyı kullanın -->
+<script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,4 +1,9 @@
 // --- FIREBASE & GENEL AYARLAR ---
+// 1. Gerekli modülleri içe aktarın (Eğer script tag ile kullanıyorsanız bunları atlayabilirsiniz)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, initializeFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// 2. Yapılandırma bilgileriniz
 const firebaseConfig = {
     apiKey: "AIzaSyBdxkBa8K77nnLVFefpyzS-ACuxuZhhPc8",
     authDomain: "stok-app-ca168.firebaseapp.com",
@@ -7,9 +12,14 @@ const firebaseConfig = {
     messagingSenderId: "599049285321",
     appId: "1:599049285321:web:0c51fb5f9331ac4e20e718"
 };
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
 
+// 3. Firebase'i başlatın ve bağlantıyı zorlayın[cite: 37]
+const app = initializeApp(firebaseConfig);
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true, // Bağlantı hatalarını çözen kritik ayar
+});
+
+// Geri kalan kodlarınız (stoklar = {}, fonksiyonlar vb.) buradan devam etsin...[cite: 37]
 let stoklar = {};
 let html5QrCode = null;
 let modalQrCode = null;
