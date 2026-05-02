@@ -16,9 +16,11 @@
     <title>Stok Takip Sistemi v6</title>
    <link rel="stylesheet" href="style.css?v=1.8">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+   <!-- Türkçe karakter desteği için gerekli kütüphaneler -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<!-- Türkçe karakter desteği için font eklentisi -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-font@1.0.0/dist/canvas-font.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
@@ -133,15 +135,26 @@
     
     <button onclick="raporOlustur()" style="width:100%; background:#34495e; color:white;">Sorgula</button>
     </div>
-            <div id="raporSonuc" style="display:none; margin-top:10px;">
-                <button onclick="excelIndir()" style="background:#27ae60; color:white;">Excel</button>
-                <button onclick="pdfIndir()" style="background:#e67e22; color:white;">PDF</button>
-                <table id="printableTable" style="width:100%; border-collapse:collapse; font-size:12px; margin-top:10px;">
-                    <thead><tr style="background:#ddd;"><th>Ürün</th><th>Giriş</th><th>Çıkış</th></tr></thead>
-                    <tbody id="raporTabloGovde"></tbody>
-                </table>
-            </div>
-        </div>
+           <div id="raporSonuc" style="display:none; margin-top:10px;">
+    <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <button onclick="excelIndir()" style="background:#27ae60; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">📊 Excel İndir</button>
+        <button onclick="pdfIndir()" style="background:#e67e22; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">📄 PDF İndir</button>
+    </div>
+    <div style="overflow-x:auto;">
+        <table id="printableTable" style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+                <tr style="background:#3498db; color:white;">
+                    <th style="padding:10px; text-align:left;">Ürün Adı</th>
+                    <th style="padding:10px; text-align:center;">Giriş Adedi</th>
+                    <th style="padding:10px; text-align:center;">Çıkış Adedi</th>
+                </tr>
+            </thead>
+            <tbody id="raporTabloGovde">
+                <tr><td colspan="3" style="text-align:center; padding:20px;">Henüz rapor oluşturulmadı</td></td>
+            </tbody>
+        </table>
+    </div>
+</div>
 
         <div id="stok-listesi-sekme" class="tab-content" style="display:none;">
             <h3>Stok Listesi</h3>
@@ -153,23 +166,25 @@
         </div>
 
         <div class="section">
-       <div id="hareketler-sekme" class="tab-content" style="display:none;">
+     <div id="hareketler-sekme" class="tab-content" style="display:none;">
     <h2>🕒 Son Hareketler</h2>
-    <div id="hareketlerListesi">
-        <table style="width:100%">
+    <div style="overflow-x:auto;">
+        <table style="width:100%; font-size:13px;">
             <thead>
                 <tr>
                     <th>Tarih</th>
                     <th>Ürün</th>
-                    <th>Mkt</th>
-                    <th>İşlem</th> </tr>
+                    <th>Miktar</th>
+                    <th>İşlem</th>
+                    <th></th>
+                </tr>
             </thead>
             <tbody id="hareketlerTablo">
-                </tbody>
+                <tr><td colspan="5">Yükleniyor...</td></tr>
+            </tbody>
         </table>
     </div>
 </div>
-
   <!-- index.html içindeki detayModal kısmını bu şekilde değiştirin -->
 <div id="detayModal" class="modal" style="display:none;">
     <div class="modal-content" style="padding: 20px; border-radius: 15px;">
@@ -281,5 +296,7 @@
 </div>
    <!-- v8 yerine v10 modüler yapıyı kullanın -->
 <script type="module" src="app.js?v=3"></script>
+<!-- Türkçe karakter desteği için html2pdf kütüphanesi -->
+
 </body>
 </html>
