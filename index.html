@@ -10,24 +10,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Stok Takip">
-<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2897/2897785.png">
-
+<link rel="icon" href="https://cdn-icons-png.flaticon.com/512/2897/2897785.png">
 <!-- Android için tema rengi -->
 <meta name="theme-color" content="#3498db">
-<script>
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js')
-        .then(reg => console.log("SW Kayıtlı", reg))
-        .catch(err => console.log("SW Hatası", err));
-    });
-}
-</script>
     <title>Stok Takip Sistemi v6</title>
    <link rel="stylesheet" href="style.css?v=1.8">
     
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -91,14 +79,8 @@ if ('serviceWorker' in navigator) {
             </div>
             <button onclick="urunEkle()" style="margin-top:10px; width:100%;">Kaydet</button>
         </div>
-<div id="reader-wrapper-ekle" style="display:none;">
-    <div id="reader-ekle"></div>
-    <button onclick="yeniUrunKameraDurdur()" style="background:#e74c3c; color:white;">KAMERAYI KAPAT</button>
-</div>
        <div id="hizli-islem-sekme" class="tab-content" style="display:block;">
-  <button class="tab-btn active" onclick="sekmeAc(event, 'hizli-islem-sekme')" style="flex:1; padding:10px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; background-color:#3498db; color:white;">⚡ Hızlı İşlem</button>      
-       <div class="card">
-       <div id="reader-wrapper" style="display:none; margin-bottom: 15px; border: 2px solid #3498db; border-radius: 8px; overflow: hidden;">
+        <div class="card">
         <div id="reader"></div>
         <button onclick="anaKameraDurdur()" style="width:100%; padding:12px; background:#e74c3c; color:white; border:none; font-weight:bold; cursor:pointer;">❌ KAMERAYI KAPAT</button>
     </div>
@@ -115,33 +97,27 @@ if ('serviceWorker' in navigator) {
     <input type="date" id="islemTarihi" style="width:100%; padding:8px; margin-top:5px; border: 1px solid #ccc; border-radius: 5px;">
 </div>
     <input type="number" id="islemMiktar" placeholder="Adet">
-    <div style="display:flex; gap:10px;">
-        <button onclick="stokIslem('giris')" class="btn-giris" style="flex:1;">GİRİŞ (+)</button>
-        <button onclick="stokIslem('cikis')" class="btn-cikis" style="flex:1;">ÇIKIŞ (-)</button>
-        <button onclick="sepeteEkle()" style="width:100%; margin-top:5px; background:#9b59b6; color:white; border:none; padding:10px; border-radius:5px;">➕ Sepete Ekle</button>
+   <div style="display:flex; gap:10px;">
+    <button onclick="stokIslem('giris')" class="btn-giris" style="flex:1;">GİRİŞ (+)</button>
+    <button onclick="stokIslem('cikis')" class="btn-cikis" style="flex:1;">ÇIKIŞ (-)</button>
+</div>
+
+<button onclick="sepeteEkle()" style="width:100%; margin-top:5px; background:#9b59b6; color:white; border:none; padding:10px; border-radius:5px;">
+    ➕ Sepete Ekle
+</button>
         </div>
         
 </div>
 <div id="sepetAlani" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 10px;">
     <h4 style="margin: 0 0 10px 0;">🛒 Sepetiniz:</h4>
-    <div id="sepetListesi"></div>
-    <div id="sepetButonlar" style="margin-top: 10px; display: none; gap: 5px;">
+     <div id="sepetListesi"></div>
+       <div id="sepetButonlar" style="margin-top: 10px; display: none; gap: 5px;">
         <button onclick="topluIslem('giris')" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:5px;">Toplu Giriş</button>
         <button onclick="topluIslem('cikis')" style="flex:1; background:#e67e22; color:white; border:none; padding:10px; border-radius:5px;">Toplu Çıkış</button>
     </div>
-    <div id="sepetKapsayici" style="margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 15px;">
     <h4 style="color: #2c3e50; margin-bottom: 10px;">🛒 İşlem Sepeti</h4>
-    <div id="sepetListesi" style="max-height: 150px; overflow-y: auto; background: #fff; border-radius: 5px; padding: 5px; margin-bottom: 10px; border: 1px solid #eee;">
-        </div>
-    <div id="sepetButonlar" style="display: none; gap: 10px;">
-        <button onclick="topluIslem('giris')" class="btn-giris" style="flex:1; background: #27ae60;">Toplu Giriş Onayla</button>
-        <button onclick="topluIslem('cikis')" class="btn-cikis" style="flex:1; background: #e67e22;">Toplu Çıkış Onayla</button>
+   
     </div>
-    </div>
-</div>
-<div id="reader-wrapper" style="display:none;">
-    <div id="reader"></div>
-    <button onclick="anaKameraDurdur()" style="background:#e74c3c; color:white;">KAMERAYI KAPAT</button>
 </div>
         <div class="section" style="background:#f1f2f6;">
     <h3>Raporlama</h3>
@@ -304,6 +280,6 @@ if ('serviceWorker' in navigator) {
     </div>
 </div>
    <!-- v8 yerine v10 modüler yapıyı kullanın -->
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=3"></script>
 </body>
 </html>

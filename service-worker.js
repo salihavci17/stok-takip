@@ -1,9 +1,8 @@
-const CACHE_NAME = 'stok-v2';
+const CACHE_NAME = 'stok-v3';
 const assets = [
     './', 
     './index.html', 
     './style.css', 
-    './app.js',
     './manifest.json',
     'https://cdn-icons-png.flaticon.com/512/2897/2897785.png'
 ];
