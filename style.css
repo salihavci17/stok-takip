@@ -1,183 +1,258 @@
-/* GENEL AYARLAR */
-:root {
-    --ana-renk: #3498db;
-    --koyu-renk: #2c3e50;
-    --yesil: #27ae60;
-    --kirmizi: #e74c3c;
-    --gri: #f4f7f6;
-    --beyaz: #ffffff;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--gri);
-    margin: 0;
-    padding: 0;
-    color: var(--koyu-renk);
-    -webkit-tap-highlight-color: transparent; /* Mobil tıklama efektini temizler */
+    background: #f4f7f6;
+    padding: 20px;
 }
 
 .container {
     max-width: 600px;
     margin: 0 auto;
-    padding: 20px;
 }
 
 h1 {
     text-align: center;
-    color: var(--koyu-renk);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 30px;
-}
-
-/* BÖLÜMLER (KART TASARIMI) */
-.section {
-    background: var(--beyaz);
-    border-radius: 15px;
-    padding: 20px;
+    color: #2c3e50;
     margin-bottom: 20px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    border: 1px solid rgba(0,0,0,0.03);
+    font-size: 1.5rem;
 }
 
-h3 {
-    margin-top: 0;
-    font-size: 1.1rem;
-    color: var(--ana-renk);
-    border-bottom: 2px solid var(--gri);
-    padding-bottom: 10px;
+/* Dashboard */
+.dashboard {
+    display: flex;
+    gap: 10px;
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    padding: 15px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.dash-card {
+    flex: 1;
+    text-align: center;
+    color: white;
+}
+
+.dash-card small {
+    display: block;
+    font-size: 10px;
+    opacity: 0.8;
+}
+
+.dash-card div {
+    font-size: 20px;
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+/* Tab Menu */
+.tab-menu {
+    display: flex;
+    gap: 5px;
+    background: #eee;
+    padding: 5px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    background: transparent;
+    transition: all 0.3s;
+}
+
+.tab-btn.active {
+    background: #3498db;
+    color: white;
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Kartlar */
+.card {
+    background: white;
+    border-radius: 15px;
+    padding: 15px;
     margin-bottom: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-/* GİRDİ ALANLARI */
+/* Form Elemanları */
 input, select {
     width: 100%;
     padding: 12px;
     margin-bottom: 10px;
     border: 2px solid #edf2f7;
     border-radius: 10px;
-    box-sizing: border-box;
-    font-size: 16px; /* Mobilde zoom yapmasını engeller */
-    transition: border-color 0.3s;
+    font-size: 16px;
 }
 
 input:focus, select:focus {
     outline: none;
-    border-color: var(--ana-renk);
+    border-color: #3498db;
 }
 
-/* BUTONLAR */
+/* Butonlar */
 button {
     cursor: pointer;
     border: none;
     border-radius: 10px;
-    padding: 12px 20px;
-    font-weight: 600;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    padding: 12px;
+    font-weight: bold;
+    transition: transform 0.2s;
 }
 
 button:active {
     transform: scale(0.96);
 }
 
-button[onclick^="urunEkle"], 
-button[onclick^="stokIslem"],
-button[onclick^="raporOlustur"] {
-    background-color: var(--ana-renk);
-    color: white;
-    width: 100%;
+.btn-giris { background: #27ae60; color: white; flex: 1; }
+.btn-cikis { background: #e74c3c; color: white; flex: 1; }
+.btn-sepet { background: #9b59b6; color: white; width: 100%; margin-top: 10px; }
+.btn-kamera { background: #34495e; color: white; padding: 10px 15px; }
+.btn-kapat { background: #e74c3c; color: white; width: 100%; margin-top: 10px; }
+.btn-kaydet { background: #3498db; color: white; width: 100%; }
+.btn-sorgula { background: #34495e; color: white; width: 100%; }
+.btn-guncelle { background: #27ae60; color: white; flex: 2; }
+.btn-iptal { background: #95a5a6; color: white; flex: 1; }
+
+/* Sepet Alanı */
+.sepet-alani {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 20px;
 }
 
-.btn-giris { background-color: var(--yesil) !important; color: white; }
-.btn-cikis { background-color: var(--kirmizi) !important; color: white; }
-.btn-sil { background-color: #fceaea !important; color: var(--kirmizi); border-radius: 5px; padding: 5px 10px; }
+.sepet-alani h4 {
+    margin-bottom: 10px;
+}
 
-/* TABLOLAR */
+/* Rapor Alanı */
+.rapor-alani {
+    background: #f1f2f6;
+    border-radius: 15px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.tarih-grup {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.rapor-butonlar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.rapor-butonlar button {
+    flex: 1;
+    background: #27ae60;
+    color: white;
+}
+
+/* Tablolar */
 table {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0 8px;
+    border-collapse: collapse;
 }
 
 th {
     text-align: left;
-    color: #a0aec0;
-    font-size: 0.85rem;
-    padding: 0 10px;
+    padding: 10px;
+    background: #3498db;
+    color: white;
 }
 
 td {
-    background: var(--beyaz);
-    padding: 15px 10px;
-    border-top: 1px solid #f1f4f8;
-    border-bottom: 1px solid #f1f4f8;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
 }
 
-td:first-child { border-left: 1px solid #f1f4f8; border-radius: 10px 0 0 10px; }
-td:last-child { border-right: 1px solid #f1f4f8; border-radius: 0 10px 10px 0; }
-
-/* MODAL GÜZELLEŞTİRME */
-#detayModal > div {
-    animation: slideUp 0.3s ease-out;
+.tablo-kapsayici {
+    overflow-x: auto;
 }
 
-@keyframes slideUp {
-    from { transform: translateY(50px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+/* Kritik Panel */
+.kritik-panel {
+    background: #fff5f5;
+    border-left: 5px solid #e74c3c;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
 }
 
-/* KRİTİK PANEL */
-#kritikPanel {
-    background: #fff5f5 !important;
-    border: none !important;
-    border-left: 5px solid var(--kirmizi) !important;
+.kritik-panel h4 {
+    color: #c53030;
+    margin-bottom: 10px;
 }
 
-/* MOBİL ÖZEL AYARLAR */
-@media (max-width: 480px) {
-    .container { padding: 10px; }
-    h1 { font-size: 1.5rem; margin-top: 10px; }
-    .section { padding: 15px; }
-}
-/* Hareket silme butonu efekti */
-button[onclick^="hareketSil"]:active {
-    transform: scale(0.9);
-}
-button[onclick^="hareketSil"]:hover {
-    color: #c0392b !important;
-}
-/* style.css dosyasının sonuna ekle */
-#detayModal label {
-    display: block;
-    font-size: 12px;
-    font-weight: bold;
-    margin-bottom: 5px;
-    color: #666;
+.kritik-panel ul {
+    padding-left: 20px;
+    color: #c53030;
 }
 
-#detayModal input {
-    border-radius: 5px;
-    outline: none;
+/* Sipariş Paneli */
+.siparis-panel {
+    background: #fff5f5;
+    border-left: 5px solid #e74c3c;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
 }
 
-#detayModal input:focus {
-    border-color: #3498db;
-    box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+.siparis-panel h3 {
+    color: #e74c3c;
+    margin-bottom: 10px;
 }
-#detayModal {
+
+.siparis-panel ul {
+    padding-left: 20px;
+    margin-bottom: 15px;
+}
+
+.siparis-butonlar {
+    display: flex;
+    gap: 10px;
+}
+
+.siparis-butonlar button {
+    flex: 1;
+    background: #e74c3c;
+    color: white;
+}
+
+/* Modal */
+.modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5); /* Arka planı karart */
-    z-index: 9999; /* En üstte tut */
-    display: none; /* Varsayılan gizli */
+    background: rgba(0,0,0,0.5);
+    display: none;
+    z-index: 1000;
 }
 
 .modal-content {
@@ -186,21 +261,53 @@ button[onclick^="hareketSil"]:hover {
     padding: 20px;
     width: 90%;
     max-width: 500px;
-    border-radius: 10px;
-}
-/* Mobil Uygulama Modu Ayarları */
-body {
-    overscroll-behavior-y: contain; /* Sayfayı aşağı kaydırınca yenilenmeyi (pull-to-refresh) engeller */
-    user-select: none; /* Metinlerin kazara seçilmesini engeller, uygulama hissi verir */
-    -webkit-user-select: none;
+    border-radius: 15px;
 }
 
-#dashboard {
-    box-shadow: 0 8px 16px rgba(0,0,0,0.15) !important;
+.modal-satir {
+    display: flex;
+    gap: 10px;
 }
 
-/* Tab butonlarına basıldığında efekt */
-.tab-btn:active {
-    transform: scale(0.95);
-    background-color: #2980b9 !important;
+.modal-butonlar {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.barkod-grup {
+    display: flex;
+    gap: 5px;
+}
+
+.barkod-grup input {
+    flex: 1;
+}
+
+.barkod-grup button {
+    padding: 0 15px;
+    background: #34495e;
+    color: white;
+}
+
+.urun-secim {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.urun-secim select {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.islem-butonlar {
+    display: flex;
+    gap: 10px;
+}
+
+@media (max-width: 480px) {
+    body { padding: 10px; }
+    .dashboard { flex-wrap: wrap; }
+    .dash-card { flex: 0 0 calc(50% - 10px); }
 }
