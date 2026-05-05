@@ -98,7 +98,7 @@ function stoklariListele() {
                     <td style="padding-left:20px;">${getUrunAdi(u)}</td>
                     <td style="color:${miktar <= kritik ? 'red' : 'inherit'}">${miktar}</td>
                     <td><button onclick="event.stopPropagation(); urunSil('${u.id}')">✖</button></td>
-                 </tr>
+                </tr>
             `;
         });
     });
@@ -111,22 +111,15 @@ function stoklariListele() {
 function kritikKontrol() {
     const kritikUrunler = Object.values(stoklar).filter(u => (parseInt(u.kalan) || 0) <= (parseInt(u.kritik) || 5));
     const kritikPanel = document.getElementById('kritikPanel');
-    const siparisPanel = document.getElementById('siparisPanel');
     const kritikListe = document.getElementById('kritikListe');
-    const siparisListesi = document.getElementById('siparisListesi');
     
     if (kritikUrunler.length > 0) {
         if (kritikPanel) kritikPanel.style.display = 'block';
-        if (siparisPanel) siparisPanel.style.display = 'block';
         if (kritikListe) {
-            kritikListe.innerHTML = kritikUrunler.map(u => `<li>${getUrunAdi(u)}: Stok ${u.kalan} / Kritik ${u.kritik}</li>`).join('');
-        }
-        if (siparisListesi) {
-            siparisListesi.innerHTML = kritikUrunler.map(u => `<li>📦 ${getUrunAdi(u)} (Stok: ${u.kalan})</li>`).join('');
+            kritikListe.innerHTML = kritikUrunler.map(u => `<li><strong>${getUrunAdi(u)}</strong>: Stok ${u.kalan} / Kritik ${u.kritik}</li>`).join('');
         }
     } else {
         if (kritikPanel) kritikPanel.style.display = 'none';
-        if (siparisPanel) siparisPanel.style.display = 'none';
     }
 }
 
@@ -154,24 +147,21 @@ async function hareketleriListele() {
             const tarih = h.tarih?.toDate().toLocaleString('tr-TR') || "-";
             tbody.innerHTML += `
                 <tr>
-                    <td style="font-size:12px;">${tarih}</td>
+                    <td>${tarih}</td>
                     <td>${h.urun || "-"}</td>
                     <td>${h.miktar}</td>
                     <td style="color:${h.tur === 'giris' ? 'green' : 'red'}">${h.tur === 'giris' ? 'GİRİŞ' : 'ÇIKIŞ'}</td>
-                    <td><button onclick="hareketSil('${d.id}')" style="background:none; color:red; font-size:16px; cursor:pointer;">🗑️</button></td>
+                    <td><button onclick="hareketSil('${d.id}')" style="background:none; color:red;">🗑️</button></td>
                 </tr>
             `;
         });
-    } catch(e) { console.error("Hareket listeleme hatası:", e); }
+    } catch(e) { console.error(e); }
 }
 
 window.hareketSil = async (id) => {
-    if(confirm("Bu hareketi silmek istediğinize emin misiniz?")) {
-        try {
-            await deleteDoc(doc(db, "hareketler", id));
-            hareketleriListele();
-            alert("Hareket silindi!");
-        } catch(e) { alert("Silme hatası: " + e.message); }
+    if(confirm("Bu hareket silinsin mi?")) {
+        await deleteDoc(doc(db, "hareketler", id));
+        hareketleriListele();
     }
 };
 
@@ -212,7 +202,7 @@ async function stokIslem(tip) {
     
     const mevcut = stoklar[id]?.kalan || 0;
     const yeni = tip === 'giris' ? mevcut + miktar : mevcut - miktar;
-    if (tip === 'cikis' && yeni < 0) return alert("Yetersiz stok! Mevcut: " + mevcut);
+    if (tip === 'cikis' && yeni < 0) return alert("Yetersiz stok!");
     
     try {
         const batch = writeBatch(db);
@@ -236,26 +226,27 @@ window.urunGuncelle = async () => {
             kritik: Number(document.getElementById('modalKritik').value),
             grup: document.getElementById('modalGrup').value
         });
-        alert("Ürün güncellendi!");
+        alert("Güncellendi!");
         kapatModal();
-    } catch(e) { alert("Güncelleme hatası: " + e.message); }
+    } catch(e) { alert(e.message); }
 };
 
 window.urunSil = async (id) => {
-    if(confirm("Bu ürünü silmek istediğinize emin misiniz?")) {
+    if(confirm("Ürün silinsin mi?")) {
         await deleteDoc(doc(db, "stoklar", id));
-        alert("Ürün silindi!");
     }
 };
 
 // --- SEKMELER ---
-window.sekmeAc = function(evt, name) {
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    const aktifSekme = document.getElementById(name);
-    if(aktifSekme) aktifSekme.classList.add('active');
-    evt.currentTarget.classList.add('active');
-};
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        const tabId = this.getAttribute('data-tab');
+        document.getElementById(tabId).classList.add('active');
+        this.classList.add('active');
+    });
+});
 
 window.grupToggle = function(id) {
     document.querySelectorAll(`.${id}`).forEach(r => {
@@ -268,35 +259,26 @@ window.detayGoster = async function(id) {
     const u = stoklar[id];
     if(!u) return alert("Ürün bulunamadı!");
     
-    const modalUrunAd = document.getElementById('modalUrunAd');
-    const modalMiktar = document.getElementById('modalMiktar');
-    const modalBarkod = document.getElementById('modalBarkod');
-    const modalKritik = document.getElementById('modalKritik');
-    const modalGrup = document.getElementById('modalGrup');
-    
-    if(modalUrunAd) modalUrunAd.value = getUrunAdi(u);
-    if(modalMiktar) modalMiktar.value = u.kalan || 0;
-    if(modalBarkod) modalBarkod.value = u.barkod || "";
-    if(modalKritik) modalKritik.value = u.kritik || 5;
-    if(modalGrup) modalGrup.value = u.grup || "Genel";
-    
-    const detayModal = document.getElementById('detayModal');
-    if(detayModal) detayModal.style.display = 'block';
+    document.getElementById('modalUrunAd').value = getUrunAdi(u);
+    document.getElementById('modalMiktar').value = u.kalan || 0;
+    document.getElementById('modalBarkod').value = u.barkod || "";
+    document.getElementById('modalKritik').value = u.kritik || 5;
+    document.getElementById('modalGrup').value = u.grup || "Genel";
+    document.getElementById('detayModal').style.display = 'block';
     
     const detayDiv = document.getElementById('detayIcerik');
     if(detayDiv) {
         try {
             const q = query(collection(db, "hareketler"), where("urunId", "==", id), orderBy("tarih", "desc"), limit(10));
             const snap = await getDocs(q);
-            detayDiv.innerHTML = snap.empty ? "<i>Bu ürüne ait hareket yok</i>" :
-                snap.docs.map(d => `<div style="padding:5px; border-bottom:1px solid #eee;">${d.data().tarih?.toDate().toLocaleString()} - ${d.data().tur === 'giris' ? '➕' : '➖'} ${d.data().miktar}</div>`).join('');
-        } catch(e) { detayDiv.innerHTML = "<i>Hareketler yüklenemedi</i>"; }
+            detayDiv.innerHTML = snap.empty ? "<i>Hareket yok</i>" :
+                snap.docs.map(d => `<div>${d.data().tarih?.toDate().toLocaleString()} - ${d.data().tur === 'giris' ? '➕' : '➖'} ${d.data().miktar}</div>`).join('');
+        } catch(e) { detayDiv.innerHTML = "<i>Hata</i>"; }
     }
 };
 
 window.kapatModal = () => {
-    const detayModal = document.getElementById('detayModal');
-    if(detayModal) detayModal.style.display = 'none';
+    document.getElementById('detayModal').style.display = 'none';
 };
 
 // ========== SEPET İŞLEMLERİ ==========
@@ -311,7 +293,6 @@ window.sepeteEkle = () => {
     sepet.push({ id: id, ad: getUrunAdi(urun), miktar: miktar });
     sepetiGoster();
     document.getElementById('islemMiktar').value = "";
-    alert("✅ Sepete eklendi: " + getUrunAdi(urun) + " x" + miktar);
 };
 
 function sepetiGoster() {
@@ -320,35 +301,29 @@ function sepetiGoster() {
     if (!liste) return;
     
     if(sepet.length === 0) {
-        liste.innerHTML = '<div style="color:#999; text-align:center; padding:10px;">📭 Sepet boş</div>';
+        liste.innerHTML = '<div style="color:#999; text-align:center;">Sepet boş</div>';
         if(butonlar) butonlar.style.display = 'none';
     } else {
         liste.innerHTML = sepet.map((u, i) => `
-            <div style="padding:8px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+            <div style="padding:8px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
                 <span><strong>${u.ad}</strong> x${u.miktar}</span>
-                <button onclick="sepettenSil(${i})" style="background:#e74c3c; color:white; border:none; border-radius:5px; padding:5px 10px; cursor:pointer;">🗑️ Sil</button>
+                <button onclick="sepettenSil(${i})" style="background:#e74c3c; color:white; border:none; border-radius:5px; padding:5px 10px;">Sil</button>
             </div>
         `).join('');
         if(butonlar) butonlar.style.display = 'flex';
     }
 }
 
-window.sepettenSil = (index) => { 
-    sepet.splice(index, 1); 
-    sepetiGoster(); 
-};
+window.sepettenSil = (index) => { sepet.splice(index, 1); sepetiGoster(); };
 
 window.topluIslem = async (tip) => {
     if (sepet.length === 0) return alert("Sepet boş!");
-    
     try {
         const batch = writeBatch(db);
         for (let item of sepet) {
             const mevcut = stoklar[item.id]?.kalan || 0;
             const yeni = tip === 'giris' ? mevcut + item.miktar : mevcut - item.miktar;
-            if (tip === 'cikis' && mevcut < item.miktar) {
-                throw new Error(`${item.ad} için stok yetersiz! Mevcut: ${mevcut}, İstenen: ${item.miktar}`);
-            }
+            if (tip === 'cikis' && mevcut < item.miktar) throw new Error(`${item.ad} için stok yetersiz!`);
             batch.update(doc(db, "stoklar", item.id), { kalan: yeni });
             batch.set(doc(collection(db, "hareketler")), {
                 urunId: item.id, urun: item.ad, tur: tip, miktar: item.miktar, tarih: Timestamp.now()
@@ -358,21 +333,214 @@ window.topluIslem = async (tip) => {
         alert("Toplu işlem başarılı!");
         sepet = [];
         sepetiGoster();
-    } catch(e) { 
-        alert("Hata: " + e.message);
-    }
+    } catch(e) { alert(e.message); }
 };
 
+// ========== KAMERA FONKSİYONLARI ==========
+let kameraAktif = false;
+
+// Eski fonksiyon isimlerini de destekle
+window.anaKameraBaslat = function() {
+    kameraBaslat();
+};
+
+window.anaKameraDurdur = function() {
+    kameraDurdur();
+};
+
+window.yeniUrunKameraBaslat = function() {
+    yeniUrunKamera();
+};
+
+window.yeniUrunKameraDurdur = function() {
+    kameraDurdur();
+};
+
+function kameraBaslat() {
+    const readerDiv = document.getElementById("reader");
+    const kameraAcBtn = document.getElementById("kameraAcBtn");
+    const kameraKapatBtn = document.getElementById("kameraKapatBtn");
+    
+    if (kameraAktif) {
+        alert("Kamera zaten açık!");
+        return;
+    }
+    
+    if (!readerDiv) {
+        alert("Kamera alanı bulunamadı!");
+        return;
+    }
+    
+    readerDiv.style.display = "block";
+    
+    if (html5QrCode) {
+        html5QrCode.stop().catch(()=>{});
+        html5QrCode = null;
+    }
+    
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+        { facingMode: "environment" }, 
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+            const select = document.getElementById('urunSelect');
+            let bulundu = false;
+            
+            for(let i = 0; i < select.options.length; i++) {
+                const opt = select.options[i];
+                if(opt.textContent === decodedText) {
+                    select.value = opt.value;
+                    alert("✅ Ürün bulundu: " + opt.textContent);
+                    bulundu = true;
+                    break;
+                }
+            }
+            
+            if(!bulundu) {
+                for(let i = 0; i < select.options.length; i++) {
+                    const opt = select.options[i];
+                    const urun = stoklar[opt.value];
+                    if(urun && urun.barkod === decodedText) {
+                        select.value = opt.value;
+                        alert("✅ Barkod eşleşti: " + opt.textContent);
+                        bulundu = true;
+                        break;
+                    }
+                }
+            }
+            
+            if(!bulundu) {
+                alert("⚠️ Ürün bulunamadı: " + decodedText);
+            }
+        }, 
+        (err) => { console.log("QR okuma:", err); }
+    ).then(() => {
+        kameraAktif = true;
+        // Butonları doğru şekilde göster/gizle
+        if(kameraAcBtn) kameraAcBtn.style.display = "block";
+        if(kameraKapatBtn) {
+            kameraKapatBtn.style.display = "block";
+            kameraKapatBtn.style.setProperty('display', 'block', 'important');
+        }
+    }).catch(err => {
+        console.error("Kamera hatası:", err);
+        alert("Kamera başlatılamadı. Lütfen izin verin.");
+        readerDiv.style.display = "none";
+        if(kameraAcBtn) kameraAcBtn.style.display = "block";
+        if(kameraKapatBtn) {
+            kameraKapatBtn.style.display = "none";
+            kameraKapatBtn.style.setProperty('display', 'none', 'important');
+        }
+    });
+}
+
+function kameraDurdur() {
+    const readerDiv = document.getElementById("reader");
+    const kameraAcBtn = document.getElementById("kameraAcBtn");
+    const kameraKapatBtn = document.getElementById("kameraKapatBtn");
+    
+    if(html5QrCode) {
+        html5QrCode.stop().catch(()=>{});
+        html5QrCode = null;
+    }
+    if(readerDiv) readerDiv.style.display = "none";
+    kameraAktif = false;
+    
+    // Butonları doğru şekilde göster/gizle
+    if(kameraAcBtn) kameraAcBtn.style.display = "block";
+    if(kameraKapatBtn) {
+        kameraKapatBtn.style.display = "none";
+        kameraKapatBtn.style.setProperty('display', 'none', 'important');
+    }
+}
+
+function yeniUrunKamera() {
+    const readerDiv = document.getElementById("reader");
+    const kameraAcBtn = document.getElementById("kameraAcBtn");
+    const kameraKapatBtn = document.getElementById("kameraKapatBtn");
+    
+    if (!readerDiv) {
+        alert("Kamera alanı bulunamadı!");
+        return;
+    }
+    
+    readerDiv.style.display = "block";
+    
+    if (html5QrCode) {
+        html5QrCode.stop().catch(()=>{});
+        html5QrCode = null;
+    }
+    
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+        { facingMode: "environment" }, 
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+            document.getElementById('urunBarkod').value = decodedText;
+            alert("✅ Barkod okundu: " + decodedText);
+            kameraDurdur();
+        }, 
+        (err) => {}
+    ).then(() => {
+        if(kameraAcBtn) kameraAcBtn.style.display = "block";
+        if(kameraKapatBtn) {
+            kameraKapatBtn.style.display = "block";
+            kameraKapatBtn.style.setProperty('display', 'block', 'important');
+        }
+    }).catch(err => {
+        console.error("Kamera hatası:", err);
+        alert("Kamera başlatılamadı.");
+        readerDiv.style.display = "none";
+        if(kameraKapatBtn) {
+            kameraKapatBtn.style.display = "none";
+            kameraKapatBtn.style.setProperty('display', 'none', 'important');
+        }
+    });
+}
+
+// Buton olaylarını bağla (sayfa yüklendiğinde)
+function kameraButonlariniBagla() {
+    const kameraAcBtn = document.getElementById("kameraAcBtn");
+    const kameraKapatBtn = document.getElementById("kameraKapatBtn");
+    const yeniUrunKameraBtn = document.getElementById("yeniUrunKameraBtn");
+    
+    // Önce eski olayları temizle
+    if(kameraAcBtn) {
+        const yeniButon = kameraAcBtn.cloneNode(true);
+        kameraAcBtn.parentNode.replaceChild(yeniButon, kameraAcBtn);
+        yeniButon.addEventListener("click", kameraBaslat);
+    }
+    
+    if(kameraKapatBtn) {
+        const yeniButon = kameraKapatBtn.cloneNode(true);
+        kameraKapatBtn.parentNode.replaceChild(yeniButon, kameraKapatBtn);
+        yeniButon.addEventListener("click", kameraDurdur);
+        yeniButon.style.display = "none";
+        yeniButon.style.setProperty('display', 'none', 'important');
+    }
+    
+    if(yeniUrunKameraBtn) {
+        const yeniButon = yeniUrunKameraBtn.cloneNode(true);
+        yeniUrunKameraBtn.parentNode.replaceChild(yeniButon, yeniUrunKameraBtn);
+        yeniButon.addEventListener("click", yeniUrunKamera);
+    }
+}
+
+// Sayfa yüklendiğinde butonları bağla
+document.addEventListener("DOMContentLoaded", () => {
+    kameraButonlariniBagla();
+    verileriGetir();
+});
+
+// NOT: Yukarıdaki DOMContentLoaded event'ini kaldırın, yerine yukarıdaki kullanıldı
 // ========== RAPORLAMA ==========
 window.raporOlustur = async () => {
     const baslangic = document.getElementById('raporBaslangic').value;
     const bitis = document.getElementById('raporBitis').value;
-    if (!baslangic || !bitis) return alert("Lütfen başlangıç ve bitiş tarihi seçin!");
+    if (!baslangic || !bitis) return alert("Tarih seçin!");
     
-    const start = new Date(baslangic);
-    start.setHours(0,0,0,0);
-    const end = new Date(bitis);
-    end.setHours(23,59,59,999);
+    const start = new Date(baslangic); start.setHours(0,0,0,0);
+    const end = new Date(bitis); end.setHours(23,59,59,999);
     const filtre = document.getElementById('raporFiltre').value;
     
     try {
@@ -380,241 +548,104 @@ window.raporOlustur = async () => {
             where("tarih", ">=", Timestamp.fromDate(start)),
             where("tarih", "<=", Timestamp.fromDate(end)));
         const snap = await getDocs(q);
-        const raporData = {};
+        const data = {};
         
-        snap.forEach(docSnap => {
-            const data = docSnap.data();
-            if (filtre !== "hepsi" && data.tur !== filtre) return;
-            if (!raporData[data.urun]) raporData[data.urun] = { giris: 0, cikis: 0 };
-            if (data.tur === 'giris') raporData[data.urun].giris += data.miktar;
-            else raporData[data.urun].cikis += data.miktar;
+        snap.forEach(d => {
+            const item = d.data();
+            if (filtre !== "hepsi" && item.tur !== filtre) return;
+            if (!data[item.urun]) data[item.urun] = { giris: 0, cikis: 0 };
+            if (item.tur === 'giris') data[item.urun].giris += item.miktar;
+            else data[item.urun].cikis += item.miktar;
         });
         
         const tbody = document.getElementById('raporTabloGovde');
-        if(!tbody) return;
         tbody.innerHTML = "";
-        
-        if(Object.keys(raporData).length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Bu tarih aralığında veri bulunamadı</td></tr>';
+        if(Object.keys(data).length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3">Veri yok</td></tr>';
         } else {
-            Object.entries(raporData).sort().forEach(([urun, val]) => {
-                tbody.innerHTML += `<tr><td style="text-align:left;">${urun}</td><td style="text-align:center;">${val.giris}</td><td style="text-align:center;">${val.cikis}</td></tr>`;
+            Object.entries(data).sort().forEach(([urun, val]) => {
+                tbody.innerHTML += `<tr><td>${urun}</td><td style="text-align:center">${val.giris}</td><td style="text-align:center">${val.cikis}</td></tr>`;
             });
         }
         document.getElementById('raporSonuc').style.display = 'block';
-    } catch(e) { 
-        alert("Rapor oluşturulurken hata: " + e.message);
-    }
+    } catch(e) { alert(e.message); }
 };
 
 window.excelIndir = () => {
-    const table = document.getElementById('raporTablo');
-    if(!table) return;
-    const ws = XLSX.utils.table_to_sheet(table);
+    const ws = XLSX.utils.table_to_sheet(document.getElementById('raporTablo'));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Rapor");
-    XLSX.writeFile(wb, `stok_raporu_${new Date().toISOString().slice(0,10)}.xlsx`);
+    XLSX.writeFile(wb, `rapor_${new Date().toISOString().slice(0,10)}.xlsx`);
 };
 
 window.pdfIndir = () => {
-    const table = document.getElementById('raporTablo');
-    if (!table) return;
-    
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Stok Raporu</title>
-            <meta charset="UTF-8">
-            <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: white; }
-                h1 { color: #2c3e50; text-align: center; margin-bottom: 10px; }
-                .date { text-align: center; color: #666; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-                th { background-color: #3498db; color: white; text-align: center; }
-                td { text-align: center; }
-                td:first-child { text-align: left; }
-                .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; }
-            </style>
-        </head>
-        <body>
-            <h1>📊 Stok Raporu</h1>
-            <div class="date">Oluşturulma Tarihi: ${new Date().toLocaleString('tr-TR')}</div>
-            ${table.outerHTML}
-            <div class="footer">Stok Takip Sistemi</div>
-            <script>
-                window.print();
-            <\/script>
-        </body>
-        </html>
+    const tablo = document.getElementById('raporTablo').cloneNode(true);
+    const w = window.open('', '_blank');
+    w.document.write(`
+        <html><head><meta charset="UTF-8"><title>Stok Raporu</title>
+        <style>body{font-family:Segoe UI,sans-serif;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#3498db;color:white}</style>
+        </head><body><h1>Stok Raporu</h1><p>Tarih: ${new Date().toLocaleString('tr-TR')}</p>${tablo.outerHTML}</body></html>
     `);
-    printWindow.document.close();
+    w.document.close();
+    w.print();
 };
 
-// --- KAMERA FONKSİYONLARI ---
-window.kameraBaslat = () => {
-    const readerDiv = document.getElementById("reader");
-    if (!readerDiv) return;
-    
-    if (html5QrCode) {
-        html5QrCode.stop().catch(()=>{});
-        html5QrCode = null;
-    }
-    
-    html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start(
-        { facingMode: "environment" }, 
-        { fps: 10, qrbox: 250 }, 
-        (decodedText) => {
-            const select = document.getElementById('urunSelect');
-            for(let i=0; i<select.options.length; i++) {
-                const opt = select.options[i];
-                if(opt.textContent === decodedText || opt.value === decodedText) {
-                    select.value = opt.value;
-                    alert("Ürün bulundu: " + opt.textContent);
-                    break;
-                }
-            }
-            kameraDurdur();
-        }, 
-        (err) => { console.log("QR okuma hatası:", err); }
-    ).catch(err => alert("Kamera başlatılamadı: " + err));
-};
-
-window.kameraDurdur = () => {
-    if(html5QrCode) { 
-        html5QrCode.stop().catch(()=>{}); 
-        html5QrCode = null;
-    }
-};
-
-window.yeniUrunKamera = () => {
-    if (html5QrCode) {
-        html5QrCode.stop().catch(()=>{});
-        html5QrCode = null;
-    }
-    
-    html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start(
-        { facingMode: "environment" }, 
-        { fps: 10, qrbox: 250 }, 
-        (decodedText) => {
-            document.getElementById('urunBarkod').value = decodedText;
-            alert("Barkod okundu: " + decodedText);
-            kameraDurdur();
-        }, 
-        (err) => {}
-    ).catch(err => alert("Kamera başlatılamadı: " + err));
-};
-
-// --- SİPARİŞ LİSTESİ ---
+// --- SİPARİŞ ---
 window.siparisPDF = () => {
-    const kritikUrunler = Object.values(stoklar).filter(u => (parseInt(u.kalan) || 0) <= (parseInt(u.kritik) || 5));
-    if(kritikUrunler.length === 0) return alert("Kritik seviyede ürün bulunmuyor!");
+    const kritikler = Object.values(stoklar).filter(u => (parseInt(u.kalan) || 0) <= (parseInt(u.kritik) || 5));
+    if(kritikler.length === 0) return alert("Kritik ürün yok!");
     
-    const printWindow = window.open('', '_blank');
-    let tableRows = "";
-    kritikUrunler.forEach(u => {
-        tableRows += `
-            <tr>
-                <td>${getUrunAdi(u)}</td>
-                <td style="text-align:center">${u.kalan}</td>
-                <td style="text-align:center">${u.kritik}</td>
-                <td style="text-align:center">${Math.max(0, (parseInt(u.kritik) * 2) - parseInt(u.kalan))}</td>
-            </tr>
-        `;
+    let rows = "";
+    kritikler.forEach(u => {
+        rows += `<tr><td>${getUrunAdi(u)}</td><td style="text-align:center">${u.kalan}</td><td style="text-align:center">${u.kritik}</td><td style="text-align:center">${Math.max(0, u.kritik * 2 - u.kalan)}</td></tr>`;
     });
     
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Sipariş Listesi</title>
-            <meta charset="UTF-8">
-            <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: white; }
-                h1 { color: #e74c3c; text-align: center; margin-bottom: 10px; }
-                .date { text-align: center; color: #666; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-                th { background-color: #e74c3c; color: white; }
-                .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; }
-            </style>
-        </head>
-        <body>
-            <h1>📋 Sipariş Listesi</h1>
-            <div class="date">Oluşturulma Tarihi: ${new Date().toLocaleString('tr-TR')}</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Ürün Adı</th>
-                        <th>Mevcut Stok</th>
-                        <th>Kritik Seviye</th>
-                        <th>Önerilen Sipariş</th>
-                    </tr>
-                </thead>
-                <tbody>${tableRows}</tbody>
-            </table>
-            <div class="footer">Stok Takip Sistemi</div>
-            <script>window.print();<\/script>
-        </body>
-        </html>
+    const w = window.open('', '_blank');
+    w.document.write(`
+        <html><head><meta charset="UTF-8"><title>Sipariş Listesi</title>
+        <style>body{font-family:Segoe UI,sans-serif;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#e74c3c;color:white}</style>
+        </head><body><h1>Sipariş Listesi</h1><p>Tarih: ${new Date().toLocaleString('tr-TR')}</p>
+        <table><thead><tr><th>Ürün</th><th>Stok</th><th>Kritik</th><th>Önerilen</th></tr></thead><tbody>${rows}</tbody></table></body></html>
     `);
-    printWindow.document.close();
+    w.document.close();
+    w.print();
 };
 
 window.siparisYazdir = () => {
-    const kritikUrunler = Object.values(stoklar).filter(u => (parseInt(u.kalan) || 0) <= (parseInt(u.kritik) || 5));
-    if(kritikUrunler.length === 0) return alert("Kritik seviyede ürün bulunmuyor!");
+    const kritikler = Object.values(stoklar).filter(u => (parseInt(u.kalan) || 0) <= (parseInt(u.kritik) || 5));
+    if(kritikler.length === 0) return alert("Kritik ürün yok!");
     
-    const printWindow = window.open('', '_blank');
-    let tableRows = "";
-    kritikUrunler.forEach(u => {
-        tableRows += `<tr><td>${getUrunAdi(u)}</td><td style="text-align:center">${u.kalan}</td><td style="text-align:center">${u.kritik}</td><td style="text-align:center">${Math.max(0, (parseInt(u.kritik) * 2) - parseInt(u.kalan))}</td></tr>`;
+    let rows = "";
+    kritikler.forEach(u => {
+        rows += `<tr><td>${getUrunAdi(u)}</td><td style="text-align:center">${u.kalan}</td><td style="text-align:center">${u.kritik}</td><td style="text-align:center">${Math.max(0, u.kritik * 2 - u.kalan)}</td></tr>`;
     });
     
-    printWindow.document.write(`
-        <html>
-        <head><title>Sipariş Listesi</title><meta charset="UTF-8">
-        <style>body{font-family:'Segoe UI',sans-serif;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:10px} th{background:#e74c3c;color:white}</style>
-        </head>
-        <body>
-            <h1>📋 Sipariş Listesi</h1>
-            <p>Tarih: ${new Date().toLocaleString('tr-TR')}</p>
-            <table><thead><tr><th>Ürün Adı</th><th>Mevcut Stok</th><th>Kritik Seviye</th><th>Önerilen Sipariş</th></tr></thead><tbody>${tableRows}</tbody></table>
-            <script>window.print();<\/script>
-        </body>
-        </html>
+    const w = window.open('', '_blank');
+    w.document.write(`
+        <html><head><meta charset="UTF-8"><title>Sipariş Listesi</title>
+        <style>body{font-family:Segoe UI,sans-serif;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#e74c3c;color:white}</style>
+        </head><body><h1>Sipariş Listesi</h1><p>Tarih: ${new Date().toLocaleString('tr-TR')}</p>
+        <table><thead><tr><th>Ürün</th><th>Stok</th><th>Kritik</th><th>Önerilen</th></tr></thead><tbody>${rows}</tbody></table>
+        <script>window.print();<\/script></body></html>
     `);
-    printWindow.document.close();
+    w.document.close();
 };
 
-// --- FİLTRELEME ---
+// --- FİLTRE ---
 window.tabloFiltrele = () => {
     const filtre = document.getElementById('aramaKutusu')?.value.toLowerCase() || "";
-    const rows = document.querySelectorAll('#tablo tr');
-    rows.forEach(row => {
-        const text = row.innerText.toLowerCase();
-        if(row.classList.length === 0 || (row.classList[0] && row.classList[0].startsWith('grup-'))) {
-            row.style.display = '';
-        } else {
-            row.style.display = text.includes(filtre) ? '' : 'none';
-        }
+    document.querySelectorAll('#tablo tr').forEach(row => {
+        if(row.classList.length === 0 || row.classList[0]?.startsWith('grup-')) row.style.display = '';
+        else row.style.display = row.innerText.toLowerCase().includes(filtre) ? '' : 'none';
     });
 };
 
-// --- PWA KURULUMU ---
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js')
-        .then(reg => console.log("Service Worker kaydedildi", reg))
-        .catch(err => console.log("Service Worker hatası", err));
+// --- PWA ---
+if('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js').catch(console.log);
 }
 
-// --- SAYFA YÜKLENİNCE ---
+// --- BAŞLAT ---
 window.addEventListener("DOMContentLoaded", () => {
     verileriGetir();
 });

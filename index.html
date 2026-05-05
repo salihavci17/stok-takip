@@ -22,60 +22,42 @@
     
     <!-- Dashboard -->
     <div class="dashboard">
-        <div class="dash-card">
-            <small>TOPLAM STOK</small>
-            <div id="dashToplam">0</div>
-        </div>
-        <div class="dash-card" style="color:#f1c40f;">
-            <small>KRİTİK ÜRÜN</small>
-            <div id="dashKritik">0</div>
-        </div>
-        <div class="dash-card" style="color:#2ecc71;">
-            <small>BUGÜN GİRİŞ</small>
-            <div id="dashGiris">0</div>
-        </div>
-        <div class="dash-card" style="color:#3498db;">
-            <small>POPÜLER ÜRÜN</small>
-            <div id="dashPopuler">-</div>
-        </div>
+        <div class="dash-card"><small>TOPLAM STOK</small><div id="dashToplam">0</div></div>
+        <div class="dash-card" style="color:#f1c40f;"><small>KRİTİK ÜRÜN</small><div id="dashKritik">0</div></div>
+        <div class="dash-card" style="color:#2ecc71;"><small>BUGÜN GİRİŞ</small><div id="dashGiris">0</div></div>
+        <div class="dash-card" style="color:#3498db;"><small>POPÜLER ÜRÜN</small><div id="dashPopuler">-</div></div>
     </div>
     
-    <!-- Tab Menü -->
-    <div class="tab-menu">
-        <button class="tab-btn active" onclick="sekmeAc(event, 'hizli-islem')">⚡ Hızlı İşlem</button>
-        <button class="tab-btn" onclick="sekmeAc(event, 'stok-listesi')">📋 Liste</button>
-        <button class="tab-btn" onclick="sekmeAc(event, 'yeni-urun')">➕ Yeni Ürün</button>
-        <button class="tab-btn" onclick="sekmeAc(event, 'hareketler')">🕒 Hareketler</button>
-    </div>
-    
-    <!-- Kritik Panel -->
-    <div id="kritikPanel" class="kritik-panel" style="display:none;">
+    <!-- ⚠️ KRİTİK PANEL - Dashboard'un hemen altında -->
+    <div id="kritikPanel" class="kritik-panel" style="display:none; margin-bottom:20px;">
         <h4>⚠️ Kritik Seviyedeki Ürünler</h4>
         <ul id="kritikListe"></ul>
-    </div>
-    
-    <!-- Sipariş Paneli -->
-    <div id="siparisPanel" class="siparis-panel" style="display:none;">
-        <h3>🛒 Otomatik Sipariş Listesi</h3>
-        <ul id="siparisListesi"></ul>
         <div class="siparis-butonlar">
             <button onclick="siparisPDF()">📄 PDF Al</button>
             <button onclick="siparisYazdir()">🖨️ Yazdır</button>
         </div>
     </div>
     
+    <!-- Tab Menü -->
+    <div class="tab-menu">
+        <button class="tab-btn active" data-tab="hizli-islem">⚡ Hızlı İşlem</button>
+        <button class="tab-btn" data-tab="stok-listesi">📋 Liste</button>
+        <button class="tab-btn" data-tab="yeni-urun">➕ Yeni Ürün</button>
+        <button class="tab-btn" data-tab="hareketler">🕒 Hareketler</button>
+        <button class="tab-btn" data-tab="rapor">📊 Rapor</button>
+    </div>
+    
     <!-- Hızlı İşlem Sekmesi -->
     <div id="hizli-islem" class="tab-content active">
         <div class="card">
-            <div id="reader"></div>
-            <button onclick="kameraDurdur()" class="btn-kapat">❌ Kamerayı Kapat</button>
+            <div id="reader" style="width:100%; max-width:400px; margin:0 auto; display:none;"></div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button id="kameraAcBtn" class="btn-primary">📷 Barkod Oku</button>
+            </div>
         </div>
         
         <div class="urun-secim">
-            <select id="urunSelect">
-                <option value="">Ürün Seçin</option>
-            </select>
-            <button onclick="kameraBaslat()" class="btn-kamera">📷</button>
+            <select id="urunSelect"><option value="">Ürün Seçin</option></select>
         </div>
         
         <input type="number" id="islemMiktar" placeholder="Adet">
@@ -93,8 +75,8 @@
         <h4>🛒 Sepetiniz</h4>
         <div id="sepetListesi">Sepet boş</div>
         <div id="sepetButonlar" style="display:none;">
-            <button onclick="topluIslem('giris')" class="btn-sepet-giris">Toplu Giriş</button>
-            <button onclick="topluIslem('cikis')" class="btn-sepet-cikis">Toplu Çıkış</button>
+            <button onclick="topluIslem('giris')">Toplu Giriş</button>
+            <button onclick="topluIslem('cikis')">Toplu Çıkış</button>
         </div>
     </div>
     
@@ -104,7 +86,7 @@
         <input type="text" id="urunAdi" placeholder="Ürün Adı">
         <div class="barkod-grup">
             <input type="text" id="urunBarkod" placeholder="Barkod">
-            <button onclick="yeniUrunKamera()">📷</button>
+            <button id="yeniUrunKameraBtn" class="btn-secondary">📷 Barkod Oku</button>
         </div>
         <button onclick="urunEkle()" class="btn-kaydet">Kaydet</button>
     </div>
@@ -113,12 +95,12 @@
     <div id="stok-listesi" class="tab-content">
         <h3>Stok Listesi</h3>
         <input type="text" id="aramaKutusu" placeholder="Ürün veya Barkod Ara..." onkeyup="tabloFiltrele()">
-        <table class="stok-tablo">
-            <thead>
-                <tr><th>Ürün</th><th>Mevcut</th><th></th></tr>
-            </thead>
-            <tbody id="tablo"></tbody>
-        </table>
+        <div class="tablo-kapsayici">
+            <table class="stok-tablo">
+                <thead><tr><th>Ürün</th><th>Mevcut</th><th></th></tr></thead>
+                <tbody id="tablo"></tbody>
+            </table>
+        </div>
     </div>
     
     <!-- Hareketler Sekmesi -->
@@ -126,16 +108,14 @@
         <h3>Son Hareketler</h3>
         <div class="tablo-kapsayici">
             <table>
-                <thead>
-                    <tr><th>Tarih</th><th>Ürün</th><th>Miktar</th><th>İşlem</th><th></th></tr>
-                </thead>
+                <thead><tr><th>Tarih</th><th>Ürün</th><th>Miktar</th><th>İşlem</th><th></th></tr></thead>
                 <tbody id="hareketlerTablo"></tbody>
             </table>
         </div>
     </div>
     
-    <!-- Raporlama -->
-    <div class="rapor-alani">
+    <!-- Rapor Sekmesi -->
+    <div id="rapor" class="tab-content">
         <h3>Raporlama</h3>
         <div class="tarih-grup">
             <input type="date" id="raporBaslangic">
@@ -147,21 +127,18 @@
             <option value="cikis">Sadece Çıkışlar</option>
         </select>
         <button onclick="raporOlustur()" class="btn-sorgula">Sorgula</button>
-    </div>
-    
-    <!-- Rapor Sonuç -->
-    <div id="raporSonuc" style="display:none;">
-        <div class="rapor-butonlar">
-            <button onclick="excelIndir()">📊 Excel İndir</button>
-            <button onclick="pdfIndir()">📄 PDF İndir</button>
-        </div>
-        <div class="tablo-kapsayici">
-            <table id="raporTablo">
-                <thead>
-                    <tr><th>Ürün Adı</th><th>Giriş</th><th>Çıkış</th></tr>
-                </thead>
-                <tbody id="raporTabloGovde"></tbody>
-            </table>
+        
+        <div id="raporSonuc" style="display:none; margin-top:15px;">
+            <div class="rapor-butonlar">
+                <button onclick="excelIndir()">📊 Excel İndir</button>
+                <button onclick="pdfIndir()">📄 PDF İndir</button>
+            </div>
+            <div class="tablo-kapsayici">
+                <table id="raporTablo">
+                    <thead><tr><th>Ürün Adı</th><th>Giriş</th><th>Çıkış</th></tr></thead>
+                    <tbody id="raporTabloGovde"></tbody>
+                </table>
+            </div>
         </div>
     </div>
     
