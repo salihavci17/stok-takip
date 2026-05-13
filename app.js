@@ -23,6 +23,18 @@ let sepet = [];
 let html5QrCode = null;
 let seciliUrunId = "";
 
+// Toast bildirim fonksiyonu
+function showToast(message, isError = false) {
+    const toast = document.getElementById('toastMessage');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.style.backgroundColor = isError ? '#e74c3c' : '#2c3e50';
+    toast.classList.add('show');
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2500);
+}
+
 function getUrunAdi(urun) {
     if (!urun) return "Bilinmeyen";
     return urun.urunAd || urun.ad || urun.isim || urun.name || urun.id || "Bilinmeyen";
@@ -40,13 +52,12 @@ function verileriGetir() {
             if (select) {
                 const opt = document.createElement("option");
                 opt.value = d.id;
-                // Barkod da görünsün
                 opt.textContent = `${getUrunAdi(v)}${v.barkod ? ' ('+v.barkod+')' : ''}`;
                 select.appendChild(opt);
             }
         });
         stoklariListele();
-        hareketleriListele(100); // sadece son 100 hareket
+        hareketleriListele(100);
         kritikKontrol();
         popularesiGetir();
         bugunOzetiniGetir();
@@ -94,7 +105,6 @@ function kritikKontrol() {
     }
 }
 
-// HAREKETLER - Sadece son 100 kayıt (hızlı)
 async function hareketleriListele(limitKac = 100) {
     const tbody = document.getElementById('hareketlerTablo');
     if (!tbody) return;
@@ -103,7 +113,7 @@ async function hareketleriListele(limitKac = 100) {
         const snap = await getDocs(q);
         tbody.innerHTML = "";
         if (snap.empty) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">Henüz hareket yok</td><tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">Henüz hareket yok</td></tr>';
             return;
         }
         snap.forEach(d => {
@@ -126,92 +136,17 @@ async function hareketleriListele(limitKac = 100) {
     } catch(e) { console.error("Hareket listeleme hatası:", e); }
 }
 
-// Tüm hareketleri göster (yavaş olabilir)
 window.tumHareketleriGoster = async () => {
     await hareketleriListele(999999);
-    alert("Tüm hareketler yüklendi (sayfa yavaşlayabilir).");
+    showToast("Tüm hareketler yüklendi");
 };
 
 window.hareketSil = async (id) => {
     if (confirm("Bu hareket silinsin mi?")) {
         await deleteDoc(doc(db, "hareketler", id));
         hareketleriListele(100);
+        showToast("Hareket silindi");
     }
-};
-
-// HAREKET DÜZENLEME
-let duzenlenecekHareket = { id: null, urun: null, eskiMiktar: null, eskiTarih: null, tur: null, birim: null };
-
-window.hareketDuzenle = (id, urun, miktar, tarihIso, tur, birim) => {
-    duzenlenecekHareket = { id, urun, eskiMiktar: miktar, eskiTarih: tarihIso, tur, birim };
-    document.getElementById('duzenleMiktar').value = miktar;
-    document.getElementById('duzenleTarih').value = tarihIso;
-    document.getElementById('hareketDuzenleModal').style.display = 'flex';
-};
-
-window.hareketDuzenleKaydet = async () => {
-    const yeniMiktar = Number(document.getElementById('duzenleMiktar').value);
-    const yeniTarihStr = document.getElementById('duzenleTarih').value;
-    if (!yeniMiktar || yeniMiktar <= 0) return alert("Geçerli bir miktar girin!");
-    
-    const { id, urun, eskiMiktar, tur, birim } = duzenlenecekHareket;
-    if (!id) return;
-    
-    let yeniTarih = Timestamp.now();
-    if (yeniTarihStr) {
-        const date = new Date(yeniTarihStr);
-        date.setHours(12, 0, 0, 0);
-        yeniTarih = Timestamp.fromDate(date);
-    }
-    
-    // Ürünü bul
-    let urunId = null;
-    for (let [uid, u] of Object.entries(stoklar)) {
-        if (getUrunAdi(u) === urun) {
-            urunId = uid;
-            break;
-        }
-    }
-    if (!urunId) return alert("Ürün bulunamadı!");
-    
-    const mevcutStok = stoklar[urunId]?.kalan || 0;
-    let yeniStok = mevcutStok;
-    
-    if (tur === 'giris') {
-        yeniStok = mevcutStok - eskiMiktar + yeniMiktar;
-    } else {
-        yeniStok = mevcutStok + eskiMiktar - yeniMiktar;
-    }
-    
-    if (yeniStok < 0) return alert("Yeni miktar stok düzenlemesi sonucu stok negatif olamaz!");
-    
-    try {
-        const batch = writeBatch(db);
-        batch.delete(doc(db, "hareketler", id));
-        const yeniHareketRef = doc(collection(db, "hareketler"));
-        batch.set(yeniHareketRef, {
-            urunId: urunId,
-            urun: urun,
-            tur: tur,
-            miktar: yeniMiktar,
-            birim: birim,
-            tarih: yeniTarih,
-            not: "Düzenlendi"
-        });
-        batch.update(doc(db, "stoklar", urunId), { kalan: yeniStok });
-        
-        await batch.commit();
-        alert("✅ Hareket düzenlendi!");
-        hareketDuzenleKapat();
-        hareketleriListele(100);
-    } catch(e) {
-        alert("Düzenleme hatası: " + e.message);
-    }
-};
-
-window.hareketDuzenleKapat = () => {
-    document.getElementById('hareketDuzenleModal').style.display = 'none';
-    duzenlenecekHareket = { id: null, urun: null, eskiMiktar: null, eskiTarih: null, tur: null, birim: null };
 };
 
 // Popüler ürün (son 500 çıkış)
@@ -230,7 +165,7 @@ async function popularesiGetir() {
         }
         document.getElementById('dashPopuler').innerText = populerAd !== "-" ? `${populerAd} (${max})` : "-";
     } catch(e) { 
-        console.error("Popüler ürün hatası:", e);
+        console.error(e);
         document.getElementById('dashPopuler').innerText = "-";
     }
 }
@@ -248,7 +183,7 @@ async function bugunOzetiniGetir() {
 // ========== ÜRÜN EKLEME ==========
 window.urunEkle = async () => {
     const ad = document.getElementById('urunAdi').value.trim();
-    if (!ad) return alert("Ürün adı giriniz!");
+    if (!ad) return showToast("Ürün adı giriniz!", true);
     
     const barkod = document.getElementById('urunBarkod').value.trim();
     const grup = document.getElementById('urunGrup').value;
@@ -282,7 +217,7 @@ window.urunEkle = async () => {
             });
         }
         
-        alert("✅ Ürün başarıyla eklendi!");
+        showToast("Ürün başarıyla eklendi");
         document.getElementById('urunAdi').value = "";
         document.getElementById('urunBarkod').value = "";
         document.getElementById('urunBaslangicStok').value = "0";
@@ -291,7 +226,7 @@ window.urunEkle = async () => {
         document.getElementById('urunTedarikci').value = "";
         document.getElementById('urunGrup').value = "Genel";
     } catch(e) {
-        alert("Hata: " + e.message);
+        showToast("Hata: " + e.message, true);
     }
 };
 
@@ -300,12 +235,12 @@ window.stokIslem = async (tip) => {
     const id = document.getElementById('urunSelect').value;
     const miktar = Number(document.getElementById('islemMiktar').value);
     const secilenTarih = document.getElementById('islemTarihi')?.value;
-    if (!id) return alert("Ürün seçin!");
-    if (!miktar || miktar <= 0) return alert("Geçerli miktar girin!");
+    if (!id) return showToast("Ürün seçin!", true);
+    if (!miktar || miktar <= 0) return showToast("Geçerli miktar girin!", true);
     
     const mevcut = stoklar[id]?.kalan || 0;
     const yeni = tip === 'giris' ? mevcut + miktar : mevcut - miktar;
-    if (tip === 'cikis' && yeni < 0) return alert("Yetersiz stok!");
+    if (tip === 'cikis' && yeni < 0) return showToast("Yetersiz stok!", true);
     
     let islemTarihi = Timestamp.now();
     if (secilenTarih) {
@@ -325,7 +260,7 @@ window.stokIslem = async (tip) => {
         tarih: islemTarihi
     });
     await batch.commit();
-    alert("✅ İşlem tamam!");
+    showToast("İşlem tamam");
     document.getElementById('islemMiktar').value = "";
     if(document.getElementById('islemTarihi')) document.getElementById('islemTarihi').value = "";
     hareketleriListele(100);
@@ -333,7 +268,7 @@ window.stokIslem = async (tip) => {
 
 // ========== ÜRÜN GÜNCELLEME ==========
 window.urunGuncelle = async () => {
-    if (!seciliUrunId) return alert("Ürün seçili değil!");
+    if (!seciliUrunId) return showToast("Ürün seçili değil!", true);
     
     const yeniAd = document.getElementById('modalUrunAd').value;
     const yeniBarkod = document.getElementById('modalBarkod').value;
@@ -354,10 +289,10 @@ window.urunGuncelle = async () => {
             tedarikci: yeniTedarikci,
             guncellemeTarihi: Timestamp.now()
         });
-        alert("✅ Ürün güncellendi!");
+        showToast("Ürün güncellendi");
         kapatModal();
     } catch(e) {
-        alert("Güncelleme hatası: " + e.message);
+        showToast("Güncelleme hatası: " + e.message, true);
     }
 };
 
@@ -365,7 +300,7 @@ window.urunGuncelle = async () => {
 window.detayGoster = async (id) => {
     seciliUrunId = id;
     const u = stoklar[id];
-    if (!u) return alert("Ürün bulunamadı!");
+    if (!u) return showToast("Ürün bulunamadı!", true);
     
     document.getElementById('modalUrunAd').value = getUrunAdi(u);
     document.getElementById('modalBarkod').value = u.barkod || "";
@@ -388,7 +323,10 @@ window.detayGoster = async (id) => {
 
 window.kapatModal = () => document.getElementById('detayModal').style.display = 'none';
 window.urunSil = async (id) => {
-    if(confirm("Bu ürün silinsin mi?")) await deleteDoc(doc(db, "stoklar", id));
+    if(confirm("Bu ürün silinsin mi?")) {
+        await deleteDoc(doc(db, "stoklar", id));
+        showToast("Ürün silindi");
+    }
 };
 
 // ========== SEKMELER ==========
@@ -412,11 +350,12 @@ window.grupToggle = (id) => {
 window.sepeteEkle = () => {
     const id = document.getElementById('urunSelect').value;
     const miktar = Number(document.getElementById('islemMiktar').value);
-    if (!id) return alert("Ürün seçin!");
-    if (!miktar || miktar <= 0) return alert("Geçerli miktar girin!");
+    if (!id) return showToast("Ürün seçin!", true);
+    if (!miktar || miktar <= 0) return showToast("Geçerli miktar girin!", true);
     sepet.push({ id, ad: getUrunAdi(stoklar[id]), miktar });
     sepetiGoster();
     document.getElementById('islemMiktar').value = "";
+    showToast("Sepete eklendi");
 };
 
 function sepetiGoster() {
@@ -436,19 +375,29 @@ function sepetiGoster() {
     }
 }
 
-window.sepetSil = (i) => { sepet.splice(i, 1); sepetiGoster(); };
+window.sepetSil = (i) => { sepet.splice(i, 1); sepetiGoster(); showToast("Sepetten çıkarıldı"); };
 window.topluIslem = async (tip) => {
-    if (sepet.length === 0) return alert("Sepet boş!");
+    if (sepet.length === 0) return showToast("Sepet boş!", true);
     const batch = writeBatch(db);
     for (let item of sepet) {
         const mevcut = stoklar[item.id]?.kalan || 0;
         const yeni = tip === 'giris' ? mevcut + item.miktar : mevcut - item.miktar;
-        if (tip === 'cikis' && mevcut < item.miktar) throw new Error(`${item.ad} için stok yetersiz!`);
+        if (tip === 'cikis' && mevcut < item.miktar) {
+            showToast(`${item.ad} için stok yetersiz!`, true);
+            return;
+        }
         batch.update(doc(db, "stoklar", item.id), { kalan: yeni });
-        batch.set(doc(collection(db, "hareketler")), { urunId: item.id, urun: item.ad, tur: tip, miktar: item.miktar, tarih: Timestamp.now() });
+        batch.set(doc(collection(db, "hareketler")), { 
+            urunId: item.id, 
+            urun: item.ad, 
+            tur: tip, 
+            miktar: item.miktar, 
+            tarih: Timestamp.now(),
+            birim: stoklar[item.id]?.birim || "Adet"
+        });
     }
     await batch.commit();
-    alert("Toplu işlem başarılı!");
+    showToast("Toplu işlem başarılı!");
     sepet = [];
     sepetiGoster();
     hareketleriListele(100);
@@ -461,7 +410,7 @@ window.kameraBaslat = () => {
     const acBtn = document.getElementById("kameraAcBtn");
     const kapatBtn = document.getElementById("kameraKapatBtn");
     if (kameraAktif) return;
-    if (!reader) return alert("Kamera alanı bulunamadı!");
+    if (!reader) return showToast("Kamera alanı bulunamadı!", true);
     reader.style.display = "block";
     if (acBtn) acBtn.style.display = "none";
     if (kapatBtn) kapatBtn.style.display = "block";
@@ -477,18 +426,18 @@ window.kameraBaslat = () => {
                 const opt = select.options[i];
                 if (opt.textContent.includes(decodedText) || (stoklar[opt.value]?.barkod === decodedText)) {
                     select.value = opt.value;
-                    alert("✅ Ürün bulundu: " + opt.textContent);
+                    showToast("Ürün bulundu: " + opt.textContent);
                     bulundu = true;
                     break;
                 }
             }
-            if (!bulundu) alert("⚠️ Barkod/Ürün bulunamadı: " + decodedText);
+            if (!bulundu) showToast("Barkod/Ürün bulunamadı: " + decodedText, true);
         },
         (err) => console.log("QR okuma hatası:", err)
     ).then(() => {
         kameraAktif = true;
     }).catch(e => {
-        alert("Kamera başlatılamadı: " + e);
+        showToast("Kamera başlatılamadı: " + e, true);
         reader.style.display = "none";
         if (acBtn) acBtn.style.display = "block";
         if (kapatBtn) kapatBtn.style.display = "none";
@@ -521,12 +470,12 @@ window.yeniUrunKamera = () => {
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
             document.getElementById('urunBarkod').value = decodedText;
-            alert("✅ Barkod okundu: " + decodedText);
+            showToast("Barkod okundu: " + decodedText);
             window.kameraDurdur();
         },
         (err) => {}
     ).catch(e => {
-        alert("Kamera hatası: " + e);
+        showToast("Kamera hatası: " + e, true);
         reader.style.display = "none";
         if (acBtn) acBtn.style.display = "block";
         if (kapatBtn) kapatBtn.style.display = "none";
@@ -537,11 +486,82 @@ document.getElementById("kameraAcBtn")?.addEventListener("click", window.kameraB
 document.getElementById("kameraKapatBtn")?.addEventListener("click", window.kameraDurdur);
 document.getElementById("yeniUrunKameraBtn")?.addEventListener("click", window.yeniUrunKamera);
 
+// ========== HAREKET DÜZENLEME ==========
+let duzenlenecekHareket = { id: null, urun: null, eskiMiktar: null, eskiTarih: null, tur: null, birim: null };
+
+window.hareketDuzenle = (id, urun, miktar, tarihIso, tur, birim) => {
+    duzenlenecekHareket = { id, urun, eskiMiktar: miktar, eskiTarih: tarihIso, tur, birim };
+    document.getElementById('duzenleMiktar').value = miktar;
+    document.getElementById('duzenleTarih').value = tarihIso;
+    document.getElementById('hareketDuzenleModal').style.display = 'flex';
+};
+
+window.hareketDuzenleKaydet = async () => {
+    const yeniMiktar = Number(document.getElementById('duzenleMiktar').value);
+    const yeniTarihStr = document.getElementById('duzenleTarih').value;
+    if (!yeniMiktar || yeniMiktar <= 0) return showToast("Geçerli bir miktar girin!", true);
+    
+    const { id, urun, eskiMiktar, tur, birim } = duzenlenecekHareket;
+    if (!id) return;
+    
+    let yeniTarih = Timestamp.now();
+    if (yeniTarihStr) {
+        const date = new Date(yeniTarihStr);
+        date.setHours(12, 0, 0, 0);
+        yeniTarih = Timestamp.fromDate(date);
+    }
+    
+    let urunId = null;
+    for (let [uid, u] of Object.entries(stoklar)) {
+        if (getUrunAdi(u) === urun) {
+            urunId = uid;
+            break;
+        }
+    }
+    if (!urunId) return showToast("Ürün bulunamadı!", true);
+    
+    const mevcutStok = stoklar[urunId]?.kalan || 0;
+    let yeniStok = mevcutStok;
+    if (tur === 'giris') {
+        yeniStok = mevcutStok - eskiMiktar + yeniMiktar;
+    } else {
+        yeniStok = mevcutStok + eskiMiktar - yeniMiktar;
+    }
+    if (yeniStok < 0) return showToast("Yeni miktar stok düzenlemesi sonucu stok negatif olamaz!", true);
+    
+    try {
+        const batch = writeBatch(db);
+        batch.delete(doc(db, "hareketler", id));
+        const yeniHareketRef = doc(collection(db, "hareketler"));
+        batch.set(yeniHareketRef, {
+            urunId: urunId,
+            urun: urun,
+            tur: tur,
+            miktar: yeniMiktar,
+            birim: birim,
+            tarih: yeniTarih,
+            not: "Düzenlendi"
+        });
+        batch.update(doc(db, "stoklar", urunId), { kalan: yeniStok });
+        await batch.commit();
+        showToast("Hareket düzenlendi");
+        hareketDuzenleKapat();
+        hareketleriListele(100);
+    } catch(e) {
+        showToast("Düzenleme hatası: " + e.message, true);
+    }
+};
+
+window.hareketDuzenleKapat = () => {
+    document.getElementById('hareketDuzenleModal').style.display = 'none';
+    duzenlenecekHareket = { id: null, urun: null, eskiMiktar: null, eskiTarih: null, tur: null, birim: null };
+};
+
 // ========== RAPORLAMA ==========
 window.raporOlustur = async () => {
     const baslangic = document.getElementById('raporBaslangic')?.value;
     const bitis = document.getElementById('raporBitis')?.value;
-    if (!baslangic || !bitis) return alert("Tarih seçin!");
+    if (!baslangic || !bitis) return showToast("Tarih seçin!", true);
     const start = new Date(baslangic); start.setHours(0,0,0,0);
     const end = new Date(bitis); end.setHours(23,59,59,999);
     const filtre = document.getElementById('raporFiltre')?.value || 'hepsi';
@@ -560,7 +580,8 @@ window.raporOlustur = async () => {
         if (Object.keys(data).length === 0) tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#666;">Veri yok</td></tr>';
         else Object.entries(data).sort().forEach(([urun, val]) => tbody.innerHTML += `<tr><td style="text-align:left;">${urun}</td><td style="text-align:center">${val.giris}</td><td style="text-align:center">${val.cikis}</td></tr>`);
         document.getElementById('raporSonuc').style.display = 'block';
-    } catch(e) { alert(e.message); }
+        showToast("Rapor oluşturuldu");
+    } catch(e) { showToast(e.message, true); }
 };
 
 window.excelIndir = () => {
@@ -568,6 +589,7 @@ window.excelIndir = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Rapor");
     XLSX.writeFile(wb, `rapor_${new Date().toISOString().slice(0,10)}.xlsx`);
+    showToast("Excel indiriliyor");
 };
 
 window.pdfIndir = () => {
@@ -576,26 +598,27 @@ window.pdfIndir = () => {
     w.document.write(`<html><head><meta charset="UTF-8"><title>Rapor</title><style>body{font-family:system-ui;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#333;color:white}</style></head><body><h1>Stok Raporu</h1><p>${new Date().toLocaleString('tr-TR')}</p>${tablo.outerHTML}</body></html>`);
     w.document.close();
     w.print();
+    showToast("PDF hazırlanıyor");
 };
 
 window.siparisPDF = () => {
     const kritikler = Object.values(stoklar).filter(u => (u.kalan || 0) <= (u.kritik || 5));
-    if (kritikler.length === 0) return alert("Kritik ürün yok!");
+    if (kritikler.length === 0) return showToast("Kritik ürün yok!", true);
     const w = window.open('', '_blank');
     w.document.write(`<html><head><meta charset="UTF-8"><title>Sipariş</title><style>body{font-family:system-ui;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#ff3b30;color:white}</style></head><body><h1>Sipariş Listesi</h1><p>${new Date().toLocaleString('tr-TR')}</p><table><thead><tr><th>Ürün</th><th>Stok</th><th>Kritik</th><th>Önerilen</th></tr></thead><tbody>${kritikler.map(u => `<tr><td style="text-align:left;">${getUrunAdi(u)}</td><td style="text-align:center">${u.kalan}</td><td style="text-align:center">${u.kritik}</td><td style="text-align:center">${Math.max(0, (u.kritik * 2) - u.kalan)}</td></tr>`).join('')}</tbody></table></body></html>`);
     w.document.close();
     w.print();
+    showToast("PDF hazırlanıyor");
 };
 
 window.siparisYazdir = () => {
     const kritikler = Object.values(stoklar).filter(u => (u.kalan || 0) <= (u.kritik || 5));
-    if (kritikler.length === 0) return alert("Kritik ürün yok!");
+    if (kritikler.length === 0) return showToast("Kritik ürün yok!", true);
     const w = window.open('', '_blank');
-    w.document.write(`<html><head><meta charset="UTF-8"><title>Sipariş</title><style>body{font-family:system-ui;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#ff3b30;color:white}</style></head><body><h1>Sipariş Listesi</h1><p>${new Date().toLocaleString('tr-TR')}</p><table><thead><tr><th>Ürün</th><th>Stok</th><th>Kritik</th><th>Önerilen</th></tr></thead><tbody>${kritikler.map(u => `<tr><td style="text-align:left;">${getUrunAdi(u)}</td><td style="text-align:center">${u.kalan}</td><td style="text-align:center">${u.kritik}</td><td style="text-align:center">${Math.max(0, (u.kritik * 2) - u.kalan)}</td></tr>`).join('')}</tbody></table><script>window.print();</script></body></html>`);
+    w.document.write(`<html><head><meta charset="UTF-8"><title>Sipariş</title><style>body{font-family:system-ui;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#ff3b30;color:white}</style></head><body><h1>Sipariş Listesi</h1><p>${new Date().toLocaleString('tr-TR')}</p><table><thead><tr><th>Ürün</th><th>Stok</th><th>Kritik</th><th>Önerilen</th></tr></thead><tbody>${kritikler.map(u => `<tr><td style="text-align:left;">${getUrunAdi(u)}</td><td style="text-align:center">${u.kalan}</td><td style="text-align:center">${u.kritik}</td><td style="text-align:center">${Math.max(0, (u.kritik * 2) - u.kalan)}</td></tr>`).join('')}</tbody></table><script>window.print();<\/script></body></html>`);
     w.document.close();
 };
 
-// Filtreleme
 window.tabloFiltrele = () => {
     const f = document.getElementById('aramaKutusu')?.value.toLowerCase() || "";
     document.querySelectorAll('#tablo tr').forEach(r => {

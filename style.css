@@ -303,3 +303,33 @@ button {
     font-size: 12px;
     cursor: pointer;
 }
+/* Toast Bildirim */
+.toast-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    white-space: nowrap;
+}
+.toast-message.show {
+    opacity: 1;
+}
+@media (max-width: 600px) {
+    .toast-message {
+        font-size: 12px;
+        white-space: normal;
+        text-align: center;
+        max-width: 90%;
+    }
+}
