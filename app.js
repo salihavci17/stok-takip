@@ -96,20 +96,29 @@ window.kullaniciCikis = async () => {
 };
 
 window.switchLoginTab = (tab) => {
-    const tabs = document.querySelectorAll('.login-tab');
-    const forms = document.querySelectorAll('.login-form');
-    tabs.forEach(btn => btn.classList.remove('active'));
-    forms.forEach(form => form.classList.remove('active'));
+    const girisForm = document.getElementById('girisForm');
+    const kayitForm = document.getElementById('kayitForm');
+    const girisTab = document.getElementById('girisTab');
+    const kayitTab = document.getElementById('kayitTab');
+    
+    // Tüm formları gizle
+    if (girisForm) girisForm.classList.remove('active');
+    if (kayitForm) kayitForm.classList.remove('active');
+    
+    // Tüm sekmelerin aktif sınıfını kaldır
+    if (girisTab) girisTab.classList.remove('active');
+    if (kayitTab) kayitTab.classList.remove('active');
+    
     if (tab === 'giris') {
-        const girisTab = document.querySelector('.login-tab:first-child');
-        if (girisTab) girisTab.classList.add('active');
-        const girisForm = document.getElementById('girisForm');
         if (girisForm) girisForm.classList.add('active');
-    } else {
-        const kayitTab = document.querySelector('.login-tab:last-child');
-        if (kayitTab) kayitTab.classList.add('active');
-        const kayitForm = document.getElementById('kayitForm');
+        if (girisTab) girisTab.classList.add('active');
+    } else if (tab === 'kayit') {
         if (kayitForm) kayitForm.classList.add('active');
+        if (kayitTab) kayitTab.classList.add('active');
+    } else {
+        // Varsayılan olarak giriş formunu göster
+        if (girisForm) girisForm.classList.add('active');
+        if (girisTab) girisTab.classList.add('active');
     }
 };
 
@@ -146,11 +155,23 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('userRole').innerText = mevcutRol;
         loginScreen.style.display = 'none';
         mainApp.style.display = 'block';
-        // Yetkiye göre tabları göster/gizle
+        
+        // Yetkiye göre sidebar linkini göster/gizle
+        const kullaniciLink = document.getElementById('kullaniciTabLink');
+        if (kullaniciLink) {
+            if (adminMi()) {
+                kullaniciLink.style.display = 'block';
+            } else {
+                kullaniciLink.style.display = 'none';
+            }
+        }
+        
+        // Yetkiye göre eski tab yapısı (koruma amaçlı)
         const yeniUrunTab = document.querySelector('.tab-btn[data-tab="yeni-urun"]');
         const kullaniciTab = document.querySelector('.tab-btn[data-tab="kullanicilar"]');
         if (yeniUrunTab) yeniUrunTab.style.display = yoneticiMi() ? 'block' : 'none';
         if (kullaniciTab) kullaniciTab.style.display = adminMi() ? 'block' : 'none';
+        
         if (adminMi()) kullaniciListesiniGetir();
         verileriGetir();
         siparisleriListele();
@@ -420,17 +441,17 @@ window.topluIslem = async (tip) => {
     sepetiGoster();
 };
 
-// ========== KAMERA ==========
+// ========== KAMERA (GÜNCELLENDİ) ==========
 let kameraAktif = false;
-window.kameraBaslat = () => {
+window.kameraBaslat = function() {
     const reader = document.getElementById("reader");
-    const ac = document.getElementById("kameraAcBtn");
-    const kapat = document.getElementById("kameraKapatBtn");
+    const acBtn = document.getElementById("kameraAcBtn");
+    const kapatBtn = document.getElementById("kameraKapatBtn");
     if (kameraAktif) return;
     if (!reader) return showToast("Kamera alanı yok!", true);
     reader.style.display = "block";
-    if (ac) ac.style.display = "none";
-    if (kapat) kapat.style.display = "block";
+    if (acBtn) acBtn.style.display = "none";
+    if (kapatBtn) kapatBtn.style.display = "block";
     if (html5QrCode) html5QrCode.stop().catch(()=>{});
     html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
@@ -447,34 +468,39 @@ window.kameraBaslat = () => {
             showToast("Barkod bulunamadı!", true);
         },
         (err) => console.log(err)
-    ).then(() => kameraAktif = true).catch(e => { showToast("Kamera hatası", true); reader.style.display = "none"; if(ac) ac.style.display = "block"; if(kapat) kapat.style.display = "none"; });
+    ).then(() => kameraAktif = true).catch(e => {
+        showToast("Kamera hatası", true);
+        reader.style.display = "none";
+        if (acBtn) acBtn.style.display = "block";
+        if (kapatBtn) kapatBtn.style.display = "none";
+    });
 };
 
-window.kameraDurdur = () => {
+window.kameraDurdur = function() {
     if (html5QrCode) html5QrCode.stop().catch(()=>{});
-    const r = document.getElementById("reader");
-    const ac = document.getElementById("kameraAcBtn");
-    const kp = document.getElementById("kameraKapatBtn");
-    if (r) r.style.display = "none";
-    if (ac) ac.style.display = "block";
-    if (kp) kp.style.display = "none";
+    const reader = document.getElementById("reader");
+    const acBtn = document.getElementById("kameraAcBtn");
+    const kapatBtn = document.getElementById("kameraKapatBtn");
+    if (reader) reader.style.display = "none";
+    if (acBtn) acBtn.style.display = "block";
+    if (kapatBtn) kapatBtn.style.display = "none";
     kameraAktif = false;
 };
 
-window.yeniUrunKamera = () => {
+window.yeniUrunKamera = function() {
     const reader = document.getElementById("reader");
-    const ac = document.getElementById("kameraAcBtn");
-    const kapat = document.getElementById("kameraKapatBtn");
+    const acBtn = document.getElementById("kameraAcBtn");
+    const kapatBtn = document.getElementById("kameraKapatBtn");
     if (!reader) return;
     reader.style.display = "block";
-    if (ac) ac.style.display = "none";
-    if (kapat) kapat.style.display = "block";
+    if (acBtn) acBtn.style.display = "none";
+    if (kapatBtn) kapatBtn.style.display = "block";
     if (html5QrCode) html5QrCode.stop().catch(()=>{});
     html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
         (text) => { document.getElementById('urunBarkod').value = text; showToast("Barkod okundu"); window.kameraDurdur(); },
         (err) => {}
-    ).catch(e => { showToast("Kamera hatası", true); reader.style.display = "none"; if(ac) ac.style.display = "block"; if(kapat) kapat.style.display = "none"; });
+    ).catch(e => { showToast("Kamera hatası", true); reader.style.display = "none"; if(acBtn) acBtn.style.display = "block"; if(kapatBtn) kapatBtn.style.display = "none"; });
 };
 
 document.getElementById("kameraAcBtn")?.addEventListener("click", window.kameraBaslat);
@@ -552,17 +578,6 @@ window.tabloFiltrele = () => {
 window.grupToggle = (id) => {
     document.querySelectorAll(`.${id}`).forEach(r => { r.style.display = r.style.display === 'none' ? 'table-row' : 'none'; });
 };
-
-// Sekmeler
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        const tab = document.getElementById(this.dataset.tab);
-        if (tab) tab.classList.add('active');
-        this.classList.add('active');
-    });
-});
 
 // ========== KULLANICI YÖNETİMİ ==========
 window.adminKullaniciOnayla = async (userId, yeniDurum, yeniRol = null) => {
@@ -981,7 +996,6 @@ window.ihtiyacListesiYazdir = async (tip = 'hepsi', siparisId = null) => {
             const not = s.not || '-';
             const olusturan = s.olusturan || '-';
 
-            // Sipariş başlığı ve bilgiler
             icerikHtml += `
                 <div class="siparis-yazdir">
                     <div class="siparis-baslik">
@@ -1186,5 +1200,81 @@ window.ihtiyacDetayYazdir = async () => {
     await window.ihtiyacListesiYazdir('tek', window._siparisDetayId);
 };
 
+// ========== SİDEBAR (HAMBURGER MENÜ) FONKSİYONLARI ==========
+// ========== SİDEBAR (HAMBURGER MENÜ) FONKSİYONLARI ==========
+// ========== SİDEBAR FONKSİYONLARI (DÜZELTİLDİ) ==========
+window.toggleSidebar = function() {
+    console.log("toggleSidebar çağrıldı!"); // Test için
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (!sidebar) {
+        console.warn("Sidebar elementi bulunamadı!");
+        return;
+    }
+    if (sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+        if (overlay) overlay.classList.remove('show');
+    } else {
+        sidebar.classList.add('open');
+        if (overlay) overlay.classList.add('show');
+    }
+};
+
+// Tab linkleri için tıklama olaylarını (sidebar'dan) yeniden bağla
+function initSidebarLinks() {
+    document.querySelectorAll('.tab-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tabId = this.getAttribute('data-tab');
+            if (tabId) {
+                // Tüm tab içeriklerini gizle
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                // Tüm sidebar linklerinden aktif sınıfını kaldır
+                document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
+                // Seçilen tab içeriğini göster
+                const target = document.getElementById(tabId);
+                if (target) target.classList.add('active');
+                this.classList.add('active');
+                // Sidebar'ı kapat
+                window.toggleSidebar();
+            }
+        });
+    });
+}
+
+// Menü butonuna tıklama olayını bağla
+document.addEventListener('DOMContentLoaded', function() {
+    const menuBtn = document.getElementById('menuToggleBtn');
+    if (menuBtn) {
+        // Önceki olayları temizle
+        menuBtn.removeEventListener('click', window.toggleSidebar);
+        menuBtn.addEventListener('click', window.toggleSidebar);
+        console.log("Menü butonu bağlandı!");
+    } else {
+        console.warn("Menü butonu bulunamadı!");
+    }
+    initSidebarLinks();
+});
+
+// (İsteğe bağlı) Sayfa yüklendikten sonra hızlı işlem aktif olsun
+window.addEventListener('load', function() {
+    // Aktif sekme varsa onu göster, yoksa hızlı işlemi aktif yap
+    const activeLink = document.querySelector('.tab-link.active');
+    if (activeLink) {
+        const tabId = activeLink.getAttribute('data-tab');
+        if (tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const target = document.getElementById(tabId);
+            if (target) target.classList.add('active');
+        }
+    }
+});
 // ========== BAŞLAT ==========
 verileriGetir();
+// Menü butonuna tıklama olayını bağla
+document.addEventListener('DOMContentLoaded', function() {
+    const menuBtn = document.getElementById('menuToggleBtn');
+    if (menuBtn) {
+        menuBtn.addEventListener('click', window.toggleSidebar);
+    }
+});

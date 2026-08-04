@@ -25,34 +25,55 @@
     <div class="login-card">
         <h2>📦 Stok Takip Pro</h2>
         <div class="login-tabs">
-            <button class="login-tab active" onclick="switchLoginTab('giris')">Giriş Yap</button>
-            <button class="login-tab" onclick="switchLoginTab('kayit')">Kayıt Ol</button>
+            <button class="login-tab active" id="girisTab" onclick="switchLoginTab('giris')">Giriş Yap</button>
+            <button class="login-tab" id="kayitTab" onclick="switchLoginTab('kayit')">Kayıt Ol</button>
         </div>
         <div id="girisForm" class="login-form active">
             <input type="email" id="loginEmail" placeholder="E-posta">
             <input type="password" id="loginPassword" placeholder="Şifre">
             <button class="btn-login" onclick="kullaniciGiris()">Giriş Yap</button>
+            <div class="demo-info">Demo: demo@stok.com / 123456</div>
         </div>
         <div id="kayitForm" class="login-form">
             <input type="email" id="registerEmail" placeholder="E-posta">
             <input type="password" id="registerPassword" placeholder="Şifre (min 6)">
             <button class="btn-login" onclick="kullaniciKayit()">Kayıt Ol</button>
         </div>
-        <div class="demo-info">Demo: demo@stok.com / 123456</div>
     </div>
 </div>
 
 <!-- ANA UYGULAMA -->
 <div id="mainApp">
+    <!-- App Header -->
     <div class="app-header">
-        <h1>📦 Stok Takip</h1>
+        <div class="header-left">
+            <button class="menu-toggle" id="menuToggleBtn">☰</button>
+            <h1>📦 Stok Takip</h1>
+        </div>
         <div class="user-info">
             <span id="userName">-</span>
             <span id="userRole" class="user-role">-</span>
             <button class="btn-logout" onclick="kullaniciCikis()">🚪 Çıkış</button>
         </div>
     </div>
-    
+
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar">
+        <button class="close-sidebar" onclick="toggleSidebar()">✖</button>
+        <ul>
+            <li><a href="#" data-tab="hizli-islem" class="tab-link active">⚡ Hızlı İşlem</a></li>
+            <li><a href="#" data-tab="stok-listesi" class="tab-link">📋 Liste</a></li>
+            <li><a href="#" data-tab="yeni-urun" class="tab-link">➕ Yeni Ürün</a></li>
+            <li><a href="#" data-tab="hareketler" class="tab-link">🕒 Hareketler</a></li>
+            <li><a href="#" data-tab="rapor" class="tab-link">📊 Rapor</a></li>
+            <li><a href="#" data-tab="siparisler" class="tab-link">📦 Siparişler</a></li>
+            <li><a href="#" data-tab="kullanicilar" class="tab-link" id="kullaniciTabLink">👥 Kullanıcılar</a></li>
+        </ul>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
     <div class="dashboard">
         <div class="dash-card"><small>TOPLAM STOK</small><div id="dashToplam">0</div></div>
         <div class="dash-card" style="color:#f1c40f;"><small>KRİTİK ÜRÜN</small><div id="dashKritik">0</div></div>
@@ -69,21 +90,14 @@
         </div>
     </div>
     
-    <div class="tab-menu">
-        <button class="tab-btn active" data-tab="hizli-islem">⚡ Hızlı İşlem</button>
-        <button class="tab-btn" data-tab="stok-listesi">📋 Liste</button>
-        <button class="tab-btn" data-tab="yeni-urun">➕ Yeni Ürün</button>
-        <button class="tab-btn" data-tab="hareketler">🕒 Hareketler</button>
-        <button class="tab-btn" data-tab="rapor">📊 Rapor</button>
-        <button class="tab-btn" data-tab="siparisler">📦 Siparişler</button>
-        <button class="tab-btn" data-tab="kullanicilar">👥 Kullanıcılar</button>
-    </div>
-    
-    <!-- HIZLI İŞLEM -->
+    <!-- Tüm tab içerikleri (sadece aktif olan gösterilecek) -->
     <div id="hizli-islem" class="tab-content active">
         <div class="card">
             <div id="reader" style="width:100%; display:none; margin-bottom:10px;"></div>
-            <button id="kameraAcBtn" style="width:100%; background:#27ae60; color:white; padding:12px; border:none; border-radius:10px;">📷 Barkod Oku</button>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button id="kameraAcBtn" style="flex:1; background:#27ae60; color:white; padding:12px; border:none; border-radius:10px;">📷 Barkod Oku</button>
+                <button id="kameraKapatBtn" style="flex:1; background:#e74c3c; color:white; padding:12px; border:none; border-radius:10px; display:none;">❌ Kapat</button>
+            </div>
         </div>
         <select id="urunSelect"><option value="">Ürün Seçin</option></select>
         <input type="number" id="islemMiktar" placeholder="Adet">
@@ -103,14 +117,12 @@
         </div>
     </div>
     
-    <!-- STOK LİSTESİ -->
     <div id="stok-listesi" class="tab-content">
         <h3>Stok Listesi</h3>
         <input type="text" id="aramaKutusu" placeholder="Ürün Ara..." onkeyup="tabloFiltrele()">
         <div style="overflow-x:auto;"><table class="stok-tablo"><thead><tr><th>Ürün</th><th>Mevcut</th><th></th></tr></thead><tbody id="tablo"></tbody></table></div>
     </div>
     
-    <!-- YENİ ÜRÜN -->
     <div id="yeni-urun" class="tab-content">
         <h3>Yeni Ürün Ekle</h3>
         <input type="text" id="urunAdi" placeholder="Ürün Adı">
@@ -121,13 +133,11 @@
         <button onclick="urunEkle()" style="width:100%; background:#3498db; color:white; padding:12px; border:none; border-radius:10px; margin-top:10px;">Kaydet</button>
     </div>
     
-    <!-- HAREKETLER -->
     <div id="hareketler" class="tab-content">
         <h3>Son Hareketler</h3>
         <div style="overflow-x:auto;"><table><thead><tr><th>Tarih</th><th>Ürün</th><th>Miktar</th><th>İşlem</th></tr></thead><tbody id="hareketlerTablo"></tbody></table></div>
     </div>
     
-    <!-- RAPOR -->
     <div id="rapor" class="tab-content">
         <div style="background:white; border-radius:15px; padding:20px;">
             <h3>Raporlama</h3>
@@ -156,30 +166,29 @@
         </div>
     </div>
     
- <!-- SİPARİŞLER (İHTİYAÇ LİSTESİ) -->
-<div id="siparisler" class="tab-content">
-    <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
-        <button onclick="siparisFormuGoster()" style="flex:1; background:#3498db; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">➕ Yeni İhtiyaç Listesi</button>
-        <button onclick="kritikStoktanSiparisOlustur()" style="flex:1; background:#e67e22; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">⚠️ Kritik Stoktan Liste</button>
-        <button onclick="ihtiyacListesiYazdir('hepsi')" style="flex:1; background:#2c3e50; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">🖨️ Tümünü Yazdır</button>
+    <div id="siparisler" class="tab-content">
+        <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+            <button onclick="siparisFormuGoster()" style="flex:1; background:#3498db; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">➕ Yeni İhtiyaç Listesi</button>
+            <button onclick="kritikStoktanSiparisOlustur()" style="flex:1; background:#e67e22; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">⚠️ Kritik Stoktan Liste</button>
+            <button onclick="ihtiyacListesiYazdir('hepsi')" style="flex:1; background:#2c3e50; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">🖨️ Tümünü Yazdır</button>
+        </div>
+        <div class="tablo-kapsayici">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sipariş No</th>
+                        <th>Tarih</th>
+                        <th>Ürünler</th>
+                        <th>Tedarikçi</th>
+                        <th>Durum</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="siparislerTablo"></tbody>
+            </table>
+        </div>
     </div>
-    <div class="tablo-kapsayici">
-        <table>
-    <thead>
-        <tr>
-        <th>Sipariş No</th>
-        <th>Tarih</th>
-        <th>Ürünler</th>
-        <th>Tedarikçi</th>
-        <th>Durum</th>
-        <th>İşlem</th>
-        </tr>
-    </thead>   
-            <tbody id="siparislerTablo"></tbody>
-        </table>
-    </div>
-</div>
-    <!-- KULLANICILAR -->
+    
     <div id="kullanicilar" class="tab-content">
         <h3>👥 Kullanıcı Yönetimi</h3>
         <div class="kullanici-ekle">
@@ -200,7 +209,7 @@
         </div>
     </div>
     
-    <!-- DETAY MODAL (Ürün Düzenle) -->
+    <!-- MODALLAR -->
     <div id="detayModal" class="modal">
         <div class="modal-content">
             <h3>Ürün Düzenle</h3>
@@ -220,7 +229,6 @@
         </div>
     </div>
     
-    <!-- SİPARİŞ MODAL -->
     <div id="siparisModal" class="modal">
         <div class="modal-content">
             <h3 id="siparisModalBaslik">📦 Yeni İhtiyaç Listesi</h3>
@@ -244,15 +252,14 @@
         </div>
     </div>
     
-    <!-- SİPARİŞ DETAY MODAL -->
     <div id="siparisDetayModal" class="modal">
         <div class="modal-content">
             <h3>📋 İhtiyaç Listesi Detayı</h3>
             <div id="siparisDetayIcerik"></div>
            <div class="modal-butonlar">
-    <button onclick="ihtiyacDetayYazdir()" style="flex:1; background:#2c3e50; color:white; border:none; border-radius:40px; padding:14px; font-weight:700; cursor:pointer;">🖨️ Yazdır</button>
-    <button onclick="siparisDetayKapat()" class="btn-iptal" style="flex:1;">Kapat</button>
-</div>
+                <button onclick="ihtiyacDetayYazdir()" style="flex:1; background:#2c3e50; color:white; border:none; border-radius:40px; padding:14px; font-weight:700; cursor:pointer;">🖨️ Yazdır</button>
+                <button onclick="siparisDetayKapat()" class="btn-iptal" style="flex:1;">Kapat</button>
+            </div>
         </div>
     </div>
 </div>
