@@ -208,6 +208,12 @@
             <div id="kullaniciListesi"></div>
         </div>
     </div>
+    <div class="user-info">
+    <span id="userName">-</span>
+    <span id="userRole" class="user-role">-</span>
+    <button id="notificationToggleBtn" class="btn-notification">🔔</button>
+    <button class="btn-logout" onclick="kullaniciCikis()">🚪 Çıkış</button>
+</div>
     
     <!-- MODALLAR -->
     <div id="detayModal" class="modal">
@@ -263,7 +269,30 @@
         </div>
     </div>
 </div>
-
+<script>
+// Service Worker'ı manuel kaydet
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js')
+        .then(reg => {
+            console.log('✅ Service Worker başarıyla kaydedildi!', reg);
+        })
+        .catch(err => {
+            console.error('❌ Service Worker kaydı başarısız:', err);
+        });
+}
+</script>
+<script>
+// FCM Service Worker'ı kaydet
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('firebase-messaging-sw.js')
+        .then((registration) => {
+            console.log('✅ FCM Service Worker başarıyla kaydedildi!', registration);
+        })
+        .catch((err) => {
+            console.error('❌ FCM Service Worker kaydı başarısız:', err);
+        });
+}
+</script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

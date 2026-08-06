@@ -1,9 +1,10 @@
 {
   "name": "Stok Takip Pro",
   "short_name": "StokApp",
+  "description": "Depo ve stok yönetimi için profesyonel uygulama",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#2c3e50",
+  "background_color": "#0a0a0a",
   "theme_color": "#3498db",
   "orientation": "portrait",
   "icons": [

@@ -553,3 +553,30 @@ td {
     .sidebar, .sidebar-overlay, .menu-toggle { display: none !important; }
     #mainApp { padding: 0; }
 }
+/* Bildirim Butonu */
+.btn-notification {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 8px;
+    position: relative;
+}
+.btn-notification.active {
+    color: #3498db;
+}
+.btn-notification .badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #e74c3c;
+    color: white;
+    font-size: 10px;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

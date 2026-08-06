@@ -8,6 +8,7 @@ import {
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
     signOut, onAuthStateChanged, sendEmailVerification 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
 // --- KONFİGÜRASYON ---
 const firebaseConfig = {
@@ -22,6 +23,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const messaging = getMessaging(app);
 
 // --- DEĞİŞKENLER ---
 let stoklar = {};
@@ -31,6 +33,8 @@ let seciliUrunId = "";
 let mevcutKullanici = null;
 let mevcutRol = null;
 let mevcutDurum = null;
+let notificationPermission = false;
+let _lastNotificationTime = 0;
 
 // --- YARDIMCI ---
 function getUrunAdi(urun) {
@@ -50,6 +54,87 @@ function showToast(msg, err = false) {
     t.classList.add('show');
     clearTimeout(t._timeout);
     t._timeout = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ========== PUSH BİLDİRİM FONKSİYONLARI ==========
+window.requestNotificationPermission = async function() {
+    try {
+        if (!('Notification' in window)) {
+            showToast("Bu tarayıcı bildirimleri desteklemiyor.", true);
+            return false;
+        }
+        if (Notification.permission === 'granted') {
+            notificationPermission = true;
+            updateNotificationButton(true);
+            showToast("✅ Bildirimler zaten açık.");
+            return true;
+        }
+        if (Notification.permission === 'denied') {
+            showToast("❌ Bildirim izni reddedilmiş. Tarayıcı ayarlarından değiştirebilirsiniz.", true);
+            return false;
+        }
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            notificationPermission = true;
+            updateNotificationButton(true);
+            showToast("✅ Bildirimler açıldı!");
+            return true;
+        } else {
+            showToast("❌ Bildirim izni reddedildi.", true);
+            return false;
+        }
+    } catch (e) {
+        console.error("Bildirim hatası:", e);
+        showToast("Bildirim hatası: " + e.message, true);
+        return false;
+    }
+};
+
+window.sendNotification = function(title, body, url = '/') {
+    console.log('sendNotification çağrıldı:', title, body);
+    if (Notification.permission !== 'granted') {
+        console.warn('Bildirim izni yok, mevcut durum:', Notification.permission);
+        return;
+    }
+    navigator.serviceWorker.getRegistration().then(reg => {
+        console.log('ServiceWorker kaydı:', reg);
+        if (reg) {
+            reg.showNotification(title, {
+                body: body,
+                icon: 'https://cdn-icons-png.flaticon.com/512/2897/2897785.png',
+                badge: 'https://cdn-icons-png.flaticon.com/512/2897/2897785.png',
+                vibrate: [200, 100, 200],
+                data: { url: url },
+                actions: [{ action: 'open', title: '📦 Uygulamayı Aç' }]
+            }).then(() => console.log('Bildirim gösterildi')).catch(err => console.error('showNotification hatası:', err));
+        } else {
+            console.error('Service Worker kaydı bulunamadı!');
+        }
+    }).catch(err => console.error('getRegistration hatası:', err));
+};
+
+function updateNotificationButton(enabled) {
+    const btn = document.getElementById('notificationToggleBtn');
+    if (!btn) return;
+    if (enabled) {
+        btn.classList.add('active');
+        btn.textContent = '🔔';
+        btn.title = 'Bildirimler açık';
+    } else {
+        btn.classList.remove('active');
+        btn.textContent = '🔕';
+        btn.title = 'Bildirimler kapalı';
+    }
+}
+
+function checkNotificationStatus() {
+    if (Notification.permission === 'granted') {
+        notificationPermission = true;
+        updateNotificationButton(true);
+    } else {
+        notificationPermission = false;
+        updateNotificationButton(false);
+    }
 }
 
 // ========== GİRİŞ / KAYIT ==========
@@ -100,15 +185,10 @@ window.switchLoginTab = (tab) => {
     const kayitForm = document.getElementById('kayitForm');
     const girisTab = document.getElementById('girisTab');
     const kayitTab = document.getElementById('kayitTab');
-    
-    // Tüm formları gizle
     if (girisForm) girisForm.classList.remove('active');
     if (kayitForm) kayitForm.classList.remove('active');
-    
-    // Tüm sekmelerin aktif sınıfını kaldır
     if (girisTab) girisTab.classList.remove('active');
     if (kayitTab) kayitTab.classList.remove('active');
-    
     if (tab === 'giris') {
         if (girisForm) girisForm.classList.add('active');
         if (girisTab) girisTab.classList.add('active');
@@ -116,7 +196,6 @@ window.switchLoginTab = (tab) => {
         if (kayitForm) kayitForm.classList.add('active');
         if (kayitTab) kayitTab.classList.add('active');
     } else {
-        // Varsayılan olarak giriş formunu göster
         if (girisForm) girisForm.classList.add('active');
         if (girisTab) girisTab.classList.add('active');
     }
@@ -155,26 +234,15 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('userRole').innerText = mevcutRol;
         loginScreen.style.display = 'none';
         mainApp.style.display = 'block';
-        
-        // Yetkiye göre sidebar linkini göster/gizle
         const kullaniciLink = document.getElementById('kullaniciTabLink');
         if (kullaniciLink) {
-            if (adminMi()) {
-                kullaniciLink.style.display = 'block';
-            } else {
-                kullaniciLink.style.display = 'none';
-            }
+            kullaniciLink.style.display = adminMi() ? 'block' : 'none';
         }
-        
-        // Yetkiye göre eski tab yapısı (koruma amaçlı)
-        const yeniUrunTab = document.querySelector('.tab-btn[data-tab="yeni-urun"]');
-        const kullaniciTab = document.querySelector('.tab-btn[data-tab="kullanicilar"]');
-        if (yeniUrunTab) yeniUrunTab.style.display = yoneticiMi() ? 'block' : 'none';
-        if (kullaniciTab) kullaniciTab.style.display = adminMi() ? 'block' : 'none';
-        
         if (adminMi()) kullaniciListesiniGetir();
         verileriGetir();
         siparisleriListele();
+        checkNotificationStatus();
+        setupFCM();
     } else {
         mevcutKullanici = null;
         mevcutRol = null;
@@ -207,7 +275,7 @@ function verileriGetir() {
     });
 }
 
-// ========== STOK LİSTESİ (GRUPLU) ==========
+// ========== STOK LİSTESİ ==========
 function stoklariListele() {
     const tbody = document.getElementById('tablo');
     if (!tbody) return;
@@ -239,14 +307,27 @@ function stoklariListele() {
     document.getElementById('dashKritik').innerText = kritikSay;
 }
 
-// ========== KRİTİK KONTROL ==========
+// ========== KRİTİK KONTROL + BİLDİRİM ==========
 function kritikKontrol() {
     const kritikler = Object.values(stoklar).filter(u => (u.kalan || 0) <= (u.kritik || 5));
     const panel = document.getElementById('kritikPanel');
     const liste = document.getElementById('kritikListe');
     if (kritikler.length > 0) {
         if (panel) panel.style.display = 'block';
-        if (liste) liste.innerHTML = kritikler.map(u => `<li><strong>${getUrunAdi(u)}</strong>: Stok ${u.kalan} ${u.birim || 'Adet'} / Kritik ${u.kritik}</li>`).join('');
+        if (liste) {
+            liste.innerHTML = kritikler.map(u => `<li><strong>${getUrunAdi(u)}</strong>: Stok ${u.kalan} ${u.birim || 'Adet'} / Kritik ${u.kritik}</li>`).join('');
+        }
+        // Bildirim (1 dakikada 1 kez)
+        const now = Date.now();
+        if (now - _lastNotificationTime > 60000) {
+            const ilk = kritikler[0];
+            window.sendNotification(
+                '⚠️ Kritik Stok Uyarısı!',
+                `${kritikler.length} ürün kritik seviyede. İlk: ${getUrunAdi(ilk)} (Stok: ${ilk.kalan})`,
+                '/'
+            );
+            _lastNotificationTime = now;
+        }
     } else {
         if (panel) panel.style.display = 'none';
     }
@@ -318,6 +399,12 @@ window.urunEkle = async () => {
         showToast("Ürün eklendi");
         document.getElementById('urunAdi').value = "";
         document.getElementById('urunBarkod').value = "";
+        // Bildirim
+        window.sendNotification(
+            '📦 Yeni Ürün Eklendi',
+            `${ad} stok sistemine eklendi.`,
+            '/'
+        );
     } catch(e) { showToast("Hata: "+e.message, true); }
 };
 
@@ -329,11 +416,12 @@ window.stokIslem = async (tip) => {
     const mevcut = stoklar[id]?.kalan || 0;
     const yeni = tip === 'giris' ? mevcut + miktar : mevcut - miktar;
     if (tip === 'cikis' && yeni < 0) return showToast("Yetersiz stok!", true);
+    const urunAd = getUrunAdi(stoklar[id]);
     const batch = writeBatch(db);
     batch.update(doc(db, "stoklar", id), { kalan: yeni });
     batch.set(doc(collection(db, "hareketler")), {
         urunId: id,
-        urun: getUrunAdi(stoklar[id]),
+        urun: urunAd,
         tur: tip,
         miktar: miktar,
         birim: stoklar[id]?.birim || "Adet",
@@ -342,6 +430,13 @@ window.stokIslem = async (tip) => {
     await batch.commit();
     showToast("İşlem tamam");
     document.getElementById('islemMiktar').value = "";
+    // Bildirim
+    const islemMetni = tip === 'giris' ? 'Giriş' : 'Çıkış';
+    window.sendNotification(
+        `📊 Stok ${islemMetni}`,
+        `${urunAd} - ${islemMetni}: ${miktar} ${stoklar[id]?.birim || 'Adet'}`,
+        '/'
+    );
 };
 
 window.urunGuncelle = async () => {
@@ -441,7 +536,7 @@ window.topluIslem = async (tip) => {
     sepetiGoster();
 };
 
-// ========== KAMERA (GÜNCELLENDİ) ==========
+// ========== KAMERA ==========
 let kameraAktif = false;
 window.kameraBaslat = function() {
     const reader = document.getElementById("reader");
@@ -710,8 +805,6 @@ async function kullaniciListesiniGetir() {
 }
 
 // ========== SİPARİŞ / İHTİYAÇ LİSTESİ ==========
-
-// Otomatik sipariş numarası üretme fonksiyonu
 async function sonSiparisNumarasiAl() {
     try {
         const snap = await getDocs(query(collection(db, "siparisler"), orderBy("siparisNo", "desc"), limit(1)));
@@ -725,7 +818,6 @@ async function sonSiparisNumarasiAl() {
     }
 }
 
-// Siparişleri listele (düzeltilmiş)
 async function siparisleriListele() {
     const tbody = document.getElementById('siparislerTablo');
     if (!tbody) return;
@@ -865,15 +957,22 @@ window.siparisKaydet = async () => {
         tarih: Timestamp.now()
     };
     try {
+        let siparisNo = '';
         if (duzenleId) {
             await updateDoc(doc(db, "siparisler", duzenleId), data);
             showToast("Sipariş güncellendi");
         } else {
-            // Otomatik sipariş numarası ata
-            const siparisNo = await sonSiparisNumarasiAl();
+            siparisNo = await sonSiparisNumarasiAl();
             data.siparisNo = siparisNo;
             await addDoc(collection(db, "siparisler"), data);
             showToast(`İhtiyaç siparişi oluşturuldu (${siparisNo})`);
+            // Bildirim: Yeni ihtiyaç listesi
+            const urunAdlari = urunler.map(u => u.urunAd).join(', ');
+            window.sendNotification(
+                '📋 Yeni İhtiyaç Listesi',
+                `${siparisNo} - ${urunler.length} ürün: ${urunAdlari.substring(0, 50)}${urunAdlari.length > 50 ? '...' : ''}`,
+                '/'
+            );
         }
         siparisModalKapat();
         siparisleriListele();
@@ -883,7 +982,7 @@ window.siparisKaydet = async () => {
 window.siparisModalKapat = () => document.getElementById('siparisModal').style.display = 'none';
 
 window.siparisDetayGoster = async (id) => {
-    window._siparisDetayId = id; // yazdırma için global ID
+    window._siparisDetayId = id;
     try {
         const docSnap = await getDoc(doc(db, "siparisler", id));
         if (!docSnap.exists()) return showToast("Sipariş bulunamadı!", true);
@@ -914,6 +1013,15 @@ window.siparisDurumGuncelle = async (id, yeniDurum) => {
         await updateDoc(doc(db, "siparisler", id), { durum: yeniDurum });
         showToast("Durum güncellendi");
         siparisleriListele();
+        // Bildirim: Sipariş durumu değişti
+        const durumText = yeniDurum === 'bekliyor' ? 'Bekliyor' : 
+                          yeniDurum === 'siparis_verildi' ? 'Sipariş Verildi' :
+                          yeniDurum === 'tamamlandi' ? 'Tamamlandı' : 'İptal';
+        window.sendNotification(
+            '📋 Sipariş Durumu Güncellendi',
+            `${id} numaralı sipariş durumu: ${durumText}`,
+            '/'
+        );
     } catch(e) { showToast("Durum güncelleme hatası", true); }
 };
 
@@ -956,8 +1064,7 @@ window.kritikStoktanSiparisOlustur = async () => {
     showToast(`${kritikler.length} kritik ürün ihtiyaç listesine eklendi`);
 };
 
-// ========== 🖨️ İHTİYAÇ LİSTESİ YAZDIRMA (YENİ – HER SİPARİŞ BAŞLIK, ÜRÜNLER AYRI SATIR) ==========
-
+// ========== YAZDIRMA ==========
 window.ihtiyacListesiYazdir = async (tip = 'hepsi', siparisId = null) => {
     try {
         let siparisler = [];
@@ -982,8 +1089,6 @@ window.ihtiyacListesiYazdir = async (tip = 'hepsi', siparisId = null) => {
             showToast("Geçersiz yazdırma isteği!", true);
             return;
         }
-
-        // Her sipariş için ayrı bölüm oluştur
         let icerikHtml = '';
         siparisler.forEach((item, index) => {
             const s = item.data;
@@ -995,7 +1100,6 @@ window.ihtiyacListesiYazdir = async (tip = 'hepsi', siparisId = null) => {
             const tedarikci = s.tedarikci || '-';
             const not = s.not || '-';
             const olusturan = s.olusturan || '-';
-
             icerikHtml += `
                 <div class="siparis-yazdir">
                     <div class="siparis-baslik">
@@ -1040,7 +1144,6 @@ window.ihtiyacListesiYazdir = async (tip = 'hepsi', siparisId = null) => {
                 icerikHtml += `<div class="sayfa-ayraci"></div>`;
             }
         });
-
         const yazdirHtml = `
             <div id="yazdirArea">
                 <div class="print-header">
@@ -1051,13 +1154,11 @@ window.ihtiyacListesiYazdir = async (tip = 'hepsi', siparisId = null) => {
                 <div class="print-footer">Stok Takip Pro - Otomatik oluşturulmuştur.</div>
             </div>
         `;
-
         const yeniPencere = window.open('', '_blank', 'width=1000,height=700');
         if (!yeniPencere) {
             showToast("Lütfen pop-up engelleyiciyi kapatın!", true);
             return;
         }
-
         yeniPencere.document.write(`
             <!DOCTYPE html>
             <html>
@@ -1065,108 +1166,33 @@ window.ihtiyacListesiYazdir = async (tip = 'hepsi', siparisId = null) => {
                 <title>İhtiyaç Listesi</title>
                 <meta charset="UTF-8">
                 <style>
-                    /* Reset ve genel stiller */
                     * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body {
-                        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-                        padding: 30px;
-                        background: #ffffff;
-                        color: #1a1a1a;
-                    }
-                    .print-header {
-                        text-align: center;
-                        border-bottom: 2px solid #2c3e50;
-                        padding-bottom: 15px;
-                        margin-bottom: 30px;
-                    }
+                    body { font-family: system-ui, sans-serif; padding: 30px; background: #fff; color: #1a1a1a; }
+                    .print-header { text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 15px; margin-bottom: 30px; }
                     .print-header h2 { font-size: 24px; color: #2c3e50; }
                     .header-info { color: #7f8c8d; font-size: 14px; margin-top: 5px; }
-                    .siparis-yazdir {
-                        margin-bottom: 30px;
-                        border: 1px solid #e0e0e0;
-                        border-radius: 8px;
-                        padding: 20px;
-                        page-break-inside: avoid;
-                    }
-                    .siparis-baslik {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        border-bottom: 1px solid #e0e0e0;
-                        padding-bottom: 10px;
-                        margin-bottom: 12px;
-                    }
+                    .siparis-yazdir { margin-bottom: 30px; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; page-break-inside: avoid; }
+                    .siparis-baslik { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e0e0e0; padding-bottom: 10px; margin-bottom: 12px; }
                     .siparis-baslik h3 { font-size: 18px; color: #2c3e50; }
-                    .durum-badge {
-                        padding: 4px 14px;
-                        border-radius: 20px;
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: white;
-                    }
+                    .durum-badge { padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; color: white; }
                     .durum-badge.bekliyor { background: #f39c12; }
                     .durum-badge.siparis_verildi { background: #3498db; }
                     .durum-badge.tamamlandi { background: #27ae60; }
                     .durum-badge.iptal { background: #e74c3c; }
-                    .siparis-bilgi {
-                        background: #f8f9fa;
-                        padding: 10px 15px;
-                        border-radius: 6px;
-                        margin-bottom: 15px;
-                        font-size: 14px;
-                    }
+                    .siparis-bilgi { background: #f8f9fa; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
                     .siparis-bilgi p { margin: 4px 0; }
                     .siparis-bilgi strong { color: #2c3e50; }
-                    .urun-tablo {
-                        width: 100%;
-                        border-collapse: collapse;
-                        font-size: 14px;
-                    }
-                    .urun-tablo th {
-                        background: #34495e;
-                        color: white;
-                        padding: 8px 12px;
-                        text-align: left;
-                    }
-                    .urun-tablo td {
-                        padding: 6px 12px;
-                        border-bottom: 1px solid #e0e0e0;
-                    }
+                    .urun-tablo { width: 100%; border-collapse: collapse; font-size: 14px; }
+                    .urun-tablo th { background: #34495e; color: white; padding: 8px 12px; text-align: left; }
+                    .urun-tablo td { padding: 6px 12px; border-bottom: 1px solid #e0e0e0; }
                     .urun-tablo tr:nth-child(even) { background: #f8f9fa; }
-                    .sayfa-ayraci {
-                        border-top: 2px dashed #ccc;
-                        margin: 20px 0;
-                    }
-                    .print-footer {
-                        text-align: center;
-                        margin-top: 30px;
-                        font-size: 11px;
-                        color: #999;
-                        border-top: 1px solid #ddd;
-                        padding-top: 15px;
-                    }
-                    .print-actions {
-                        text-align: center;
-                        margin-top: 25px;
-                    }
-                    .print-actions button {
-                        padding: 10px 24px;
-                        border: none;
-                        border-radius: 8px;
-                        font-weight: 600;
-                        cursor: pointer;
-                        font-size: 14px;
-                        margin: 0 6px;
-                    }
+                    .sayfa-ayraci { border-top: 2px dashed #ccc; margin: 20px 0; }
+                    .print-footer { text-align: center; margin-top: 30px; font-size: 11px; color: #999; border-top: 1px solid #ddd; padding-top: 15px; }
+                    .print-actions { text-align: center; margin-top: 25px; }
+                    .print-actions button { padding: 10px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; margin: 0 6px; }
                     .btn-print { background: #27ae60; color: white; }
                     .btn-close { background: #e74c3c; color: white; }
-                    @media print {
-                        .print-actions { display: none; }
-                        body { padding: 20px; }
-                        .siparis-yazdir { border: 1px solid #ddd; page-break-inside: avoid; }
-                        .urun-tablo th { background: #34495e !important; color: white !important; }
-                        .siparis-bilgi { background: #f8f9fa !important; }
-                    }
+                    @media print { .print-actions { display: none; } body { padding: 20px; } .siparis-yazdir { border: 1px solid #ddd; page-break-inside: avoid; } .urun-tablo th { background: #34495e !important; color: white !important; } .siparis-bilgi { background: #f8f9fa !important; } }
                 </style>
             </head>
             <body>
@@ -1184,14 +1210,12 @@ window.ihtiyacListesiYazdir = async (tip = 'hepsi', siparisId = null) => {
             </html>
         `);
         yeniPencere.document.close();
-
     } catch(e) {
         showToast("Yazdırma hatası: " + e.message, true);
         console.error(e);
     }
 };
 
-// Detaydan yazdırma
 window.ihtiyacDetayYazdir = async () => {
     if (!window._siparisDetayId) {
         showToast("Sipariş ID'si bulunamadı!", true);
@@ -1200,17 +1224,11 @@ window.ihtiyacDetayYazdir = async () => {
     await window.ihtiyacListesiYazdir('tek', window._siparisDetayId);
 };
 
-// ========== SİDEBAR (HAMBURGER MENÜ) FONKSİYONLARI ==========
-// ========== SİDEBAR (HAMBURGER MENÜ) FONKSİYONLARI ==========
-// ========== SİDEBAR FONKSİYONLARI (DÜZELTİLDİ) ==========
+// ========== SİDEBAR (HAMBURGER MENÜ) ==========
 window.toggleSidebar = function() {
-    console.log("toggleSidebar çağrıldı!"); // Test için
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
-    if (!sidebar) {
-        console.warn("Sidebar elementi bulunamadı!");
-        return;
-    }
+    if (!sidebar) return;
     if (sidebar.classList.contains('open')) {
         sidebar.classList.remove('open');
         if (overlay) overlay.classList.remove('show');
@@ -1220,61 +1238,98 @@ window.toggleSidebar = function() {
     }
 };
 
-// Tab linkleri için tıklama olaylarını (sidebar'dan) yeniden bağla
 function initSidebarLinks() {
     document.querySelectorAll('.tab-link').forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             const tabId = this.getAttribute('data-tab');
             if (tabId) {
-                // Tüm tab içeriklerini gizle
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                // Tüm sidebar linklerinden aktif sınıfını kaldır
                 document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
-                // Seçilen tab içeriğini göster
                 const target = document.getElementById(tabId);
                 if (target) target.classList.add('active');
                 this.classList.add('active');
-                // Sidebar'ı kapat
                 window.toggleSidebar();
             }
         });
     });
 }
 
-// Menü butonuna tıklama olayını bağla
 document.addEventListener('DOMContentLoaded', function() {
     const menuBtn = document.getElementById('menuToggleBtn');
     if (menuBtn) {
-        // Önceki olayları temizle
         menuBtn.removeEventListener('click', window.toggleSidebar);
         menuBtn.addEventListener('click', window.toggleSidebar);
-        console.log("Menü butonu bağlandı!");
-    } else {
-        console.warn("Menü butonu bulunamadı!");
     }
     initSidebarLinks();
-});
-
-// (İsteğe bağlı) Sayfa yüklendikten sonra hızlı işlem aktif olsun
-window.addEventListener('load', function() {
-    // Aktif sekme varsa onu göster, yoksa hızlı işlemi aktif yap
-    const activeLink = document.querySelector('.tab-link.active');
-    if (activeLink) {
-        const tabId = activeLink.getAttribute('data-tab');
-        if (tabId) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            const target = document.getElementById(tabId);
-            if (target) target.classList.add('active');
-        }
+    const notificationBtn = document.getElementById('notificationToggleBtn');
+    if (notificationBtn) {
+        notificationBtn.addEventListener('click', function() {
+            if (notificationPermission) {
+                showToast("Bildirimler açık. Tarayıcı ayarlarından kapatabilirsiniz.");
+                return;
+            }
+            window.requestNotificationPermission();
+        });
     }
+    checkNotificationStatus();
 });
+// Service Worker kaydını doğrula ve bildirimleri test et
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js')
+        .then(reg => {
+            console.log('✅ Service Worker kaydedildi:', reg);
+            // Service Worker hazır olduğunda bildirim gönderebiliriz
+            return navigator.serviceWorker.ready;
+        })
+        .then(reg => {
+            console.log('✅ Service Worker hazır:', reg);
+            // Test bildirimi gönder (opsiyonel)
+            // reg.showNotification('Test', { body: 'Service Worker çalışıyor!' });
+        })
+        .catch(err => {
+            console.error('❌ Service Worker hatası:', err);
+        });
+}
+// FCM Token'ı al ve kaydet
+async function setupFCM() {
+    try {
+        // Bildirim iznini iste
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.warn('Bildirim izni verilmedi.');
+            return;
+        }
+
+        // VAPID public key'inizi buraya yapıştırın (Firebase Konsol'dan kopyaladığınız)
+        const vapidKey = 'YOUR_VAPID_PUBLIC_KEY_HERE';
+
+        // FCM Token'ı al
+        const token = await getToken(messaging, { vapidKey: vapidKey });
+        console.log('FCM Token alındı:', token);
+
+        // Token'ı Firestore'a kaydedin (isteğe bağlı, sonra bildirim göndermek için kullanılır)
+        if (mevcutKullanici) {
+            await setDoc(doc(db, "kullanicilar", mevcutKullanici.uid), {
+                fcmToken: token
+            }, { merge: true });
+            console.log('FCM Token Firestore\'a kaydedildi.');
+        }
+
+        // Uygulama ön plandayken (açıkken) gelen mesajları dinle
+        onMessage(messaging, (payload) => {
+            console.log('Ön planda mesaj alındı:', payload);
+            // Mevcut bildirim sistemini kullanarak göster
+            window.sendNotification(
+                payload.notification?.title || 'Stok Takip',
+                payload.notification?.body || 'Yeni bildirim!',
+                payload.data?.url || '/'
+            );
+        });
+
+    } catch (error) {
+        console.error('FCM kurulum hatası:', error);
+    }
+}
 // ========== BAŞLAT ==========
 verileriGetir();
-// Menü butonuna tıklama olayını bağla
-document.addEventListener('DOMContentLoaded', function() {
-    const menuBtn = document.getElementById('menuToggleBtn');
-    if (menuBtn) {
-        menuBtn.addEventListener('click', window.toggleSidebar);
-    }
-});
