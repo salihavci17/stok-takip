@@ -50,7 +50,7 @@ function showToast(msg, err = false) {
     const t = document.getElementById('toastMessage');
     if (!t) return;
     t.textContent = msg;
-    t.style.background = err ? '#e74c3c' : '#2c3e50';
+    t.style.background = err ? 'var(--btn-danger)' : 'var(--toast-bg)';
     t.classList.add('show');
     clearTimeout(t._timeout);
     t._timeout = setTimeout(() => t.classList.remove('show'), 3000);
@@ -135,6 +135,19 @@ function checkNotificationStatus() {
         notificationPermission = false;
         updateNotificationButton(false);
     }
+}
+
+// ========== TEMA YÖNETİMİ ==========
+function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    const select = document.getElementById('themeSelect');
+    if (select) select.value = theme;
+}
+
+function loadTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme);
 }
 
 // ========== GİRİŞ / KAYIT ==========
@@ -242,6 +255,7 @@ onAuthStateChanged(auth, async (user) => {
         verileriGetir();
         siparisleriListele();
         checkNotificationStatus();
+        loadTheme(); // Kaydedilmiş temayı yükle
         setupFCM();
     } else {
         mevcutKullanici = null;
@@ -256,17 +270,25 @@ function verileriGetir() {
     onSnapshot(collection(db, "stoklar"), (snap) => {
         stoklar = {};
         const select = document.getElementById("urunSelect");
-        if (select) select.innerHTML = '<option value="">Ürün Seçin</option>';
+        
+        if (select) {
+            select.innerHTML = '<option value="">Ürün Seçin</option>';
+        } else {
+            console.error('urunSelect elementi bulunamadı!');
+        }
+        
         snap.forEach(d => {
-            const v = d.data();
-            stoklar[d.id] = { id: d.id, ...v, kalan: v.kalan || 0, kritik: v.kritik || 5 };
+            const data = d.data(); // <-- BURASI ÖNEMLİ: v yerine data kullanın
+            stoklar[d.id] = { id: d.id, ...data, kalan: data.kalan || 0, kritik: data.kritik || 5 };
+            
             if (select) {
                 const opt = document.createElement("option");
                 opt.value = d.id;
-                opt.textContent = `${getUrunAdi(v)}${v.barkod ? ' ('+v.barkod+')' : ''}`;
+                opt.textContent = `${getUrunAdi(data)}${data.barkod ? ' (' + data.barkod + ')' : ''}`;
                 select.appendChild(opt);
             }
         });
+        
         stoklariListele();
         hareketleriListele();
         kritikKontrol();
@@ -288,7 +310,7 @@ function stoklariListele() {
     });
     Object.keys(gruplar).sort().forEach((grup, idx) => {
         const grupId = `grup-${idx}`;
-        html += `<tr onclick="grupToggle('${grupId}')" style="background:#f1c40f; cursor:pointer;">
+        html += `<tr onclick="grupToggle('${grupId}')" style="background:var(--btn-warning); cursor:pointer;">
                     <td colspan="3"><b>📂 ${grup}</b></td>
                  </tr>`;
         gruplar[grup].forEach(u => {
@@ -297,8 +319,8 @@ function stoklariListele() {
             if (m <= k) kritikSay++;
             html += `<tr class="${grupId}" onclick="detayGoster('${u.id}')" style="display:none; cursor:pointer;">
                         <td style="padding-left:20px;">${getUrunAdi(u)}<br><small style="color:#888">${u.barkod || '-'}</small></td>
-                        <td style="color:${m <= k ? '#ff6b6b' : ''}"><b>${m}</b> ${u.birim || 'Adet'}</td>
-                        <td>${yoneticiMi() ? `<button onclick="event.stopPropagation(); urunSil('${u.id}')" style="background:#ff3b30; color:white; border:none; border-radius:20px; padding:6px 12px;">✖</button>` : ''}</td>
+                        <td style="color:${m <= k ? 'var(--kritik-text)' : ''}"><b>${m}</b> ${u.birim || 'Adet'}</td>
+                        <td>${yoneticiMi() ? `<button onclick="event.stopPropagation(); urunSil('${u.id}')" style="background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:6px 12px;">✖</button>` : ''}</td>
                     </tr>`;
         });
     });
@@ -317,7 +339,6 @@ function kritikKontrol() {
         if (liste) {
             liste.innerHTML = kritikler.map(u => `<li><strong>${getUrunAdi(u)}</strong>: Stok ${u.kalan} ${u.birim || 'Adet'} / Kritik ${u.kritik}</li>`).join('');
         }
-        // Bildirim (1 dakikada 1 kez)
         const now = Date.now();
         if (now - _lastNotificationTime > 60000) {
             const ilk = kritikler[0];
@@ -350,7 +371,7 @@ async function hareketleriListele() {
                 <td style="font-size:12px;">${h.tarih?.toDate().toLocaleString('tr-TR') || '-'}</td>
                 <td>${h.urun || '-'}</td>
                 <td><b>${h.miktar}</b> ${h.birim || ''}</td>
-                <td style="color:${h.tur === 'giris' ? '#00c853' : '#ff3b30'}"><b>${h.tur === 'giris' ? 'GİRİŞ' : 'ÇIKIŞ'}</b></td>
+                <td style="color:${h.tur === 'giris' ? 'var(--btn-success)' : 'var(--btn-danger)'}"><b>${h.tur === 'giris' ? 'GİRİŞ' : 'ÇIKIŞ'}</b></td>
             </tr>`;
         });
     } catch(e) { console.error(e); }
@@ -399,7 +420,6 @@ window.urunEkle = async () => {
         showToast("Ürün eklendi");
         document.getElementById('urunAdi').value = "";
         document.getElementById('urunBarkod').value = "";
-        // Bildirim
         window.sendNotification(
             '📦 Yeni Ürün Eklendi',
             `${ad} stok sistemine eklendi.`,
@@ -430,7 +450,6 @@ window.stokIslem = async (tip) => {
     await batch.commit();
     showToast("İşlem tamam");
     document.getElementById('islemMiktar').value = "";
-    // Bildirim
     const islemMetni = tip === 'giris' ? 'Giriş' : 'Çıkış';
     window.sendNotification(
         `📊 Stok ${islemMetni}`,
@@ -475,7 +494,7 @@ window.detayGoster = async (id) => {
     document.getElementById('detayModal').style.display = 'flex';
     try {
         const snap = await getDocs(query(collection(db, "hareketler"), where("urunId", "==", id), orderBy("tarih", "desc"), limit(10)));
-        document.getElementById('detayIcerik').innerHTML = snap.empty ? "Hareket yok" : snap.docs.map(d => `<div style="padding:8px; border-bottom:1px solid #2a2a2a;">${d.data().tarih?.toDate().toLocaleString()} - ${d.data().tur === 'giris' ? '➕' : '➖'} ${d.data().miktar}</div>`).join('');
+        document.getElementById('detayIcerik').innerHTML = snap.empty ? "Hareket yok" : snap.docs.map(d => `<div style="padding:8px; border-bottom:1px solid var(--card-border);">${d.data().tarih?.toDate().toLocaleString()} - ${d.data().tur === 'giris' ? '➕' : '➖'} ${d.data().miktar}</div>`).join('');
     } catch(e) { console.error(e); }
 };
 
@@ -502,9 +521,9 @@ function sepetiGoster() {
         if (butonlar) butonlar.style.display = 'none';
     } else {
         liste.innerHTML = sepet.map((u, i) => `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #2a2a2a;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--card-border);">
                 <span><b>${u.ad}</b> x${u.miktar}</span>
-                <button onclick="sepetSil(${i})" style="background:#ff3b30; color:white; border:none; border-radius:20px; padding:6px 14px;">Sil</button>
+                <button onclick="sepetSil(${i})" style="background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:6px 14px;">Sil</button>
             </div>
         `).join('');
         if (butonlar) butonlar.style.display = 'flex';
@@ -606,12 +625,44 @@ document.getElementById("yeniUrunKameraBtn")?.addEventListener("click", window.y
 window.raporOlustur = async () => {
     const b = document.getElementById('raporBaslangic')?.value;
     const e = document.getElementById('raporBitis')?.value;
-    if (!b || !e) return showToast("Tarih seçin!", true);
-    const start = new Date(b); start.setHours(0,0,0,0);
-    const end = new Date(e); end.setHours(23,59,59,999);
+    
+    if (!b || !e) {
+        showToast("Lütfen başlangıç ve bitiş tarihi seçin!", true);
+        return;
+    }
+    
+    const start = new Date(b);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(e);
+    end.setHours(23, 59, 59, 999);
     const filtre = document.getElementById('raporFiltre')?.value || 'hepsi';
+    
     try {
-        const snap = await getDocs(query(collection(db, "hareketler"), where("tarih", ">=", Timestamp.fromDate(start)), where("tarih", "<=", Timestamp.fromDate(end))));
+        const sonucDiv = document.getElementById('raporSonuc');
+        if (!sonucDiv) {
+            console.error('raporSonuc elementi bulunamadı!');
+            showToast("Rapor alanı bulunamadı!", true);
+            return;
+        }
+        sonucDiv.style.display = 'block';
+        
+        // Elementleri güvenli bir şekilde al
+        const tbody = document.getElementById('raporTabloGovde');
+        if (!tbody) {
+            console.error('raporTabloGovde elementi bulunamadı! Sayfayı yenileyin.');
+            showToast("❌ Tablo alanı bulunamadı! Sayfayı yenileyin.", true);
+            sonucDiv.style.display = 'none';
+            return;
+        }
+        
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888; padding:20px;">⏳ Veriler yükleniyor...</td></tr>';
+        
+        const snap = await getDocs(query(
+            collection(db, "hareketler"),
+            where("tarih", ">=", Timestamp.fromDate(start)),
+            where("tarih", "<=", Timestamp.fromDate(end))
+        ));
+        
         const data = {};
         snap.forEach(d => {
             const item = d.data();
@@ -620,27 +671,63 @@ window.raporOlustur = async () => {
             if (item.tur === 'giris') data[item.urun].giris += item.miktar;
             else data[item.urun].cikis += item.miktar;
         });
-        const tbody = document.getElementById('raporTabloGovde');
+        
         tbody.innerHTML = "";
-        if (Object.keys(data).length === 0) tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#666;">Veri yok</td></tr>';
-        else Object.entries(data).sort().forEach(([urun, val]) => tbody.innerHTML += `<tr><td>${urun}</td><td style="text-align:center">${val.giris}</td><td style="text-align:center">${val.cikis}</td></tr>`);
-        document.getElementById('raporSonuc').style.display = 'block';
-        showToast("Rapor hazır");
-    } catch(e) { showToast(e.message, true); }
+        const keys = Object.keys(data);
+        
+        if (keys.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888; padding:20px;">📭 Bu tarih aralığında veri yok</td></tr>';
+        } else {
+            keys.sort().forEach(urun => {
+                const val = data[urun];
+                tbody.innerHTML += `<tr>
+                    <td style="padding:10px 12px; color:var(--text);">${urun}</td>
+                    <td style="padding:10px 12px; text-align:center; color:#2ecc71; font-weight:600;">${val.giris}</td>
+                    <td style="padding:10px 12px; text-align:center; color:#e74c3c; font-weight:600;">${val.cikis}</td>
+                </tr>`;
+            });
+        }
+        
+        showToast(`✅ Rapor hazır (${keys.length} ürün)`);
+        
+    } catch (error) {
+        console.error('Rapor hatası:', error);
+        showToast("❌ Rapor oluşturulurken hata: " + error.message, true);
+        const sonucDiv = document.getElementById('raporSonuc');
+        if (sonucDiv) sonucDiv.style.display = 'none';
+    }
 };
-
 window.excelIndir = () => {
-    const ws = XLSX.utils.table_to_sheet(document.getElementById('raporTablo'));
+    const tablo = document.getElementById('raporTablo');
+    if (!tablo) {
+        showToast("❌ Tablo bulunamadı! Önce rapor oluşturun.", true);
+        return;
+    }
+    const ws = XLSX.utils.table_to_sheet(tablo);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Rapor");
     XLSX.writeFile(wb, `rapor_${new Date().toISOString().slice(0,10)}.xlsx`);
-    showToast("Excel indiriliyor");
+    showToast("📊 Excel indiriliyor");
 };
 
 window.pdfIndir = () => {
-    const tablo = document.getElementById('raporTablo').cloneNode(true);
+    const tablo = document.getElementById('raporTablo');
+    if (!tablo) {
+        showToast("❌ Tablo bulunamadı! Önce rapor oluşturun.", true);
+        return;
+    }
+    const tabloClone = tablo.cloneNode(true);
     const w = window.open('', '_blank');
-    w.document.write(`<html><head><meta charset="UTF-8"><title>Rapor</title><style>body{font-family:system-ui;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#333;color:white}</style></head><body><h1>Stok Raporu</h1><p>${new Date().toLocaleString('tr-TR')}</p>${tablo.outerHTML}</body></html>`);
+    w.document.write(`<html><head><meta charset="UTF-8"><title>Rapor</title><style>
+        body{font-family:system-ui;padding:20px} 
+        table{border-collapse:collapse;width:100%} 
+        th,td{border:1px solid #ddd;padding:8px} 
+        th{background:#333;color:white}
+    </style></head><body>
+        <h1>Stok Raporu</h1>
+        <p>${new Date().toLocaleString('tr-TR')}</p>
+        ${tabloClone.outerHTML}
+    </body></html>`);
     w.document.close();
     w.print();
 };
@@ -649,7 +736,7 @@ window.siparisPDF = () => {
     const k = Object.values(stoklar).filter(u => (u.kalan || 0) <= (u.kritik || 5));
     if (!k.length) return showToast("Kritik ürün yok!", true);
     const w = window.open('', '_blank');
-    w.document.write(`<html><head><meta charset="UTF-8"><title>Sipariş</title><style>body{font-family:system-ui;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#ff3b30;color:white}</style></head><body><h1>Sipariş Listesi</h1><p>${new Date().toLocaleString('tr-TR')}</p><table><thead><tr><th>Ürün</th><th>Stok</th><th>Kritik</th><th>Önerilen</th></tr></thead><tbody>${k.map(u => `<tr><td>${getUrunAdi(u)}</td><td style="text-align:center">${u.kalan}</td><td style="text-align:center">${u.kritik}</td><td style="text-align:center">${Math.max(0,(u.kritik*2)-u.kalan)}</td></tr>`).join('')}</tbody></table></body></html>`);
+    w.document.write(`<html><head><meta charset="UTF-8"><title>Sipariş</title><style>body{font-family:system-ui;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:var(--btn-danger);color:white}</style></head><body><h1>Sipariş Listesi</h1><p>${new Date().toLocaleString('tr-TR')}</p><table><thead><tr><th>Ürün</th><th>Stok</th><th>Kritik</th><th>Önerilen</th></tr></thead><tbody>${k.map(u => `<tr><td>${getUrunAdi(u)}</td><td style="text-align:center">${u.kalan}</td><td style="text-align:center">${u.kritik}</td><td style="text-align:center">${Math.max(0,(u.kritik*2)-u.kalan)}</td></tr>`).join('')}</tbody></table></body></html>`);
     w.document.close(); w.print();
 };
 
@@ -657,7 +744,7 @@ window.siparisYazdir = () => {
     const k = Object.values(stoklar).filter(u => (u.kalan || 0) <= (u.kritik || 5));
     if (!k.length) return showToast("Kritik ürün yok!", true);
     const w = window.open('', '_blank');
-    w.document.write(`<html><head><meta charset="UTF-8"><title>Sipariş</title><style>body{font-family:system-ui;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#ff3b30;color:white}</style></head><body><h1>Sipariş Listesi</h1><p>${new Date().toLocaleString('tr-TR')}</p><table><thead><tr><th>Ürün</th><th>Stok</th><th>Kritik</th><th>Önerilen</th></tr></thead><tbody>${k.map(u => `<tr><td>${getUrunAdi(u)}</td><td style="text-align:center">${u.kalan}</td><td style="text-align:center">${u.kritik}</td><td style="text-align:center">${Math.max(0,(u.kritik*2)-u.kalan)}</td></tr>`).join('')}</tbody></table><script>window.print();</script></body></html>`);
+    w.document.write(`<html><head><meta charset="UTF-8"><title>Sipariş</title><style>body{font-family:system-ui;padding:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:var(--btn-danger);color:white}</style></head><body><h1>Sipariş Listesi</h1><p>${new Date().toLocaleString('tr-TR')}</p><table><thead><tr><th>Ürün</th><th>Stok</th><th>Kritik</th><th>Önerilen</th></tr></thead><tbody>${k.map(u => `<tr><td>${getUrunAdi(u)}</td><td style="text-align:center">${u.kalan}</td><td style="text-align:center">${u.kritik}</td><td style="text-align:center">${Math.max(0,(u.kritik*2)-u.kalan)}</td></tr>`).join('')}</tbody></table><script>window.print();</script></body></html>`);
     w.document.close();
 };
 
@@ -754,7 +841,7 @@ async function kullaniciListesiniGetir() {
         let html = `
             <table style="width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;">
                 <thead>
-                    <tr style="border-bottom:2px solid #2a2a2a;">
+                    <tr style="border-bottom:2px solid var(--card-border);">
                         <th style="text-align:left; padding:8px;">E-posta</th>
                         <th style="text-align:left; padding:8px;">Rol</th>
                         <th style="text-align:left; padding:8px;">Durum</th>
@@ -765,27 +852,27 @@ async function kullaniciListesiniGetir() {
         `;
         snap.forEach(d => {
             const data = d.data();
-            const durumRenk = data.durum === 'aktif' ? '#27ae60' : (data.durum === 'beklemede' ? '#f39c12' : '#e74c3c');
+            const durumRenk = data.durum === 'aktif' ? 'var(--btn-success)' : (data.durum === 'beklemede' ? 'var(--btn-warning)' : 'var(--btn-danger)');
             const durumText = data.durum === 'beklemede' ? '⏳ Beklemede' : (data.durum === 'aktif' ? '✅ Aktif' : '🚫 Engelli');
             html += `
-                <tr style="border-bottom:1px solid #1a1a1a;">
+                <tr style="border-bottom:1px solid var(--card-border);">
                     <td style="padding:8px;">${data.email}</td>
                     <td style="padding:8px;">
-                        <span style="background:#3498db; color:white; padding:2px 8px; border-radius:12px; font-size:11px;">${data.rol}</span>
+                        <span style="background:var(--btn-primary); color:white; padding:2px 8px; border-radius:12px; font-size:11px;">${data.rol}</span>
                     </td>
                     <td style="padding:8px; color:${durumRenk}; font-weight:bold;">${durumText}</td>
                     <td style="padding:8px;">
                         ${data.durum === 'beklemede' ? `
-                            <button onclick="adminKullaniciOnayla('${d.id}', 'aktif', 'personel')" style="background:#27ae60; color:white; border:none; border-radius:5px; padding:5px 10px; margin-right:5px; cursor:pointer;">✅ Onayla</button>
-                            <button onclick="adminKullaniciOnayla('${d.id}', 'reddedildi')" style="background:#e74c3c; color:white; border:none; border-radius:5px; padding:5px 10px; cursor:pointer;">❌ Reddet</button>
+                            <button onclick="adminKullaniciOnayla('${d.id}', 'aktif', 'personel')" style="background:var(--btn-success); color:white; border:none; border-radius:5px; padding:5px 10px; margin-right:5px; cursor:pointer;">✅ Onayla</button>
+                            <button onclick="adminKullaniciOnayla('${d.id}', 'reddedildi')" style="background:var(--btn-danger); color:white; border:none; border-radius:5px; padding:5px 10px; cursor:pointer;">❌ Reddet</button>
                         ` : ''}
                         ${data.durum === 'aktif' ? `
-                            <button onclick="adminKullaniciOnayla('${d.id}', 'engelli')" style="background:#e74c3c; color:white; border:none; border-radius:5px; padding:5px 10px; margin-right:5px; cursor:pointer;">🚫 Engelle</button>
+                            <button onclick="adminKullaniciOnayla('${d.id}', 'engelli')" style="background:var(--btn-danger); color:white; border:none; border-radius:5px; padding:5px 10px; margin-right:5px; cursor:pointer;">🚫 Engelle</button>
                         ` : ''}
                         ${data.durum === 'engelli' ? `
-                            <button onclick="adminKullaniciOnayla('${d.id}', 'aktif')" style="background:#27ae60; color:white; border:none; border-radius:5px; padding:5px 10px; margin-right:5px; cursor:pointer;">🔓 Aktif Et</button>
+                            <button onclick="adminKullaniciOnayla('${d.id}', 'aktif')" style="background:var(--btn-success); color:white; border:none; border-radius:5px; padding:5px 10px; margin-right:5px; cursor:pointer;">🔓 Aktif Et</button>
                         ` : ''}
-                        <select onchange="adminKullaniciOnayla('${d.id}', 'aktif', this.value)" style="padding:4px 8px; border-radius:4px; background:#1a1a1a; color:white; border:1px solid #2a2a2a; margin-top:5px; cursor:pointer;">
+                        <select onchange="adminKullaniciOnayla('${d.id}', 'aktif', this.value)" style="padding:4px 8px; border-radius:4px; background:var(--input-bg); color:var(--text); border:1px solid var(--card-border); margin-top:5px; cursor:pointer;">
                             <option value="">Rol Değiştir</option>
                             <option value="admin">Admin</option>
                             <option value="yonetici">Yönetici</option>
@@ -800,10 +887,101 @@ async function kullaniciListesiniGetir() {
         listeDiv.innerHTML = html;
     } catch(e) {
         console.error("Kullanıcı listesi getirme hatası:", e);
-        listeDiv.innerHTML = '<p style="color:#e74c3c;">Liste yüklenirken hata oluştu.</p>';
+        listeDiv.innerHTML = '<p style="color:var(--btn-danger);">Liste yüklenirken hata oluştu.</p>';
     }
 }
+// ========== ŞİFRE SIFIRLAMA ==========
 
+// Modal'ı göster
+window.sifreSifirlamaFormuGoster = function() {
+    const modal = document.getElementById('sifreSifirlamaModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.getElementById('sifreSifirlamaEmail').value = '';
+        document.getElementById('sifreSifirlamaEmail').focus();
+    }
+};
+
+// Modal'ı kapat
+window.sifreSifirlamaModalKapat = function() {
+    const modal = document.getElementById('sifreSifirlamaModal');
+    if (modal) modal.style.display = 'none';
+};
+
+// Şifre sıfırlama email'i gönder
+window.sifreSifirlamaGonder = async function() {
+    const email = document.getElementById('sifreSifirlamaEmail')?.value.trim();
+    
+    if (!email) {
+        showToast("❌ Lütfen e-posta adresinizi girin!", true);
+        document.getElementById('sifreSifirlamaEmail').focus();
+        return;
+    }
+    
+    // Basit email kontrolü
+    if (!email.includes('@') || !email.includes('.')) {
+        showToast("❌ Geçerli bir e-posta adresi girin!", true);
+        document.getElementById('sifreSifirlamaEmail').focus();
+        return;
+    }
+    
+    try {
+        // Gönder butonunu devre dışı bırak (çoklu tıklamayı önle)
+        const btn = document.querySelector('#sifreSifirlamaModal button:first-child');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳ Gönderiliyor...';
+        }
+        
+        await sendPasswordResetEmail(auth, email);
+        
+        showToast(`✅ Şifre sıfırlama bağlantısı ${email} adresine gönderildi!`);
+        sifreSifirlamaModalKapat();
+        
+    } catch (error) {
+        console.error('Şifre sıfırlama hatası:', error);
+        
+        let hataMesaji = '';
+        switch (error.code) {
+            case 'auth/user-not-found':
+                hataMesaji = '❌ Bu e-posta adresine kayıtlı kullanıcı bulunamadı.';
+                break;
+            case 'auth/invalid-email':
+                hataMesaji = '❌ Geçersiz e-posta adresi.';
+                break;
+            case 'auth/too-many-requests':
+                hataMesaji = '❌ Çok fazla deneme yaptınız. Lütfen birkaç dakika sonra tekrar deneyin.';
+                break;
+            default:
+                hataMesaji = '❌ Bir hata oluştu: ' + error.message;
+        }
+        showToast(hataMesaji, true);
+        
+    } finally {
+        // Butonu tekrar aktif et
+        const btn = document.querySelector('#sifreSifirlamaModal button:first-child');
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '📧 Bağlantı Gönder';
+        }
+    }
+};
+
+// Enter tuşu ile gönderme
+document.addEventListener('DOMContentLoaded', function() {
+    // ... mevcut kodlar ...
+    
+    // Şifre sıfırlama modal'ında Enter tuşu ile gönderme
+    const sifreInput = document.getElementById('sifreSifirlamaEmail');
+    if (sifreInput) {
+        sifreInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                window.sifreSifirlamaGonder();
+            }
+        });
+    }
+});
 // ========== SİPARİŞ / İHTİYAÇ LİSTESİ ==========
 async function sonSiparisNumarasiAl() {
     try {
@@ -848,15 +1026,15 @@ async function siparisleriListele() {
                     <td>${s.tedarikci || '-'}</td>
                     <td><span class="${durumClass}">${durumText}</span></td>
                     <td>
-                        <button onclick="siparisDetayGoster('${id}')" style="background:#3498db; color:white; border:none; border-radius:20px; padding:4px 10px; margin-right:4px;">👁️</button>
-                        <button onclick="ihtiyacListesiYazdir('tek', '${id}')" style="background:#2c3e50; color:white; border:none; border-radius:20px; padding:4px 10px; margin-right:4px;">🖨️</button>
-                        <select onchange="siparisDurumGuncelle('${id}', this.value)" style="padding:4px 8px; border-radius:16px; background:#1a1a1a; color:white; border:1px solid #2a2a2a; font-size:12px; margin-right:4px;">
+                        <button onclick="siparisDetayGoster('${id}')" style="background:var(--btn-primary); color:white; border:none; border-radius:20px; padding:4px 10px; margin-right:4px;">👁️</button>
+                        <button onclick="ihtiyacListesiYazdir('tek', '${id}')" style="background:var(--btn-dark); color:white; border:none; border-radius:20px; padding:4px 10px; margin-right:4px;">🖨️</button>
+                        <select onchange="siparisDurumGuncelle('${id}', this.value)" style="padding:4px 8px; border-radius:16px; background:var(--input-bg); color:var(--text); border:1px solid var(--card-border); font-size:12px; margin-right:4px;">
                             <option value="bekliyor" ${durum === 'bekliyor' ? 'selected' : ''}>Bekliyor</option>
                             <option value="siparis_verildi" ${durum === 'siparis_verildi' ? 'selected' : ''}>Sipariş Verildi</option>
                             <option value="tamamlandi" ${durum === 'tamamlandi' ? 'selected' : ''}>Tamamlandı</option>
                             <option value="iptal" ${durum === 'iptal' ? 'selected' : ''}>İptal</option>
                         </select>
-                        <button onclick="siparisSil('${id}')" style="background:#e74c3c; color:white; border:none; border-radius:20px; padding:4px 10px;">🗑️</button>
+                        <button onclick="siparisSil('${id}')" style="background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:4px 10px;">🗑️</button>
                     </td>
                 </tr>
             `;
@@ -910,7 +1088,7 @@ window.siparisUrunSatirEkle = (urunId = '', urunAd = '', miktar = '') => {
             <option value="">Ürün Seçin</option>
         </select>
         <input type="number" class="siparisUrunMiktar" placeholder="İhtiyaç Miktarı" style="flex:1;" min="1" value="${miktar}">
-        <button onclick="this.parentElement.remove()" style="background:#e74c3c; color:white; border:none; border-radius:20px; padding:0 12px;">✖</button>
+        <button onclick="this.parentElement.remove()" style="background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:0 12px;">✖</button>
     `;
     liste.appendChild(satir);
     const select = satir.querySelector('.siparisUrunSelect');
@@ -966,7 +1144,6 @@ window.siparisKaydet = async () => {
             data.siparisNo = siparisNo;
             await addDoc(collection(db, "siparisler"), data);
             showToast(`İhtiyaç siparişi oluşturuldu (${siparisNo})`);
-            // Bildirim: Yeni ihtiyaç listesi
             const urunAdlari = urunler.map(u => u.urunAd).join(', ');
             window.sendNotification(
                 '📋 Yeni İhtiyaç Listesi',
@@ -1013,7 +1190,6 @@ window.siparisDurumGuncelle = async (id, yeniDurum) => {
         await updateDoc(doc(db, "siparisler", id), { durum: yeniDurum });
         showToast("Durum güncellendi");
         siparisleriListele();
-        // Bildirim: Sipariş durumu değişti
         const durumText = yeniDurum === 'bekliyor' ? 'Bekliyor' : 
                           yeniDurum === 'siparis_verildi' ? 'Sipariş Verildi' :
                           yeniDurum === 'tamamlandi' ? 'Tamamlandı' : 'İptal';
@@ -1049,7 +1225,7 @@ window.kritikStoktanSiparisOlustur = async () => {
                 <option value="${u.id}" selected>${getUrunAdi(u)}</option>
             </select>
             <input type="number" class="siparisUrunMiktar" placeholder="Miktar" style="flex:1;" min="1" value="${onerilenMiktar}">
-            <button onclick="this.parentElement.remove()" style="background:#e74c3c; color:white; border:none; border-radius:20px; padding:0 12px;">✖</button>
+            <button onclick="this.parentElement.remove()" style="background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:0 12px;">✖</button>
         `;
         liste.appendChild(satir);
     });
@@ -1255,6 +1431,55 @@ function initSidebarLinks() {
     });
 }
 
+// ========== FCM TOKEN ==========
+async function setupFCM() {
+    try {
+        console.log('setupFCM başladı');
+
+        // 1. Önce bildirim iznini kontrol et
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.warn('Bildirim izni verilmedi.');
+            return;
+        }
+
+        // 2. Service Worker'ın hazır olmasını BEKLE
+        const registration = await navigator.serviceWorker.ready;
+        console.log('Service Worker hazır:', registration);
+
+        // 3. VAPID anahtarını kullanarak token al
+        const vapidKey = 'BC93ET2YlPin9VMIhJVD7KpiSETd5MFtDUlTw_6LSQM7CioDDbeh48bIXRz8XAEB2mqFRsh49SRsT9vEQ1arWNY';
+        const token = await getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: registration });
+        console.log('FCM Token alındı:', token);
+
+        // 4. Token'ı Firestore'a kaydet
+        if (mevcutKullanici) {
+            await setDoc(doc(db, "kullanicilar", mevcutKullanici.uid), {
+                fcmToken: token
+            }, { merge: true });
+            console.log('FCM Token Firestore\'a kaydedildi.');
+        }
+
+        // 5. Ön planda mesajları dinle
+        onMessage(messaging, (payload) => {
+            console.log('Ön planda mesaj alındı:', payload);
+            window.sendNotification(
+                payload.notification?.title || 'Stok Takip',
+                payload.notification?.body || 'Yeni bildirim!',
+                payload.data?.url || '/'
+            );
+        });
+
+    } catch (error) {
+        console.error('FCM kurulum hatası:', error);
+        // Hata durumunda 5 saniye sonra tekrar dene
+        setTimeout(() => {
+            console.log('FCM yeniden deneniyor...');
+            setupFCM();
+        }, 5000);
+    }
+}
+// ========== BAŞLAT ==========
 document.addEventListener('DOMContentLoaded', function() {
     const menuBtn = document.getElementById('menuToggleBtn');
     if (menuBtn) {
@@ -1272,64 +1497,19 @@ document.addEventListener('DOMContentLoaded', function() {
             window.requestNotificationPermission();
         });
     }
+    const themeSelect = document.getElementById('themeSelect');
+    if (themeSelect) {
+        themeSelect.addEventListener('change', function(e) {
+            setTheme(e.target.value);
+        });
+    }
     checkNotificationStatus();
+    loadTheme();
 });
-// Service Worker kaydını doğrula ve bildirimleri test et
+
+// Service Worker kaydı
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('service-worker.js')
-        .then(reg => {
-            console.log('✅ Service Worker kaydedildi:', reg);
-            // Service Worker hazır olduğunda bildirim gönderebiliriz
-            return navigator.serviceWorker.ready;
-        })
-        .then(reg => {
-            console.log('✅ Service Worker hazır:', reg);
-            // Test bildirimi gönder (opsiyonel)
-            // reg.showNotification('Test', { body: 'Service Worker çalışıyor!' });
-        })
-        .catch(err => {
-            console.error('❌ Service Worker hatası:', err);
-        });
+        .then(reg => console.log('✅ Service Worker kaydedildi:', reg))
+        .catch(err => console.error('❌ Service Worker hatası:', err));
 }
-// FCM Token'ı al ve kaydet
-async function setupFCM() {
-    try {
-        // Bildirim iznini iste
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            console.warn('Bildirim izni verilmedi.');
-            return;
-        }
-
-        // VAPID public key'inizi buraya yapıştırın (Firebase Konsol'dan kopyaladığınız)
-        const vapidKey = 'YOUR_VAPID_PUBLIC_KEY_HERE';
-
-        // FCM Token'ı al
-        const token = await getToken(messaging, { vapidKey: vapidKey });
-        console.log('FCM Token alındı:', token);
-
-        // Token'ı Firestore'a kaydedin (isteğe bağlı, sonra bildirim göndermek için kullanılır)
-        if (mevcutKullanici) {
-            await setDoc(doc(db, "kullanicilar", mevcutKullanici.uid), {
-                fcmToken: token
-            }, { merge: true });
-            console.log('FCM Token Firestore\'a kaydedildi.');
-        }
-
-        // Uygulama ön plandayken (açıkken) gelen mesajları dinle
-        onMessage(messaging, (payload) => {
-            console.log('Ön planda mesaj alındı:', payload);
-            // Mevcut bildirim sistemini kullanarak göster
-            window.sendNotification(
-                payload.notification?.title || 'Stok Takip',
-                payload.notification?.body || 'Yeni bildirim!',
-                payload.data?.url || '/'
-            );
-        });
-
-    } catch (error) {
-        console.error('FCM kurulum hatası:', error);
-    }
-}
-// ========== BAŞLAT ==========
-verileriGetir();

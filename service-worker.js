@@ -36,33 +36,50 @@ self.addEventListener('activate', event => {
   );
 });
 
-// ========== FETCH EVENT - SADECE GET İSTEKLERİ ==========
+// ========== FETCH EVENT - SADECE STATİK DOSYALAR ==========
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // SADECE GET isteklerini işle, diğerlerini direkt geç
+  // Sadece GET isteklerini işle, diğerlerini direkt geç
   if (request.method !== 'GET') {
     event.respondWith(fetch(request));
     return;
   }
 
-  // Firebase, Google API ve CDN isteklerini ASLA önbelleğe alma, direkt ağdan getir
+  // Firebase, Google API ve CDN isteklerini asla yakalama
   if (url.hostname.includes('firebase') || 
       url.hostname.includes('googleapis') ||
       url.hostname.includes('gstatic') ||
-      url.hostname.includes('firestore.googleapis.com')) {
+      url.hostname.includes('firestore.googleapis.com') ||
+      url.hostname.includes('cloudfunctions.net') ||
+      url.hostname.includes('unpkg.com') ||
+      url.hostname.includes('cdnjs.cloudflare.com')) {
     event.respondWith(fetch(request));
     return;
   }
 
-  // Statik dosyaları önbellekten veya ağdan getir
+  // Kendi statik dosyalarımızı önbellekten veya ağdan getir
   event.respondWith(
     caches.match(request)
-      .then(cached => cached || fetch(request))
-      .catch(() => caches.match('./index.html'))
+      .then(cached => {
+        if (cached) {
+          return cached;
+        }
+        return fetch(request).then(response => {
+          if (response && response.status === 200 && url.origin === location.origin) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          }
+          return response;
+        });
+      })
+      .catch(() => {
+        return caches.match('./index.html');
+      })
   );
 });
+
 // ========== PUSH BİLDİRİMLERİ ==========
 self.addEventListener('push', event => {
   let data = {};

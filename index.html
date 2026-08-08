@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -32,7 +33,12 @@
             <input type="email" id="loginEmail" placeholder="E-posta">
             <input type="password" id="loginPassword" placeholder="Şifre">
             <button class="btn-login" onclick="kullaniciGiris()">Giriş Yap</button>
-            <div class="demo-info">Demo: demo@stok.com / 123456</div>
+           <div style="text-align:center; margin-top:12px;">
+        <a href="#" onclick="sifreSifirlamaFormuGoster(); return false;" style="color:var(--text); opacity:0.7; text-decoration:none; font-size:14px;">
+            🔑 Şifremi Unuttum
+        </a>
+    </div>
+</div>
         </div>
         <div id="kayitForm" class="login-form">
             <input type="email" id="registerEmail" placeholder="E-posta">
@@ -53,6 +59,15 @@
         <div class="user-info">
             <span id="userName">-</span>
             <span id="userRole" class="user-role">-</span>
+            <!-- TEMA SEÇİCİ -->
+            <select id="themeSelect" class="theme-select">
+                <option value="dark">🌙 Koyu</option>
+                <option value="light">☀️ Açık</option>
+                <option value="blue">🔵 Mavi</option>
+                <option value="green">🟢 Yeşil</option>
+                <option value="purple">🟣 Mor</option>
+            </select>
+            <button id="notificationToggleBtn" class="btn-notification">🔔</button>
             <button class="btn-logout" onclick="kullaniciCikis()">🚪 Çıkış</button>
         </div>
     </div>
@@ -139,32 +154,41 @@
     </div>
     
     <div id="rapor" class="tab-content">
-        <div style="background:white; border-radius:15px; padding:20px;">
-            <h3>Raporlama</h3>
-            <div style="display:flex; gap:10px; margin-bottom:10px;">
-                <input type="date" id="raporBaslangic">
-                <input type="date" id="raporBitis">
+    <div style="background:var(--card-bg); border-radius:15px; padding:20px;">
+        <h3>📊 Raporlama</h3>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <input type="date" id="raporBaslangic">
+            <input type="date" id="raporBitis">
+        </div>
+        <select id="raporFiltre" style="margin-bottom:10px; width:100%; padding:10px;">
+            <option value="hepsi">Tüm İşlemler</option>
+            <option value="giris">Sadece Girişler</option>
+            <option value="cikis">Sadece Çıkışlar</option>
+        </select>
+        <button onclick="raporOlustur()" style="width:100%; background:var(--btn-dark); color:white; padding:12px; border:none; border-radius:10px;">🔍 Sorgula</button>
+        
+        <div id="raporSonuc" style="display:none; margin-top:15px;">
+            <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+                <button onclick="excelIndir()" style="flex:1; background:var(--btn-success); color:white; padding:10px; border:none; border-radius:8px;">📊 Excel İndir</button>
+                <button onclick="pdfIndir()" style="flex:1; background:var(--btn-danger); color:white; padding:10px; border:none; border-radius:8px;">📄 PDF İndir</button>
             </div>
-            <select id="raporFiltre" style="margin-bottom:10px; width:100%; padding:10px;">
-                <option value="hepsi">Tüm İşlemler</option>
-                <option value="giris">Sadece Girişler</option>
-                <option value="cikis">Sadece Çıkışlar</option>
-            </select>
-            <button onclick="raporOlustur()" style="width:100%; background:#34495e; color:white; padding:12px; border:none; border-radius:10px;">Sorgula</button>
-            <div id="raporSonuc" style="display:none; margin-top:15px;">
-                <div style="display:flex; gap:10px; margin-bottom:10px;">
-                    <button onclick="excelIndir()" style="flex:1; background:#27ae60; color:white; padding:10px; border:none; border-radius:8px;">Excel İndir</button>
-                    <button onclick="pdfIndir()" style="flex:1; background:#e67e22; color:white; padding:10px; border:none; border-radius:8px;">PDF İndir</button>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table id="raporTablo">
-                        <thead><tr><th>Ürün Adı</th><th>Giriş</th><th>Çıkış</th></tr></thead>
-                        <tbody id="raporTabloGovde"></tbody>
-                    </table>
-                </div>
+            <div style="overflow-x:auto; border-radius:12px; border:1px solid var(--card-border); background:var(--card-bg);">
+                <table id="raporTablo" style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:var(--card-border);">
+                            <th style="padding:12px; text-align:left; color:var(--text);">Ürün Adı</th>
+                            <th style="padding:12px; text-align:center; color:var(--text);">📥 Giriş</th>
+                            <th style="padding:12px; text-align:center; color:var(--text);">📤 Çıkış</th>
+                        </tr>
+                    </thead>
+                    <tbody id="raporTabloGovde">
+                        <tr><td colspan="3" style="text-align:center;color:#888; padding:20px;">Henüz rapor oluşturulmadı</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+</div>
     
     <div id="siparisler" class="tab-content">
         <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
@@ -208,12 +232,6 @@
             <div id="kullaniciListesi"></div>
         </div>
     </div>
-    <div class="user-info">
-    <span id="userName">-</span>
-    <span id="userRole" class="user-role">-</span>
-    <button id="notificationToggleBtn" class="btn-notification">🔔</button>
-    <button class="btn-logout" onclick="kullaniciCikis()">🚪 Çıkış</button>
-</div>
     
     <!-- MODALLAR -->
     <div id="detayModal" class="modal">
@@ -262,35 +280,42 @@
         <div class="modal-content">
             <h3>📋 İhtiyaç Listesi Detayı</h3>
             <div id="siparisDetayIcerik"></div>
-           <div class="modal-butonlar">
+            <div class="modal-butonlar">
                 <button onclick="ihtiyacDetayYazdir()" style="flex:1; background:#2c3e50; color:white; border:none; border-radius:40px; padding:14px; font-weight:700; cursor:pointer;">🖨️ Yazdır</button>
                 <button onclick="siparisDetayKapat()" class="btn-iptal" style="flex:1;">Kapat</button>
             </div>
         </div>
     </div>
 </div>
+<!-- ŞİFRE SIFIRLAMA MODAL -->
+<div id="sifreSifirlamaModal" class="modal" style="display:none;" onclick="if(event.target===this) sifreSifirlamaModalKapat()">
+    <div class="modal-content" style="max-width:400px;">
+        <h3>🔑 Şifre Sıfırlama</h3>
+        <p style="color:var(--text); opacity:0.7; margin-bottom:16px; font-size:14px;">
+            Kayıtlı e-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.
+        </p>
+        <input type="email" id="sifreSifirlamaEmail" placeholder="E-posta adresiniz" style="margin-bottom:16px;">
+        <div style="display:flex; gap:12px;">
+            <button onclick="sifreSifirlamaGonder()" style="flex:2; background:var(--btn-primary); color:white; padding:14px; border:none; border-radius:40px; font-weight:700; cursor:pointer;">
+                📧 Bağlantı Gönder
+            </button>
+            <button onclick="sifreSifirlamaModalKapat()" style="flex:1; background:var(--card-border); color:var(--text); padding:14px; border:none; border-radius:40px; font-weight:600; cursor:pointer;">
+                İptal
+            </button>
+        </div>
+    </div>
+</div>
 <script>
-// Service Worker'ı manuel kaydet
+// Service Worker'ları kaydet
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('service-worker.js')
-        .then(reg => {
-            console.log('✅ Service Worker başarıyla kaydedildi!', reg);
-        })
-        .catch(err => {
-            console.error('❌ Service Worker kaydı başarısız:', err);
-        });
+        .then(reg => console.log('✅ Service Worker başarıyla kaydedildi!', reg))
+        .catch(err => console.error('❌ Service Worker kaydı başarısız:', err));
 }
-</script>
-<script>
-// FCM Service Worker'ı kaydet
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('firebase-messaging-sw.js')
-        .then((registration) => {
-            console.log('✅ FCM Service Worker başarıyla kaydedildi!', registration);
-        })
-        .catch((err) => {
-            console.error('❌ FCM Service Worker kaydı başarısız:', err);
-        });
+        .then(reg => console.log('FCM SW kaydedildi', reg))
+        .catch(err => console.error('FCM SW hatası', err));
 }
 </script>
 <script type="module" src="app.js"></script>

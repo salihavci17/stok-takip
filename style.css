@@ -1,3 +1,115 @@
+/* ========== TEMA DEĞİŞKENLERİ ========== */
+:root {
+  /* Dark tema (varsayılan) */
+  --bg: #0a0a0a;
+  --text: #ffffff;
+  --card-bg: #1a1a1a;
+  --card-border: #2a2a2a;
+  --input-bg: #0a0a0a;
+  --input-border: #2a2a2a;
+  --input-text: #ffffff;
+  --header-bg: transparent;
+  --shadow: rgba(0,0,0,0.3);
+  --kritik-bg: #1a0a0a;
+  --kritik-border: #ff3b30;
+  --kritik-text: #ff6b6b;
+  --btn-primary: #3498db;
+  --btn-success: #27ae60;
+  --btn-danger: #e74c3c;
+  --btn-warning: #f39c12;
+  --btn-dark: #2c3e50;
+  --toast-bg: #2c3e50;
+  --toast-text: #ffffff;
+}
+
+/* Light tema */
+[data-theme="light"] {
+  --bg: #f5f5f5;
+  --text: #1a1a1a;
+  --card-bg: #ffffff;
+  --card-border: #dddddd;
+  --input-bg: #ffffff;
+  --input-border: #cccccc;
+  --input-text: #1a1a1a;
+  --header-bg: #ffffff;
+  --shadow: rgba(0,0,0,0.1);
+  --kritik-bg: #fff0f0;
+  --kritik-border: #e74c3c;
+  --kritik-text: #c0392b;
+  --toast-bg: #2c3e50;
+}
+
+/* Mavi tema */
+[data-theme="blue"] {
+  --bg: #0a1628;
+  --text: #e0f0ff;
+  --card-bg: #0d2137;
+  --card-border: #1a3a5a;
+  --input-bg: #0a1628;
+  --input-border: #1a3a5a;
+  --input-text: #e0f0ff;
+  --header-bg: #0d2137;
+  --shadow: rgba(0,40,80,0.3);
+  --kritik-bg: #1a0a1a;
+  --kritik-border: #ff6b6b;
+  --kritik-text: #ff9a9a;
+  --toast-bg: #1a3a5a;
+}
+
+/* Yeşil tema */
+[data-theme="green"] {
+  --bg: #0a1a0a;
+  --text: #d0f0d0;
+  --card-bg: #0d2a0d;
+  --card-border: #1a4a1a;
+  --input-bg: #0a1a0a;
+  --input-border: #1a4a1a;
+  --input-text: #d0f0d0;
+  --header-bg: #0d2a0d;
+  --shadow: rgba(0,40,0,0.3);
+  --kritik-bg: #1a0a0a;
+  --kritik-border: #ff6b6b;
+  --kritik-text: #ff9a9a;
+  --toast-bg: #1a4a1a;
+}
+
+/* Mor tema */
+[data-theme="purple"] {
+  --bg: #1a0a2a;
+  --text: #f0d0f0;
+  --card-bg: #2a0d3a;
+  --card-border: #4a1a5a;
+  --input-bg: #1a0a2a;
+  --input-border: #4a1a5a;
+  --input-text: #f0d0f0;
+  --header-bg: #2a0d3a;
+  --shadow: rgba(40,0,80,0.3);
+  --kritik-bg: #1a0a0a;
+  --kritik-border: #ff6b6b;
+  --kritik-text: #ff9a9a;
+  --toast-bg: #4a1a5a;
+}
+
+/* ========== TEMA SEÇİCİ ========== */
+.theme-select {
+  background: transparent;
+  border: 1px solid var(--card-border);
+  color: var(--text);
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+.theme-select:hover {
+  background: var(--card-bg);
+}
+.theme-select option {
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+/* ========== GENEL STİLLER ========== */
 * {
     margin: 0;
     padding: 0;
@@ -6,8 +118,9 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
-    background: #0a0a0a;
-    color: #ffffff;
+    background: var(--bg);
+    color: var(--text);
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* Login Screen */
@@ -17,7 +130,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: #0a0a0a;
+    background: var(--bg);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -25,17 +138,18 @@ body {
 }
 
 .login-card {
-    background: #1a1a1a;
+    background: var(--card-bg);
     border-radius: 48px;
     padding: 48px 32px;
     width: 90%;
     max-width: 420px;
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 8px 32px var(--shadow);
 }
 
 .login-card h2 {
     text-align: center;
-    color: #ffffff;
+    color: var(--text);
     margin-bottom: 32px;
     font-size: 32px;
     font-weight: 700;
@@ -46,10 +160,10 @@ body {
     display: flex;
     gap: 8px;
     margin-bottom: 32px;
-    background: #0a0a0a;
+    background: var(--bg);
     padding: 4px;
     border-radius: 60px;
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
 }
 
 .login-tab {
@@ -66,31 +180,31 @@ body {
 }
 
 .login-tab.active {
-    background: #ffffff;
-    color: #0a0a0a;
+    background: var(--text);
+    color: var(--bg);
 }
 
 .login-form input, .login-form select {
     width: 100%;
     padding: 16px;
     margin-bottom: 12px;
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--input-border);
     border-radius: 24px;
     font-size: 14px;
-    background: #0a0a0a;
-    color: #ffffff;
+    background: var(--input-bg);
+    color: var(--input-text);
     transition: all 0.3s ease;
 }
 
 .login-form input:focus, .login-form select:focus {
     outline: none;
-    border-color: #ffffff;
+    border-color: var(--text);
 }
 
 .btn-login {
     width: 100%;
-    background: #ffffff;
-    color: #0a0a0a;
+    background: var(--text);
+    color: var(--bg);
     padding: 16px;
     border: none;
     border-radius: 32px;
@@ -127,6 +241,8 @@ body {
     align-items: center;
     margin-bottom: 24px;
     position: relative;
+    background: var(--header-bg);
+    padding: 8px 0;
 }
 .header-left {
     display: flex;
@@ -136,7 +252,7 @@ body {
 .menu-toggle {
     background: none;
     border: none;
-    color: #fff;
+    color: var(--text);
     font-size: 28px;
     cursor: pointer;
     padding: 4px 8px;
@@ -148,7 +264,7 @@ body {
     font-size: 22px;
     font-weight: 800;
     letter-spacing: -0.5px;
-    background: linear-gradient(135deg, #fff, #666);
+    background: linear-gradient(135deg, var(--text), #666);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -159,14 +275,15 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: #1a1a1a;
+    background: var(--card-bg);
     padding: 6px 16px 6px 20px;
     border-radius: 60px;
+    border: 1px solid var(--card-border);
 }
 
 .user-role {
-    background: #2a2a2a;
-    color: #aaa;
+    background: var(--card-border);
+    color: var(--text);
     padding: 4px 12px;
     border-radius: 50px;
     font-size: 11px;
@@ -189,8 +306,8 @@ body {
     left: -300px;
     width: 280px;
     height: 100%;
-    background: #1a1a1a;
-    border-right: 1px solid #2a2a2a;
+    background: var(--card-bg);
+    border-right: 1px solid var(--card-border);
     transition: left 0.3s ease;
     z-index: 2000;
     padding: 20px;
@@ -202,7 +319,7 @@ body {
 .sidebar .close-sidebar {
     background: none;
     border: none;
-    color: #fff;
+    color: var(--text);
     font-size: 24px;
     cursor: pointer;
     float: right;
@@ -219,16 +336,16 @@ body {
 .sidebar ul li a {
     display: block;
     padding: 12px 16px;
-    color: #ccc;
+    color: var(--text);
     text-decoration: none;
     border-radius: 12px;
     transition: background 0.2s, color 0.2s;
 }
 .sidebar ul li a:hover {
-    background: #2a2a2a;
+    background: var(--card-border);
 }
 .sidebar ul li a.active {
-    background: #3498db;
+    background: var(--btn-primary);
     color: #fff;
 }
 .sidebar-overlay {
@@ -254,11 +371,12 @@ body {
 
 .dash-card {
     flex: 1;
-    background: #1a1a1a;
+    background: var(--card-bg);
     border-radius: 32px;
     padding: 16px;
     text-align: center;
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 4px 12px var(--shadow);
 }
 
 .dash-card small {
@@ -277,8 +395,8 @@ body {
 
 /* Kritik Panel */
 .kritik-panel {
-    background: #1a0a0a;
-    border-left: 4px solid #ff3b30;
+    background: var(--kritik-bg);
+    border-left: 4px solid var(--kritik-border);
     padding: 20px;
     border-radius: 24px;
     margin-bottom: 24px;
@@ -286,7 +404,7 @@ body {
 }
 
 .kritik-panel h4 {
-    color: #ff3b30;
+    color: var(--kritik-border);
     margin-bottom: 12px;
     font-size: 14px;
 }
@@ -297,12 +415,12 @@ body {
 }
 
 .kritik-panel li {
-    color: #ff6b6b;
+    color: var(--kritik-text);
     margin: 8px 0;
     font-size: 13px;
 }
 
-/* Tab içerikleri – ÖNEMLİ */
+/* Tab içerikleri */
 .tab-content {
     display: none;
 }
@@ -312,11 +430,12 @@ body {
 
 /* Kartlar */
 .card {
-    background: #1a1a1a;
+    background: var(--card-bg);
     border-radius: 32px;
     padding: 24px;
     margin-bottom: 16px;
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 4px 12px var(--shadow);
 }
 
 /* Form Elemanları */
@@ -324,17 +443,17 @@ input, select {
     width: 100%;
     padding: 16px;
     margin-bottom: 12px;
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--input-border);
     border-radius: 24px;
     font-size: 15px;
-    background: #0a0a0a;
-    color: #ffffff;
+    background: var(--input-bg);
+    color: var(--input-text);
     transition: all 0.3s ease;
 }
 
 input:focus, select:focus {
     outline: none;
-    border-color: #ffffff;
+    border-color: var(--text);
 }
 
 /* Butonlar */
@@ -348,20 +467,20 @@ input:focus, select:focus {
 }
 
 .btn-giris {
-    background: #00c853;
+    background: var(--btn-success);
     color: #0a0a0a;
     flex: 1;
 }
 
 .btn-cikis {
-    background: #ff3b30;
+    background: var(--btn-danger);
     color: #ffffff;
     flex: 1;
 }
 
 .btn-sepet {
-    background: #ffffff;
-    color: #0a0a0a;
+    background: var(--text);
+    color: var(--bg);
     width: 100%;
     margin-top: 12px;
 }
@@ -380,25 +499,60 @@ table {
 th {
     text-align: left;
     padding: 12px;
-    color: #666;
-    font-weight: 500;
+    color: var(--text);
+    font-weight: 600;
     font-size: 12px;
     letter-spacing: 0.5px;
+    background: var(--card-border);
+    border-bottom: 2px solid var(--card-border);
 }
 
 td {
     padding: 12px;
-    border-bottom: 1px solid #1a1a1a;
+    border-bottom: 1px solid var(--card-border);
     font-size: 14px;
+    color: var(--text); /* EKLENDİ - metin rengi */
 }
 
+/* Tablo satırlarına hover efekti */
+#raporTablo tbody tr:hover,
+#tablo tbody tr:hover {
+    background: var(--card-border);
+    cursor: pointer;
+}
+
+/* Rapor tablosu özel stilleri */
+#raporTablo th {
+    background: var(--card-border);
+    color: var(--text);
+}
+
+#raporTablo td {
+    color: var(--text);
+    border-bottom: 1px solid var(--card-border);
+}
+
+/* Rapor tablosu giriş/çıkış renkleri */
+#raporTablo td:first-child {
+    font-weight: 500;
+}
+
+/* Stok listesi tablosu */
+.stok-tablo td {
+    color: var(--text);
+}
+
+.stok-tablo td small {
+    color: #888 !important;
+}
 /* Sepet Alanı */
 .sepet-alani {
-    background: #1a1a1a;
+    background: var(--card-bg);
     border-radius: 32px;
     padding: 20px;
     margin-top: 20px;
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 4px 12px var(--shadow);
 }
 
 .sepet-alani h4 {
@@ -422,13 +576,13 @@ td {
 }
 
 .modal-content {
-    background: #1a1a1a;
+    background: var(--card-bg);
     margin: 0 auto;
     padding: 28px;
     width: 90%;
     max-width: 500px;
     border-radius: 48px;
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
     animation: slideUp 0.3s ease;
 }
 
@@ -455,7 +609,7 @@ td {
 }
 
 .btn-guncelle {
-    background: #00c853;
+    background: var(--btn-success);
     color: #0a0a0a;
     flex: 2;
     padding: 14px;
@@ -465,8 +619,8 @@ td {
 }
 
 .btn-iptal {
-    background: #2a2a2a;
-    color: #ffffff;
+    background: var(--card-border);
+    color: var(--text);
     flex: 1;
     padding: 14px;
     border: none;
@@ -476,20 +630,20 @@ td {
 
 /* Kullanıcı Yönetimi */
 .kullanici-ekle {
-    background: #0a0a0a;
+    background: var(--bg);
     padding: 20px;
     border-radius: 32px;
     margin-top: 20px;
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
 }
 
 .kullanici-ekle h4 {
     margin-bottom: 16px;
-    color: #ffffff;
+    color: var(--text);
 }
 
 .kullanici-ekle input, .kullanici-ekle select {
-    background: #1a1a1a;
+    background: var(--card-bg);
 }
 
 .rol-badge {
@@ -502,9 +656,28 @@ td {
 
 .rol-admin { background: #ff3b30; color: white; }
 .rol-yonetici { background: #ff9500; color: black; }
-.rol-personel { background: #00c853; color: black; }
+.rol-personel { background: var(--btn-success); color: black; }
 .rol-goruntuleyici { background: #8e8e93; color: white; }
+/* Şifre Sıfırlama Modal */
+#sifreSifirlamaModal .modal-content p {
+    color: var(--text);
+    opacity: 0.7;
+}
 
+#sifreSifirlamaModal .modal-content input {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--input-text);
+    padding: 16px;
+    border-radius: 24px;
+    width: 100%;
+    font-size: 15px;
+}
+
+#sifreSifirlamaModal .modal-content input:focus {
+    outline: none;
+    border-color: var(--text);
+}
 /* Kamera */
 #reader {
     width: 100%;
@@ -524,8 +697,8 @@ td {
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: #2c3e50;
-    color: #fff;
+    background: var(--toast-bg);
+    color: var(--toast-text);
     padding: 10px 24px;
     border-radius: 30px;
     font-size: 14px;
@@ -534,9 +707,37 @@ td {
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 12px var(--shadow);
 }
 .toast-message.show { opacity: 1; }
+
+/* Bildirim Butonu */
+.btn-notification {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 8px;
+    position: relative;
+}
+.btn-notification.active {
+    color: var(--btn-primary);
+}
+.btn-notification .badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--btn-danger);
+    color: white;
+    font-size: 10px;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
 /* Responsive */
 @media (max-width: 480px) {
@@ -547,36 +748,10 @@ td {
     .header-left { flex: 1; }
     .user-info { flex: 1; justify-content: flex-end; }
     .user-role { display: none; }
+    .theme-select { max-width: 80px; }
 }
 @media print {
     .no-print { display: none !important; }
     .sidebar, .sidebar-overlay, .menu-toggle { display: none !important; }
     #mainApp { padding: 0; }
-}
-/* Bildirim Butonu */
-.btn-notification {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 20px;
-    cursor: pointer;
-    padding: 8px;
-    position: relative;
-}
-.btn-notification.active {
-    color: #3498db;
-}
-.btn-notification .badge {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    background: #e74c3c;
-    color: white;
-    font-size: 10px;
-    border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
