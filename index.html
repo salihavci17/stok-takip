@@ -79,10 +79,12 @@
             <li><a href="#" data-tab="hizli-islem" class="tab-link active">⚡ Hızlı İşlem</a></li>
             <li><a href="#" data-tab="stok-listesi" class="tab-link">📋 Liste</a></li>
             <li><a href="#" data-tab="yeni-urun" class="tab-link">➕ Yeni Ürün</a></li>
+             <li><a href="#" data-tab="gruplar" class="tab-link">📁 Gruplar</a></li>
             <li><a href="#" data-tab="hareketler" class="tab-link">🕒 Hareketler</a></li>
             <li><a href="#" data-tab="rapor" class="tab-link">📊 Rapor</a></li>
             <li><a href="#" data-tab="siparisler" class="tab-link">📦 Siparişler</a></li>
             <li><a href="#" data-tab="kullanicilar" class="tab-link" id="kullaniciTabLink">👥 Kullanıcılar</a></li>
+            <li><a href="#" data-tab="loglar" class="tab-link">📋 Loglar</a></li>
         </ul>
     </div>
 
@@ -145,9 +147,28 @@
             <input type="text" id="urunBarkod" placeholder="Barkod" style="flex:1;">
             <button id="yeniUrunKameraBtn" style="background:#34495e; color:white; padding:0 15px; border:none; border-radius:8px;">📷</button>
         </div>
+         <!-- YENİ: Grup Seçimi -->
+    <select id="urunGrupSelect" class="grupSelect" style="margin-top:10px;">
+        <option value="Genel">Genel</option>
+    </select>
         <button onclick="urunEkle()" style="width:100%; background:#3498db; color:white; padding:12px; border:none; border-radius:10px; margin-top:10px;">Kaydet</button>
     </div>
-    
+    <!-- GRUPLAR TABİ -->
+<div id="gruplar" class="tab-content">
+    <div style="background:var(--card-bg); border-radius:15px; padding:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3>📁 Grup Yönetimi</h3>
+            <button onclick="grupEkleFormuGoster()" style="background:var(--btn-primary); color:white; border:none; border-radius:40px; padding:10px 20px; font-weight:600; cursor:pointer;">
+                ➕ Yeni Grup
+            </button>
+        </div>
+        
+        <!-- Grup Listesi -->
+        <div id="grupListesi" style="margin-top:16px;">
+            <div style="text-align:center; color:#888; padding:20px;">Yükleniyor...</div>
+        </div>
+    </div>
+</div>
     <div id="hareketler" class="tab-content">
         <h3>Son Hareketler</h3>
         <div style="overflow-x:auto;"><table><thead><tr><th>Tarih</th><th>Ürün</th><th>Miktar</th><th>İşlem</th></tr></thead><tbody id="hareketlerTablo"></tbody></table></div>
@@ -195,6 +216,7 @@
             <button onclick="siparisFormuGoster()" style="flex:1; background:#3498db; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">➕ Yeni İhtiyaç Listesi</button>
             <button onclick="kritikStoktanSiparisOlustur()" style="flex:1; background:#e67e22; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">⚠️ Kritik Stoktan Liste</button>
             <button onclick="ihtiyacListesiYazdir('hepsi')" style="flex:1; background:#2c3e50; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">🖨️ Tümünü Yazdır</button>
+            <button onclick="siparisSepeteEkle('${id}')" style="background:#f39c12; color:white; border:none; border-radius:20px; padding:4px 10px; margin-right:4px;">🛒</button>
         </div>
         <div class="tablo-kapsayici">
             <table>
@@ -232,7 +254,51 @@
             <div id="kullaniciListesi"></div>
         </div>
     </div>
-    
+    <div id="loglar" class="tab-content">
+    <div style="background:var(--card-bg); border-radius:15px; padding:20px;">
+        <h3>📋 Aktivite Logları</h3>
+        <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+            <input type="text" id="logArama" placeholder="🔍 Kullanıcı veya işlem ara..." style="flex:1; min-width:150px;" onkeyup="loglariFiltrele()">
+            <select id="logFiltreIslem" onchange="loglariFiltrele()" style="flex:0 0 auto;">
+                <option value="hepsi">Tüm İşlemler</option>
+                <option value="giris">Giriş</option>
+                <option value="cikis">Çıkış</option>
+                <option value="urun_ekle">Ürün Ekle</option>
+                <option value="urun_guncelle">Ürün Güncelle</option>
+                <option value="urun_sil">Ürün Sil</option>
+                <option value="stok_giris">Stok Giriş</option>
+                <option value="stok_cikis">Stok Çıkış</option>
+                <option value="grup_ekle">Grup Ekle</option>
+                <option value="grup_guncelle">Grup Güncelle</option>
+                <option value="grup_sil">Grup Sil</option>
+            </select>
+            <button onclick="loglariTemizle()" style="background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:8px 16px; cursor:pointer;">🗑️ Temizle</button>
+        </div>
+        <div style="overflow-x:auto; border-radius:12px; border:1px solid var(--card-border);">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background:var(--card-border);">
+                        <th style="padding:10px; text-align:left; color:var(--text);">Tarih</th>
+                        <th style="padding:10px; text-align:left; color:var(--text);">Kullanıcı</th>
+                        <th style="padding:10px; text-align:left; color:var(--text);">İşlem</th>
+                        <th style="padding:10px; text-align:left; color:var(--text);">Detay</th>
+                    </tr>
+                </thead>
+                <tbody id="logTabloGovde">
+                    <tr><td colspan="4" style="text-align:center;color:#888; padding:20px;">Yükleniyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
+            <span id="logSayac" style="color:#888; font-size:13px;">0 kayıt</span>
+            <div>
+                <button onclick="logSayfaDegistir(-1)" id="logOnceki" style="background:var(--card-border); color:var(--text); border:none; border-radius:20px; padding:6px 14px; cursor:pointer;">◀ Önceki</button>
+                <span id="logSayfaNo" style="margin:0 12px; color:var(--text);">1</span>
+                <button onclick="logSayfaDegistir(1)" id="logSonraki" style="background:var(--card-border); color:var(--text); border:none; border-radius:20px; padding:6px 14px; cursor:pointer;">Sonraki ▶</button>
+            </div>
+        </div>
+    </div>
+</div>
     <!-- MODALLAR -->
     <div id="detayModal" class="modal">
         <div class="modal-content">
@@ -243,7 +309,7 @@
                 <input type="number" id="modalMiktar" placeholder="Stok">
                 <input type="number" id="modalKritik" placeholder="Kritik">
             </div>
-            <select id="modalGrup"><option>Genel</option></select>
+           <select id="modalGrup" class="grupSelect"><option>Genel</option></select>
             <div style="display:flex; gap:10px; margin-top:15px;">
                 <button onclick="urunGuncelle()" style="flex:2; background:#27ae60; color:white; padding:10px; border:none; border-radius:8px;">Güncelle</button>
                 <button onclick="kapatModal()" style="flex:1; background:#95a5a6; color:white; padding:10px; border:none; border-radius:8px;">İptal</button>
@@ -300,6 +366,23 @@
                 📧 Bağlantı Gönder
             </button>
             <button onclick="sifreSifirlamaModalKapat()" style="flex:1; background:var(--card-border); color:var(--text); padding:14px; border:none; border-radius:40px; font-weight:600; cursor:pointer;">
+                İptal
+            </button>
+        </div>
+    </div>
+</div>
+<!-- GRUP EKLEME/DÜZENLEME MODAL -->
+<div id="grupModal" class="modal" style="display:none;" onclick="if(event.target===this) grupModalKapat()">
+    <div class="modal-content" style="max-width:400px;">
+        <h3 id="grupModalBaslik">📁 Yeni Grup</h3>
+        <input type="hidden" id="grupDuzenleId">
+        <input type="text" id="grupAdi" placeholder="Grup adı" style="margin-bottom:16px;">
+        <input type="text" id="grupAciklama" placeholder="Açıklama (isteğe bağlı)" style="margin-bottom:16px;">
+        <div style="display:flex; gap:12px;">
+            <button onclick="grupKaydet()" style="flex:2; background:var(--btn-success); color:white; padding:14px; border:none; border-radius:40px; font-weight:700; cursor:pointer;">
+                💾 Kaydet
+            </button>
+            <button onclick="grupModalKapat()" style="flex:1; background:var(--card-border); color:var(--text); padding:14px; border:none; border-radius:40px; font-weight:600; cursor:pointer;">
                 İptal
             </button>
         </div>

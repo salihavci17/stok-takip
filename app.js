@@ -189,6 +189,8 @@ window.kullaniciKayit = async () => {
 };
 
 window.kullaniciCikis = async () => {
+    localStorage.removeItem('stokSepet'); // Sepeti sil
+    sepet = [];
     await signOut(auth);
     window.location.reload();
 };
@@ -256,15 +258,119 @@ onAuthStateChanged(auth, async (user) => {
         siparisleriListele();
         checkNotificationStatus();
         loadTheme(); // Kaydedilmiş temayı yükle
+        sepetiYukle(); // <--- BURAYA EKLE
         setupFCM();
     } else {
         mevcutKullanici = null;
         mevcutRol = null;
         loginScreen.style.display = 'flex';
         mainApp.style.display = 'none';
+        if (user) {
+    await logEkle('giris', 'Kullanıcı giriş yaptı');
+} else {
+    await logEkle('cikis', 'Kullanıcı çıkış yaptı');
+}
     }
+    const logLink = document.querySelector('[data-tab="loglar"]');
+if (logLink) {
+    logLink.style.display = adminMi() ? 'block' : 'none';
+}
 });
+// ========== LOG GÖSTERİMİ ==========
+let logSayfa = 0;
+const LOG_LIMIT = 50;
+let logFiltre = 'hepsi';
+let logArama = '';
 
+async function loglariGetir() {
+    const tbody = document.getElementById('logTabloGovde');
+    if (!tbody) return;
+    
+    try {
+        let q = query(collection(db, "logs"), orderBy("tarih", "desc"), limit(LOG_LIMIT));
+        
+        // Filtre varsa uygula
+        if (logFiltre !== 'hepsi') {
+            q = query(q, where("islem", "==", logFiltre));
+        }
+        
+        // Sayfalama (offset için son belgenin timestamp'ini kullan)
+        // Basitlik için sadece ilk sayfayı gösterip sonraki sayfa için son tarihi kullanacağız
+        const snap = await getDocs(q);
+        
+        tbody.innerHTML = "";
+        if (snap.empty) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888; padding:20px;">📭 Hiç log kaydı yok</td></tr>';
+            document.getElementById('logSayac').innerText = '0 kayıt';
+            return;
+        }
+        
+        let html = "";
+        snap.forEach(d => {
+            const log = d.data();
+            const tarih = log.tarih?.toDate().toLocaleString('tr-TR') || '-';
+            // Arama filtresi
+            if (logArama && !log.kullanici.toLowerCase().includes(logArama.toLowerCase()) && 
+                !log.detay.toLowerCase().includes(logArama.toLowerCase())) {
+                return;
+            }
+            const islemEtiketi = log.islem.replace('_', ' ').toUpperCase();
+            html += `
+                <tr>
+                    <td style="padding:8px 12px; font-size:12px; color:#888;">${tarih}</td>
+                    <td style="padding:8px 12px; font-weight:500;">${log.kullanici}</td>
+                    <td style="padding:8px 12px;">
+                        <span style="background:var(--btn-primary); color:white; padding:2px 10px; border-radius:12px; font-size:11px;">${islemEtiketi}</span>
+                    </td>
+                    <td style="padding:8px 12px; font-size:13px;">${log.detay}</td>
+                </tr>
+            `;
+        });
+        
+        if (html === "") {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888; padding:20px;">🔍 Arama sonucu bulunamadı</td></tr>';
+        } else {
+            tbody.innerHTML = html;
+        }
+        
+        document.getElementById('logSayac').innerText = `${snap.size} kayıt`;
+        
+    } catch(e) {
+        console.error('Log getirme hatası:', e);
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--btn-danger); padding:20px;">❌ Loglar yüklenirken hata oluştu</td></tr>';
+    }
+}
+
+// Filtreleme
+window.loglariFiltrele = function() {
+    logFiltre = document.getElementById('logFiltreIslem')?.value || 'hepsi';
+    logArama = document.getElementById('logArama')?.value || '';
+    loglariGetir();
+};
+
+// Sayfa değiştirme (basit, sadece yeniden getir)
+window.logSayfaDegistir = function(yon) {
+    // Gelişmiş sayfalama için son belgenin timestamp'ini kullanmak gerekir.
+    // Basitlik için şimdilik sadece yenile
+    loglariGetir();
+};
+
+// Logları temizle (admin yetkisi ile)
+window.loglariTemizle = async function() {
+    if (!adminMi()) return showToast("❌ Bu işlem için admin yetkisi gerekli!", true);
+    if (!confirm("⚠️ Tüm log kayıtları silinecek. Devam etmek istediğinize emin misiniz?")) return;
+    
+    try {
+        const snap = await getDocs(collection(db, "logs"));
+        const batch = writeBatch(db);
+        snap.forEach(d => batch.delete(doc(db, "logs", d.id)));
+        await batch.commit();
+        showToast("✅ Tüm loglar temizlendi!");
+        loglariGetir();
+    } catch(e) {
+        showToast("❌ Hata: " + e.message, true);
+    }
+};
 // ========== VERİLER ==========
 function verileriGetir() {
     onSnapshot(collection(db, "stoklar"), (snap) => {
@@ -294,6 +400,7 @@ function verileriGetir() {
         kritikKontrol();
         bugunOzetiniGetir();
         popularesiGetir();
+        gruplariGetir();
     });
 }
 
@@ -328,6 +435,192 @@ function stoklariListele() {
     document.getElementById('dashToplam').innerText = toplam;
     document.getElementById('dashKritik').innerText = kritikSay;
 }
+// ========== GRUP YÖNETİMİ ==========
+
+// Grupları saklayacağımız değişken
+let gruplar = {};
+
+// Grupları Firestore'dan getir
+async function gruplariGetir() {
+    try {
+        const snap = await getDocs(collection(db, "gruplar"));
+        gruplar = {};
+        snap.forEach(d => {
+            gruplar[d.id] = { id: d.id, ...d.data() };
+        });
+        grupListesiniGoster();
+        grupSelectleriGuncelle();
+        return gruplar;
+    } catch(e) {
+        console.error('Gruplar getirilirken hata:', e);
+        return {};
+    }
+}
+
+// Grup listesini göster
+function grupListesiniGoster() {
+    const liste = document.getElementById('grupListesi');
+    if (!liste) return;
+    
+    const keys = Object.keys(gruplar);
+    if (keys.length === 0) {
+        liste.innerHTML = `
+            <div style="text-align:center; color:#888; padding:40px;">
+                <div style="font-size:48px; margin-bottom:16px;">📁</div>
+                <p>Henüz grup oluşturulmamış.</p>
+                <p style="font-size:13px; margin-top:8px;">"Yeni Grup" butonuna tıklayarak ilk grubunuzu oluşturun.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:12px;">
+    `;
+    
+    keys.sort().forEach(id => {
+        const g = gruplar[id];
+        const urunSayisi = Object.values(stoklar).filter(u => u.grup === g.ad).length;
+        html += `
+            <div style="background:var(--bg); border-radius:16px; padding:16px; border:1px solid var(--card-border);">
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                    <div>
+                        <div style="font-weight:600; font-size:16px;">📁 ${g.ad}</div>
+                        ${g.aciklama ? `<div style="font-size:12px; color:#888; margin-top:4px;">${g.aciklama}</div>` : ''}
+                        <div style="font-size:12px; color:#666; margin-top:8px;">${urunSayisi} ürün</div>
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                        <button onclick="grupDuzenle('${id}')" style="background:var(--btn-primary); color:white; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:14px;">✏️</button>
+                        <button onclick="grupSil('${id}')" style="background:var(--btn-danger); color:white; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:14px;">🗑️</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    liste.innerHTML = html;
+}
+
+// Tüm select elementlerindeki grup seçeneklerini güncelle
+function grupSelectleriGuncelle() {
+    const selects = document.querySelectorAll('.grupSelect, #modalGrup, #urunGrupSelect');
+    selects.forEach(select => {
+        const currentValue = select.value;
+        select.innerHTML = '<option value="Genel">Genel</option>';
+        Object.values(gruplar).sort((a,b) => a.ad.localeCompare(b.ad)).forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g.ad;
+            opt.textContent = g.ad;
+            select.appendChild(opt);
+        });
+        if (currentValue && [...select.options].some(o => o.value === currentValue)) {
+            select.value = currentValue;
+        }
+    });
+}
+
+// Grup ekleme formunu göster
+window.grupEkleFormuGoster = function() {
+    document.getElementById('grupModalBaslik').textContent = '📁 Yeni Grup';
+    document.getElementById('grupDuzenleId').value = '';
+    document.getElementById('grupAdi').value = '';
+    document.getElementById('grupAciklama').value = '';
+    document.getElementById('grupModal').style.display = 'flex';
+    document.getElementById('grupAdi').focus();
+};
+
+// Grup düzenleme formunu göster
+window.grupDuzenle = function(id) {
+    const g = gruplar[id];
+    if (!g) return showToast('Grup bulunamadı!', true);
+    document.getElementById('grupModalBaslik').textContent = '✏️ Grup Düzenle';
+    document.getElementById('grupDuzenleId').value = id;
+    document.getElementById('grupAdi').value = g.ad;
+    document.getElementById('grupAciklama').value = g.aciklama || '';
+    document.getElementById('grupModal').style.display = 'flex';
+    document.getElementById('grupAdi').focus();
+};
+
+// Grup modal'ını kapat
+window.grupModalKapat = function() {
+    document.getElementById('grupModal').style.display = 'none';
+};
+
+// Grup kaydet (ekle veya güncelle)
+window.grupKaydet = async function() {
+    const id = document.getElementById('grupDuzenleId').value;
+    const ad = document.getElementById('grupAdi').value.trim();
+    const aciklama = document.getElementById('grupAciklama').value.trim();
+    
+    if (!ad) {
+        showToast('❌ Lütfen grup adı girin!', true);
+        document.getElementById('grupAdi').focus();
+        return;
+    }
+    
+    // Aynı isimde başka grup var mı kontrol et (kendisi hariç)
+    const exists = Object.values(gruplar).some(g => g.ad === ad && g.id !== id);
+    if (exists) {
+        showToast('❌ Bu isimde bir grup zaten var!', true);
+        document.getElementById('grupAdi').focus();
+        return;
+    }
+    
+    try {
+        const data = { ad, aciklama: aciklama || '' };
+        
+        if (id) {
+            // Güncelle
+            await updateDoc(doc(db, "gruplar", id), data);
+            showToast('✅ Grup güncellendi!');
+        } else {
+            // Yeni ekle
+            await addDoc(collection(db, "gruplar"), data);
+            showToast('✅ Grup oluşturuldu!');
+        }
+        await logEkle('grup_${id ? "guncelle" : "ekle"}', `Grup: ${ad}`, { grupAd: ad });
+await logEkle('grup_sil', `Grup: ${g.ad} silindi`, { grupAd: g.ad });
+        grupModalKapat();
+        await gruplariGetir();
+        stoklariListele(); // Stok listesini yenile (grup renkleri güncellensin)
+        
+    } catch(e) {
+        console.error('Grup kaydetme hatası:', e);
+        showToast('❌ Hata: ' + e.message, true);
+    }
+};
+
+// Grup sil
+window.grupSil = async function(id) {
+    const g = gruplar[id];
+    if (!g) return showToast('Grup bulunamadı!', true);
+    
+    // Bu grupta ürün var mı kontrol et
+    const urunSayisi = Object.values(stoklar).filter(u => u.grup === g.ad).length;
+    if (urunSayisi > 0) {
+        if (!confirm(`⚠️ "${g.ad}" grubunda ${urunSayisi} ürün var. Bu grubu silmek istediğinize emin misiniz?\n\nÜrünler "Genel" grubuna taşınacak.`)) {
+            return;
+        }
+        
+        // Ürünleri "Genel" grubuna taşı
+        const batch = writeBatch(db);
+        Object.values(stoklar).filter(u => u.grup === g.ad).forEach(u => {
+            batch.update(doc(db, "stoklar", u.id), { grup: 'Genel' });
+        });
+        await batch.commit();
+    }
+    
+    try {
+        await deleteDoc(doc(db, "gruplar", id));
+        showToast(`✅ "${g.ad}" grubu silindi!`);
+        await gruplariGetir();
+        stoklariListele();
+    } catch(e) {
+        console.error('Grup silme hatası:', e);
+        showToast('❌ Hata: ' + e.message, true);
+    }
+};
 
 // ========== KRİTİK KONTROL + BİLDİRİM ==========
 function kritikKontrol() {
@@ -407,25 +700,34 @@ window.urunEkle = async () => {
     const ad = document.getElementById('urunAdi')?.value.trim();
     if (!ad) return showToast("Ürün adı girin!", true);
     const barkod = document.getElementById('urunBarkod')?.value.trim() || "";
+    const grup = document.getElementById('urunGrupSelect')?.value || "Genel";  // BURASI ÖNEMLİ - grup değişkenini tanımla
+    
     try {
         await setDoc(doc(collection(db, "stoklar")), {
             urunAd: ad,
             barkod: barkod,
             kalan: 0,
             kritik: 5,
-            grup: "Genel",
+            grup: grup,  // Şimdi çalışacak
             birim: "Adet",
             olusturmaTarihi: Timestamp.now()
         });
-        showToast("Ürün eklendi");
+        await logEkle('urun_ekle', `${ad} ürünü eklendi`, { urunAd: ad, barkod: barkod });
+        showToast("✅ Ürün eklendi");
         document.getElementById('urunAdi').value = "";
         document.getElementById('urunBarkod').value = "";
+        // Grup select'ini sıfırla
+        const grupSelect = document.getElementById('urunGrupSelect');
+        if (grupSelect) grupSelect.value = 'Genel';
         window.sendNotification(
             '📦 Yeni Ürün Eklendi',
             `${ad} stok sistemine eklendi.`,
             '/'
         );
-    } catch(e) { showToast("Hata: "+e.message, true); }
+    } catch(e) { 
+        console.error('Ürün ekleme hatası:', e);
+        showToast("❌ Hata: "+e.message, true); 
+    }
 };
 
 window.stokIslem = async (tip) => {
@@ -451,6 +753,7 @@ window.stokIslem = async (tip) => {
     showToast("İşlem tamam");
     document.getElementById('islemMiktar').value = "";
     const islemMetni = tip === 'giris' ? 'Giriş' : 'Çıkış';
+    await logEkle('stok_${tip}', `${urunAd} - ${tip}: ${miktar} ${stoklar[id]?.birim || 'Adet'}`, { urunId: id, miktar, tip });
     window.sendNotification(
         `📊 Stok ${islemMetni}`,
         `${urunAd} - ${islemMetni}: ${miktar} ${stoklar[id]?.birim || 'Adet'}`,
@@ -473,12 +776,13 @@ window.urunGuncelle = async () => {
         kapatModal();
     } catch(e) { showToast("Hata: "+e.message, true); }
 };
-
+await logEkle('urun_guncelle', `${getUrunAdi(stoklar[seciliUrunId])} güncellendi`, { urunId: seciliUrunId });
 window.urunSil = async (id) => {
     if (!yoneticiMi()) return showToast("Yetkiniz yok!", true);
     if (confirm("Ürün silinsin mi?")) {
         await deleteDoc(doc(db, "stoklar", id));
         showToast("Silindi");
+        await logEkle('urun_sil', `${getUrunAdi(stoklar[id])} silindi`, { urunId: id });
     }
 };
 
@@ -510,6 +814,7 @@ window.sepeteEkle = () => {
     sepetiGoster();
     document.getElementById('islemMiktar').value = "";
     showToast("Sepete eklendi");
+    sepetiKaydet();
 };
 
 function sepetiGoster() {
@@ -527,11 +832,42 @@ function sepetiGoster() {
             </div>
         `).join('');
         if (butonlar) butonlar.style.display = 'flex';
+         sepetiKaydet(); // En sona ekle
+    }
+}
+// ========== SEPET KALICI YAPMA (localStorage) ==========
+
+// Sepeti localStorage'a kaydet
+function sepetiKaydet() {
+    try {
+        localStorage.setItem('stokSepet', JSON.stringify(sepet));
+    } catch (e) {
+        console.warn('Sepet kaydedilemedi:', e);
     }
 }
 
-window.sepetSil = (i) => { sepet.splice(i, 1); sepetiGoster(); showToast("Çıkarıldı"); };
-
+// localStorage'dan sepeti yükle
+function sepetiYukle() {
+    try {
+        const kayitli = localStorage.getItem('stokSepet');
+        if (kayitli) {
+            sepet = JSON.parse(kayitli);
+            // Eski ürünlerin hala stokta olup olmadığını kontrol et (isteğe bağlı)
+            // ama şimdilik sadece yükle
+        } else {
+            sepet = [];
+        }
+    } catch (e) {
+        console.warn('Sepet yüklenemedi, sıfırlanıyor:', e);
+        sepet = [];
+    }
+    sepetiGoster(); // Listeyi güncelle
+}
+window.sepetSil = (i) => {
+    sepet.splice(i, 1);
+    sepetiGoster();
+    showToast("Çıkarıldı");
+};
 window.topluIslem = async (tip) => {
     if (sepet.length === 0) return showToast("Sepet boş!", true);
     const batch = writeBatch(db);
@@ -553,6 +889,7 @@ window.topluIslem = async (tip) => {
     showToast("Toplu işlem tamam");
     sepet = [];
     sepetiGoster();
+    sepetiKaydet();
 };
 
 // ========== KAMERA ==========
@@ -1027,6 +1364,7 @@ async function siparisleriListele() {
                     <td><span class="${durumClass}">${durumText}</span></td>
                     <td>
                         <button onclick="siparisDetayGoster('${id}')" style="background:var(--btn-primary); color:white; border:none; border-radius:20px; padding:4px 10px; margin-right:4px;">👁️</button>
+                        <button onclick="siparisSepeteEkle('${id}')" style="background:#f39c12; color:white; border:none; border-radius:20px; padding:4px 10px; margin-right:4px;">🛒</button> <!-- YENİ -->
                         <button onclick="ihtiyacListesiYazdir('tek', '${id}')" style="background:var(--btn-dark); color:white; border:none; border-radius:20px; padding:4px 10px; margin-right:4px;">🖨️</button>
                         <select onchange="siparisDurumGuncelle('${id}', this.value)" style="padding:4px 8px; border-radius:16px; background:var(--input-bg); color:var(--text); border:1px solid var(--card-border); font-size:12px; margin-right:4px;">
                             <option value="bekliyor" ${durum === 'bekliyor' ? 'selected' : ''}>Bekliyor</option>
@@ -1239,7 +1577,46 @@ window.kritikStoktanSiparisOlustur = async () => {
     });
     showToast(`${kritikler.length} kritik ürün ihtiyaç listesine eklendi`);
 };
-
+// ========== SİPARİŞİ SEPETE EKLE ==========
+window.siparisSepeteEkle = async function(siparisId) {
+    try {
+        const docSnap = await getDoc(doc(db, "siparisler", siparisId));
+        if (!docSnap.exists()) {
+            showToast("❌ Sipariş bulunamadı!", true);
+            return;
+        }
+        
+        const data = docSnap.data();
+        const urunler = data.urunler || [];
+        
+        if (urunler.length === 0) {
+            showToast("📭 Bu siparişte ürün yok!", true);
+            return;
+        }
+        
+        let eklendi = 0;
+        urunler.forEach(u => {
+            const mevcut = sepet.find(item => item.id === u.urunId);
+            if (mevcut) {
+                mevcut.miktar += u.miktar;
+            } else {
+                sepet.push({
+                    id: u.urunId,
+                    ad: u.urunAd,
+                    miktar: u.miktar
+                });
+            }
+            eklendi++;
+        });
+        
+        sepetiGoster();
+        showToast(`✅ ${eklendi} ürün sepete eklendi!`);
+        
+    } catch (e) {
+        console.error('Sipariş sepete ekleme hatası:', e);
+        showToast("❌ Hata: " + e.message, true);
+    }
+};
 // ========== YAZDIRMA ==========
 window.ihtiyacListesiYazdir = async (tip = 'hepsi', siparisId = null) => {
     try {
@@ -1477,6 +1854,22 @@ async function setupFCM() {
             console.log('FCM yeniden deneniyor...');
             setupFCM();
         }, 5000);
+    }
+}
+// ========== AKTİVİTE LOG ==========
+async function logEkle(islem, detay, ekstra = {}) {
+    try {
+        if (!mevcutKullanici) return;
+        await addDoc(collection(db, "logs"), {
+            kullanici: mevcutKullanici.email,
+            kullaniciId: mevcutKullanici.uid,
+            islem: islem,
+            detay: detay,
+            tarih: Timestamp.now(),
+            ...ekstra
+        });
+    } catch (e) {
+        console.error('Log ekleme hatası:', e);
     }
 }
 // ========== BAŞLAT ==========
