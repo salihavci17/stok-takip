@@ -20,5 +20,22 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Hızlı İşlem",
+      "short_name": "Hızlı",
+      "description": "Stok giriş/çıkış yap",
+      "url": "index.html#hizli-islem",
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2897/2897785.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Stok Listesi",
+      "short_name": "Liste",
+      "description": "Tüm stokları gör",
+      "url": "index.html#stok-listesi",
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2897/2897785.png", "sizes": "192x192" }]
+    }
   ]
 }

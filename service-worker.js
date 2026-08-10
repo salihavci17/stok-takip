@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stok-v6';
+const CACHE_NAME = 'stok-v7';
 const ASSETS = [
   './',
   './index.html',
@@ -36,30 +36,30 @@ self.addEventListener('activate', event => {
   );
 });
 
-// ========== FETCH EVENT - SADECE STATİK DOSYALAR ==========
+// ========== FETCH EVENT ==========
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // Sadece GET isteklerini işle, diğerlerini direkt geç
   if (request.method !== 'GET') {
     event.respondWith(fetch(request));
     return;
   }
 
-  // Firebase, Google API ve CDN isteklerini asla yakalama
+  // Firebase ve CDN isteklerini direkt geç
   if (url.hostname.includes('firebase') || 
       url.hostname.includes('googleapis') ||
       url.hostname.includes('gstatic') ||
       url.hostname.includes('firestore.googleapis.com') ||
       url.hostname.includes('cloudfunctions.net') ||
       url.hostname.includes('unpkg.com') ||
-      url.hostname.includes('cdnjs.cloudflare.com')) {
+      url.hostname.includes('cdnjs.cloudflare.com') ||
+      url.hostname.includes('cdn.jsdelivr.net')) {
     event.respondWith(fetch(request));
     return;
   }
 
-  // Kendi statik dosyalarımızı önbellekten veya ağdan getir
+  // Statik dosyaları önbellekten veya ağdan getir
   event.respondWith(
     caches.match(request)
       .then(cached => {
@@ -108,7 +108,6 @@ self.addEventListener('push', event => {
   );
 });
 
-// Bildirime tıklandığında
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   if (event.action === 'open' || !event.action) {
