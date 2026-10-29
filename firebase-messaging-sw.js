@@ -1,10 +1,8 @@
 // firebase-messaging-sw.js
 
-// Firebase SDK'larını import et
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
-// Firebase konfigürasyonunu (app.js'dekiyle aynı) buraya ekleyin
 const firebaseConfig = {
     apiKey: "AIzaSyBdxkBa8K77nnLVFefpyzS-ACuxuZhhPc8",
     authDomain: "stok-app-ca168.firebaseapp.com",
@@ -16,10 +14,8 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 
-// Messaging nesnesini al
 const messaging = firebase.messaging();
 
-// Arka planda (arka planda veya kapalıyken) mesaj alındığında çalışır
 messaging.onBackgroundMessage((payload) => {
     console.log('[firebase-messaging-sw.js] Arka planda mesaj alındı:', payload);
 
@@ -39,7 +35,6 @@ messaging.onBackgroundMessage((payload) => {
     self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Bildirime tıklandığında
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const urlToOpen = event.notification.data?.url || '/';

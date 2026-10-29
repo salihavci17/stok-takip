@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stok-v7';
+const CACHE_NAME = 'stok-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -6,7 +6,8 @@ const ASSETS = [
   './app.js',
   './manifest.json',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  'https://unpkg.com/html5-qrcode',
+  'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+  'https://cdn.jsdelivr.net/npm/chart.js',
   'https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap'
 ];
 
@@ -17,6 +18,17 @@ self.addEventListener('install', event => {
       .then(cache => {
         console.log('Service Worker: Caching assets...');
         return cache.addAll(ASSETS);
+      })
+      .catch(err => {
+        console.error('Service Worker: Önbellek açma hatası:', err);
+        self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({
+              type: 'CACHE_ERROR',
+              message: 'Tarayıcı depolama alanı dolu. Lütfen site verilerini temizleyin.'
+            });
+          });
+        });
       })
       .then(() => self.skipWaiting())
   );
@@ -42,11 +54,10 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
 
   if (request.method !== 'GET') {
-    event.respondWith(fetch(request));
+    event.respondWith(fetch(request).catch(() => new Response('', { status: 503 })));
     return;
   }
 
-  // Firebase ve CDN isteklerini direkt geç
   if (url.hostname.includes('firebase') || 
       url.hostname.includes('googleapis') ||
       url.hostname.includes('gstatic') ||
@@ -55,11 +66,15 @@ self.addEventListener('fetch', event => {
       url.hostname.includes('unpkg.com') ||
       url.hostname.includes('cdnjs.cloudflare.com') ||
       url.hostname.includes('cdn.jsdelivr.net')) {
-    event.respondWith(fetch(request));
+    event.respondWith(
+      fetch(request).catch(err => {
+        console.warn('Service Worker: Harici istek başarısız:', request.url, err);
+        return new Response(null, { status: 503, statusText: 'Service Unavailable' });
+      })
+    );
     return;
   }
 
-  // Statik dosyaları önbellekten veya ağdan getir
   event.respondWith(
     caches.match(request)
       .then(cached => {
@@ -69,7 +84,7 @@ self.addEventListener('fetch', event => {
         return fetch(request).then(response => {
           if (response && response.status === 200 && url.origin === location.origin) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone)).catch(() => {});
           }
           return response;
         });
@@ -114,5 +129,14 @@ self.addEventListener('notificationclick', event => {
     event.waitUntil(
       clients.openWindow(event.notification.data.url || '/')
     );
+  }
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'CACHE_ERROR') {
+    event.source.postMessage({
+      type: 'CACHE_ERROR',
+      message: event.data.message
+    });
   }
 });

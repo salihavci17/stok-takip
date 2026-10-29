@@ -13,13 +13,45 @@
     <title>Stok Takip Sistemi</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <!-- Toast Bildirim -->
 <div id="toastMessage" class="toast-message"></div>
+
+<!-- Yükleme Spinner -->
+<div id="loadingSpinner" class="loading-spinner" style="display:none;">
+    <div class="spinner-container">
+        <div class="spinner"></div>
+        <p id="loadingText">Yükleniyor...</p>
+    </div>
+</div>
+
+<!-- Progress Bar (Toplu İşlem) -->
+<div id="progressContainer" style="display:none; position:fixed; bottom:160px; left:50%; transform:translateX(-50%); width:90%; max-width:400px; z-index:999; background:var(--bg-card); border-radius:12px; padding:16px; box-shadow:var(--shadow); border:1px solid var(--border);">
+    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span id="progressLabel" style="font-weight:600; font-size:14px;">İşlem devam ediyor...</span>
+        <span id="progressPercent" style="font-weight:700; color:var(--primary);">0%</span>
+    </div>
+    <div style="width:100%; height:8px; background:var(--bg); border-radius:4px; overflow:hidden;">
+        <div id="progressBar" style="width:0%; height:100%; background:linear-gradient(90deg, var(--primary), var(--success)); transition:width 0.3s ease; border-radius:4px;"></div>
+    </div>
+</div>
+
+<!-- Özel Confirm Modal -->
+<div id="confirmModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:400px;">
+        <h3 id="confirmTitle">⚠️ Emin misiniz?</h3>
+        <p id="confirmMessage" style="color:var(--text-secondary); margin:12px 0;">Bu işlemi gerçekleştirmek istediğinize emin misiniz?</p>
+        <div style="display:flex; gap:12px; margin-top:16px;">
+            <button id="confirmYesBtn" class="btn-guncelle" style="flex:2;">Evet, Devam Et</button>
+            <button id="confirmNoBtn" class="btn-iptal" style="flex:1;">Hayır</button>
+        </div>
+    </div>
+</div>
 
 <!-- GİRİŞ EKRANI -->
 <div id="loginScreen">
@@ -32,6 +64,10 @@
         <div id="girisForm" class="login-form active">
             <input type="email" id="loginEmail" placeholder="E-posta">
             <input type="password" id="loginPassword" placeholder="Şifre">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                <input type="checkbox" id="rememberMe" style="width:auto; margin:0; padding:0;">
+                <label for="rememberMe" style="font-size:14px; color:var(--text-secondary); cursor:pointer;">Beni Hatırla</label>
+            </div>
             <button class="btn-login" onclick="kullaniciGiris()">Giriş Yap</button>
             <div style="text-align:center; margin-top:12px;">
                 <a href="#" onclick="sifreSifirlamaFormuGoster(); return false;" style="color:var(--text); opacity:0.7; text-decoration:none; font-size:14px;">
@@ -52,7 +88,6 @@
     <!-- App Header -->
     <div class="app-header">
         <div class="header-left">
-            <button class="menu-toggle" id="menuToggleBtn">☰</button>
             <h1>📦 Stok Takip</h1>
         </div>
         <div class="user-info">
@@ -64,32 +99,45 @@
                 <option value="blue">🔵 Mavi</option>
                 <option value="green">🟢 Yeşil</option>
                 <option value="purple">🟣 Mor</option>
+                <option value="sunset">🌅 Gün Batımı</option>
+                <option value="ocean">🌊 Okyanus</option>
             </select>
-            <button id="notificationToggleBtn" class="btn-notification">🔔</button>
+            <button id="notificationToggleBtn" class="btn-notification">🔔<span id="kritikBadge" class="badge" style="display:none;">0</span></button>
             <button class="btn-logout" onclick="kullaniciCikis()">🚪 Çıkış</button>
         </div>
     </div>
 
-    <!-- Sidebar -->
-    <div id="sidebar" class="sidebar">
-        <button class="close-sidebar" onclick="toggleSidebar()">✖</button>
-        <ul>
-            <li><a href="#" data-tab="hizli-islem" class="tab-link active">⚡ Hızlı İşlem</a></li>
-            <li><a href="#" data-tab="stok-listesi" class="tab-link">📋 Liste</a></li>
-            <li><a href="#" data-tab="yeni-urun" class="tab-link">➕ Yeni Ürün</a></li>
-            <li><a href="#" data-tab="gruplar" class="tab-link">📁 Gruplar</a></li>
-            <li><a href="#" data-tab="hareketler" class="tab-link">🕒 Hareketler</a></li>
-            <li><a href="#" data-tab="rapor" class="tab-link">📊 Rapor</a></li>
-            <li><a href="#" data-tab="siparisler" class="tab-link">📦 Siparişler</a></li>
-            <li><a href="#" data-tab="kullanicilar" class="tab-link" id="kullaniciTabLink">👥 Kullanıcılar</a></li>
-            <li><a href="#" data-tab="loglar" class="tab-link">📋 Loglar</a></li>
-        </ul>
+    <!-- Sabit Yatay Menü (Quick Nav) -->
+    <div id="quickNav" class="quick-nav top">
+        <div id="quickNavContainer" class="quick-nav-container"></div>
+        <div style="display:flex; align-items:center; gap:4px;">
+            <button id="quickNavSettingsBtn" class="quick-nav-settings" onclick="toggleQuickNavSettings()">⚙️</button>
+            <button id="menuToggleBtn" class="menu-toggle-btn" onclick="toggleMoreMenu()" title="Tüm menü">⋮</button>
+        </div>
     </div>
 
-    <!-- Sidebar Overlay -->
-    <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <!-- Mobil Menü (Hamburger açılır) -->
+    <div id="mobileMenu" class="mobile-menu"></div>
 
-    <!-- ========== DASHBOARD (ÖZELLEŞTİRİLEBİLİR) ========== -->
+    <!-- Özelleştirme modal'ı -->
+    <div id="quickNavSettingsModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:400px;">
+            <h3>⚙️ Menü Özelleştir</h3>
+            <p style="font-size:14px; color:var(--text-secondary); margin-bottom:16px;">
+                Göstermek istediğiniz menü öğelerini seçin.
+            </p>
+            <div id="quickNavSettingsList" class="quick-nav-settings-list"></div>
+            <div style="margin-top:16px; display:flex; gap:12px;">
+                <button onclick="saveQuickNavSettings()" class="btn-guncelle" style="flex:2;">💾 Kaydet</button>
+                <button onclick="closeQuickNavSettings()" class="btn-iptal">İptal</button>
+                <button onclick="toggleQuickNavPosition()" style="background:var(--btn-warning); color:black; border:none; border-radius:40px; padding:10px; font-weight:600; cursor:pointer;">
+                    🔄 Üst/Alt Değiştir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== DASHBOARD ========== -->
     <div id="dashboardContainer">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <h2 style="font-size:18px;">📊 Genel Bakış</h2>
@@ -105,16 +153,28 @@
                 <button onclick="widgetEkle('bugunGiris')" class="widget-ekle-btn">📥 Bugün Giriş</button>
                 <button onclick="widgetEkle('populer')" class="widget-ekle-btn">🏆 Popüler</button>
                 <button onclick="widgetEkle('kritikListe')" class="widget-ekle-btn">📋 Kritik Liste</button>
+                <button onclick="widgetEkle('sonHareketler')" class="widget-ekle-btn">🕒 Son Hareketler</button>
+                <button onclick="widgetEkle('siparisSayisi')" class="widget-ekle-btn">📦 Sipariş Sayısı</button>
+                <button onclick="widgetEkle('kullaniciSayisi')" class="widget-ekle-btn">👥 Kullanıcı Sayısı</button>
+                <button onclick="widgetEkle('grupSayisi')" class="widget-ekle-btn">📁 Grup Sayısı</button>
+                <button onclick="widgetEkle('toplamUrunCesidi')" class="widget-ekle-btn">🏷️ Ürün Çeşidi</button>
+                <button onclick="widgetEkle('bugunCikis')" class="widget-ekle-btn">📤 Bugün Çıkış</button>
             </div>
             <button onclick="dashboardDuzenleModu()" style="margin-top:8px; background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:4px 12px; cursor:pointer;">✖ Kapat</button>
         </div>
 
-        <div id="dashboardWidgets" class="dashboard" style="display:flex; gap:12px; flex-wrap:wrap;">
-            <!-- Widget'lar buraya dinamik olarak eklenecek -->
+        <!-- GRAFİK WIDGET -->
+        <div id="grafikWidget" class="dash-card" style="flex: 1 1 100%; min-width: 280px;">
+            <small>📈 SON 7 GÜN HAREKET</small>
+            <canvas id="hareketGrafik" style="width:100%; max-height:200px;"></canvas>
         </div>
+
+        <div id="dashboardWidgets" class="dashboard"></div>
     </div>
-    
-    <!-- KRİTİK PANEL (eskiden ayrıydı, şimdi widget olarak eklenecek) -->
+
+    <div id="reader" style="width:100%; display:none; margin-bottom:10px;"></div>
+
+    <!-- KRİTİK PANEL -->
     <div id="kritikPanel" class="kritik-panel" style="display:none;">
         <h4>⚠️ Kritik Seviyedeki Ürünler</h4>
         <ul id="kritikListe"></ul>
@@ -123,25 +183,32 @@
             <button onclick="siparisYazdir()" style="flex:1; background:#34495e; color:white; border:none; padding:8px; border-radius:8px;">🖨️ Yazdır</button>
         </div>
     </div>
-    
-    <!-- Tüm tab içerikleri (eski halinden değişmedi) -->
+
+    <!-- ========== TAB İÇERİKLERİ ========== -->
+
+    <!-- HIZLI İŞLEM -->
     <div id="hizli-islem" class="tab-content active">
         <div class="card">
-            <div id="reader" style="width:100%; display:none; margin-bottom:10px;"></div>
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button id="kameraAcBtn" style="flex:1; background:#27ae60; color:white; padding:12px; border:none; border-radius:10px;">📷 Barkod Oku</button>
-                <button id="kameraKapatBtn" style="flex:1; background:#e74c3c; color:white; padding:12px; border:none; border-radius:10px; display:none;">❌ Kapat</button>
+                <button id="kameraAcBtn" onclick="kameraBaslat()" style="flex:1; background:#27ae60; color:white; padding:12px; border:none; border-radius:10px;">📷 Barkod Oku</button>
+                <button id="kameraKapatBtn" onclick="kameraDurdur()" style="flex:1; background:#e74c3c; color:white; padding:12px; border:none; border-radius:10px; display:none;">❌ Kapat</button>
             </div>
         </div>
         <select id="urunSelect"><option value="">Ürün Seçin</option></select>
         <input type="number" id="islemMiktar" placeholder="Adet">
-        <div class="islem-butonlar">
-            <button class="btn-giris" onclick="stokIslem('giris')">GİRİŞ (+)</button>
-            <button class="btn-cikis" onclick="stokIslem('cikis')">ÇIKIŞ (-)</button>
+        <input type="datetime-local" id="islemTarihi" placeholder="Tarih & Saat (boş bırakırsanız şimdi)">
+        
+        <!-- SABİT BUTON CONTAİNER -->
+        <div class="sticky-button-container">
+            <div class="islem-butonlar">
+                <button class="btn-giris" onclick="stokIslem('giris')">GİRİŞ (+)</button>
+                <button class="btn-cikis" onclick="stokIslem('cikis')">ÇIKIŞ (-)</button>
+            </div>
+            <button class="btn-sepet" onclick="sepeteEkle()">➕ Sepete Ekle</button>
         </div>
-        <button class="btn-sepet" onclick="sepeteEkle()">➕ Sepete Ekle</button>
     </div>
-    
+
+    <!-- SEPET -->
     <div class="sepet-alani">
         <h4>🛒 Sepetiniz</h4>
         <div id="sepetListesi">Sepet boş</div>
@@ -150,26 +217,44 @@
             <button onclick="topluIslem('cikis')" style="flex:1; background:#e67e22; color:white; padding:10px; border:none; border-radius:8px;">Toplu Çıkış</button>
         </div>
     </div>
-    
+
+    <!-- STOK LİSTESİ -->
     <div id="stok-listesi" class="tab-content">
         <h3>Stok Listesi</h3>
-        <input type="text" id="aramaKutusu" placeholder="Ürün Ara..." onkeyup="tabloFiltrele()">
+        <div class="gelişmiş-arama">
+            <input type="text" id="aramaKutusu" placeholder="Ürün adı, barkod, grup veya açıklama..." onkeyup="gelişmişArama()">
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+                <select id="aramaGrup" onchange="gelişmişArama()" style="flex:1; min-width:120px;">
+                    <option value="">Tüm Gruplar</option>
+                </select>
+                <input type="text" id="aramaBarkod" placeholder="Barkod" onkeyup="gelişmişArama()" style="flex:1; min-width:120px;">
+                <button onclick="aramaTemizle()" style="background:var(--card-border); color:var(--text); border:none; border-radius:20px; padding:8px 16px; cursor:pointer;">Temizle</button>
+            </div>
+        </div>
         <div style="overflow-x:auto;"><table class="stok-tablo"><thead><tr><th>Ürün</th><th>Mevcut</th><th></th></tr></thead><tbody id="tablo"></tbody></table></div>
     </div>
-    
+
+    <!-- YENİ ÜRÜN -->
     <div id="yeni-urun" class="tab-content">
         <h3>Yeni Ürün Ekle</h3>
         <input type="text" id="urunAdi" placeholder="Ürün Adı">
         <div style="display:flex; gap:5px;">
             <input type="text" id="urunBarkod" placeholder="Barkod" style="flex:1;">
-            <button id="yeniUrunKameraBtn" style="background:#34495e; color:white; padding:0 15px; border:none; border-radius:8px;">📷</button>
+            <button id="yeniUrunKameraBtn" onclick="yeniUrunKamera()" style="background:#34495e; color:white; padding:0 15px; border:none; border-radius:8px;">📷</button>
         </div>
         <select id="urunGrupSelect" class="grupSelect" style="margin-top:10px;">
             <option value="Genel">Genel</option>
         </select>
         <button onclick="urunEkle()" style="width:100%; background:#3498db; color:white; padding:12px; border:none; border-radius:10px; margin-top:10px;">Kaydet</button>
+        
+        <hr style="margin:20px 0; border-color:var(--border);">
+        <h4>📊 Toplu Ürün Ekle (Excel)</h4>
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">Excel dosyası seçin. Sütunlar: <strong>ürünAdı, barkod, grup, kritik</strong></p>
+        <input type="file" id="excelFile" accept=".xlsx,.xls" style="margin-bottom:12px;">
+        <button onclick="excelUrunleriYukle()" style="width:100%; background:var(--btn-success); color:black; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer;">📤 Excel'den Yükle</button>
+        <div id="excelYukleDurum" style="margin-top:12px; font-size:13px; color:var(--text-secondary);"></div>
     </div>
-    
+
     <!-- GRUPLAR -->
     <div id="gruplar" class="tab-content">
         <div style="background:var(--card-bg); border-radius:15px; padding:20px;">
@@ -183,55 +268,125 @@
                 <div style="text-align:center; color:#888; padding:20px;">Yükleniyor...</div>
             </div>
         </div>
+        <input type="text" id="grupArama" placeholder="🔍 Grup ara..." onkeyup="debounceSearch('grupArama', gruplariFiltrele)" style="margin-bottom:12px;">
     </div>
-    
+
+    <!-- HAREKETLER -->
     <div id="hareketler" class="tab-content">
-        <h3>Son Hareketler</h3>
-        <div style="overflow-x:auto;"><table><thead><tr><th>Tarih</th><th>Ürün</th><th>Miktar</th><th>İşlem</th></tr></thead><tbody id="hareketlerTablo"></tbody></table></div>
+        <h3>🕒 Hareketler</h3>
+        <div class="filtre-alani" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+            <input type="date" id="hareketBaslangic" placeholder="Başlangıç">
+            <input type="date" id="hareketBitis" placeholder="Bitiş">
+            <input type="text" id="hareketUrunFiltre" placeholder="Ürün ara..." onkeyup="debounceSearch('hareketUrunFiltre', hareketleriFiltrele)">
+            <button onclick="hareketleriFiltrele()" style="background:var(--btn-primary); color:white; border:none; border-radius:40px; padding:8px 16px;">🔍 Filtrele</button>
+            <button onclick="hareketleriTemizle()" style="background:var(--card-border); color:var(--text); border:none; border-radius:40px; padding:8px 16px;">Temizle</button>
+        </div>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Ürün</th>
+                        <th>Miktar</th>
+                        <th>İşlem</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="hareketlerTablo"></tbody>
+            </table>
+        </div>
     </div>
-    
+
+    <!-- HAREKET DÜZENLEME MODAL -->
+    <div id="hareketDuzenleModal" class="modal" style="display:none;" onclick="if(event.target===this) hareketDuzenleKapat()">
+        <div class="modal-content">
+            <h3>✏️ Hareket Düzenle</h3>
+            <input type="hidden" id="hareketDuzenleId">
+            <div style="margin-bottom:12px;">
+                <label style="display:block; font-weight:600; margin-bottom:4px;">Miktar</label>
+                <input type="number" id="hareketDuzenleMiktar" min="1" step="1" style="width:100%;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block; font-weight:600; margin-bottom:4px;">İşlem Türü</label>
+                <select id="hareketDuzenleTur" style="width:100%;">
+                    <option value="giris">📥 Giriş</option>
+                    <option value="cikis">📤 Çıkış</option>
+                </select>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-weight:600; margin-bottom:4px;">Tarih & Saat</label>
+                <input type="datetime-local" id="hareketDuzenleTarih" style="width:100%;">
+            </div>
+            <div style="display:flex; gap:12px;">
+                <button onclick="hareketDuzenleKaydet()" style="flex:2; background:var(--btn-success); color:white; border:none; border-radius:40px; padding:12px; font-weight:700; cursor:pointer;">💾 Güncelle</button>
+                <button onclick="hareketDuzenleKapat()" style="flex:1; background:var(--card-border); color:var(--text); border:none; border-radius:40px; padding:12px; font-weight:600; cursor:pointer;">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RAPOR -->
     <div id="rapor" class="tab-content">
         <div style="background:var(--card-bg); border-radius:15px; padding:20px;">
-            <h3>📊 Raporlama</h3>
-            <div style="display:flex; gap:10px; margin-bottom:10px;">
-                <input type="date" id="raporBaslangic">
-                <input type="date" id="raporBitis">
-            </div>
-            <select id="raporFiltre" style="margin-bottom:10px; width:100%; padding:10px;">
-                <option value="hepsi">Tüm İşlemler</option>
-                <option value="giris">Sadece Girişler</option>
-                <option value="cikis">Sadece Çıkışlar</option>
-            </select>
-            <button onclick="raporOlustur()" style="width:100%; background:var(--btn-dark); color:white; padding:12px; border:none; border-radius:10px;">🔍 Sorgula</button>
-            <div id="raporSonuc" style="display:none; margin-top:15px;">
-                <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
-                    <button onclick="excelIndir()" style="flex:1; background:var(--btn-success); color:white; padding:10px; border:none; border-radius:8px;">📊 Excel İndir</button>
-                    <button onclick="pdfIndir()" style="flex:1; background:var(--btn-danger); color:white; padding:10px; border:none; border-radius:8px;">📄 PDF İndir</button>
+            <h3 style="margin-bottom:16px;">📊 Raporlama</h3>
+            <div class="rapor-filtre-alani">
+                <div class="tarih-satiri">
+                    <input type="date" id="raporBaslangic" placeholder="Başlangıç">
+                    <input type="date" id="raporBitis" placeholder="Bitiş">
                 </div>
-                <div style="overflow-x:auto; border-radius:12px; border:1px solid var(--card-border); background:var(--card-bg);">
+                <div class="saat-grubu">
+                    <div class="saat-satiri">
+                        <label>Başlangıç Saati</label>
+                        <select id="raporSaatBaslangicSaat"></select>
+                        <span>:</span>
+                        <select id="raporSaatBaslangicDakika"></select>
+                    </div>
+                    <div class="saat-satiri">
+                        <label>Bitiş Saati</label>
+                        <select id="raporSaatBitisSaat"></select>
+                        <span>:</span>
+                        <select id="raporSaatBitisDakika"></select>
+                    </div>
+                </div>
+                <select id="raporFiltre">
+                    <option value="hepsi">Tüm İşlemler</option>
+                    <option value="giris">Sadece Girişler</option>
+                    <option value="cikis">Sadece Çıkışlar</option>
+                </select>
+                <button onclick="raporOlustur()">🔍 Sorgula</button>
+            </div>
+
+            <div id="raporSonuc" style="display:none;">
+                <div style="display:flex; gap:10px; margin:12px 0; flex-wrap:wrap;">
+                    <button onclick="excelIndir()" style="flex:1; background:var(--btn-success); color:white; padding:10px; border:none; border-radius:8px; cursor:pointer; min-width:120px;">📊 Excel İndir</button>
+                    <button onclick="pdfIndir()" style="flex:1; background:var(--btn-danger); color:white; padding:10px; border:none; border-radius:8px; cursor:pointer; min-width:120px;">📄 PDF İndir</button>
+                </div>
+                <div style="overflow-x:auto; border-radius:12px; border:1px solid var(--border); background:var(--card-bg);">
                     <table id="raporTablo" style="width:100%; border-collapse:collapse;">
                         <thead>
-                            <tr style="background:var(--card-border);">
-                                <th style="padding:12px; text-align:left; color:var(--text);">Ürün Adı</th>
-                                <th style="padding:12px; text-align:center; color:var(--text);">📥 Giriş</th>
-                                <th style="padding:12px; text-align:center; color:var(--text);">📤 Çıkış</th>
+                            <tr>
+                                <th style="padding:12px; text-align:left;">🕒 Saat</th>
+                                <th style="padding:12px; text-align:left;">📦 Ürün</th>
+                                <th style="padding:12px; text-align:center;">↕️ İşlem</th>
+                                <th style="padding:12px; text-align:center;">🔢 Miktar</th>
                             </tr>
                         </thead>
                         <tbody id="raporTabloGovde">
-                            <tr><td colspan="3" style="text-align:center;color:#888; padding:20px;">Henüz rapor oluşturulmadı</td></tr>
+                            <tr><td colspan="4" style="text-align:center;color:#888; padding:20px;">Rapor oluşturmak için "Sorgula" butonuna tıklayın</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
     </div>
-    
+
+    <!-- SİPARİŞLER -->
     <div id="siparisler" class="tab-content">
         <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
             <button onclick="siparisFormuGoster()" style="flex:1; background:#3498db; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">➕ Yeni İhtiyaç Listesi</button>
             <button onclick="kritikStoktanSiparisOlustur()" style="flex:1; background:#e67e22; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">⚠️ Kritik Stoktan Liste</button>
             <button onclick="ihtiyacListesiYazdir('hepsi')" style="flex:1; background:#2c3e50; color:white; border:none; border-radius:32px; padding:12px; font-weight:bold; min-width:120px;">🖨️ Tümünü Yazdır</button>
         </div>
+        <input type="text" id="siparisArama" placeholder="🔍 Sipariş ara..." onkeyup="debounceSearch('siparisArama', siparisleriFiltrele)" style="margin-bottom:12px;">
         <div class="tablo-kapsayici">
             <table>
                 <thead>
@@ -248,7 +403,8 @@
             </table>
         </div>
     </div>
-    
+
+    <!-- KULLANICILAR -->
     <div id="kullanicilar" class="tab-content">
         <h3>👥 Kullanıcı Yönetimi</h3>
         <div class="kullanici-ekle">
@@ -268,12 +424,13 @@
             <div id="kullaniciListesi"></div>
         </div>
     </div>
-    
+
+    <!-- LOGLAR -->
     <div id="loglar" class="tab-content">
         <div style="background:var(--card-bg); border-radius:15px; padding:20px;">
             <h3>📋 Aktivite Logları</h3>
             <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
-                <input type="text" id="logArama" placeholder="🔍 Kullanıcı veya işlem ara..." style="flex:1; min-width:150px;" onkeyup="loglariFiltrele()">
+                <input type="text" id="logArama" placeholder="🔍 Kullanıcı veya işlem ara..." style="flex:1; min-width:150px;" onkeyup="debounceSearch('logArama', loglariFiltrele)">
                 <select id="logFiltreIslem" onchange="loglariFiltrele()" style="flex:0 0 auto;">
                     <option value="hepsi">Tüm İşlemler</option>
                     <option value="giris">Giriş</option>
@@ -314,8 +471,109 @@
             </div>
         </div>
     </div>
-    
-    <!-- MODALLAR -->
+
+    <!-- YEDEKLE -->
+    <div id="yedekle" class="tab-content">
+        <div style="background:var(--card-bg); border-radius:15px; padding:20px;">
+            <h3>💾 Veri Yedekleme</h3>
+            <p style="color:var(--text); opacity:0.7; margin-bottom:16px;">
+                Tüm verilerinizi JSON veya CSV formatında dışa aktarabilirsiniz.
+            </p>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <button onclick="verileriYedekle('json')" style="flex:1; background:var(--btn-primary); color:white; border:none; border-radius:40px; padding:14px; font-weight:600; cursor:pointer; min-width:120px;">
+                    📄 JSON İndir
+                </button>
+                <button onclick="verileriYedekle('csv')" style="flex:1; background:var(--btn-success); color:white; border:none; border-radius:40px; padding:14px; font-weight:600; cursor:pointer; min-width:120px;">
+                    📊 CSV İndir
+                </button>
+            </div>
+            <div id="yedekleDurum" style="margin-top:12px; color:#888; font-size:13px;"></div>
+        </div>
+    </div>
+
+    <!-- GERİ BİLDİRİM -->
+    <div id="feedback" class="tab-content">
+        <div style="background:var(--card-bg); border-radius:var(--radius); padding:24px;">
+            <h3>💬 Geri Bildirim</h3>
+            <p style="color:var(--text-secondary); margin-bottom:16px;">
+                Uygulama hakkındaki düşüncelerinizi, önerilerinizi veya karşılaştığınız sorunları bize yazın.
+            </p>
+            <input type="text" id="feedbackKonu" placeholder="Konu (isteğe bağlı)">
+            <textarea id="feedbackMesaj" rows="4" placeholder="Mesajınızı yazın..." style="width:100%; padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--input-bg); color:var(--input-text); font-family:var(--font-family);"></textarea>
+            <div style="display:flex; gap:12px; margin-top:12px; flex-wrap:wrap;">
+                <button onclick="feedbackGonder()" style="flex:2; background:var(--btn-primary); color:white; border:none; border-radius:var(--radius-full); padding:12px; font-weight:600; cursor:pointer;">📤 Gönder</button>
+                <button onclick="document.getElementById('feedbackKonu').value=''; document.getElementById('feedbackMesaj').value='';" style="flex:1; background:var(--card-border); color:var(--text); border:none; border-radius:var(--radius-full); padding:12px; font-weight:600; cursor:pointer;">Temizle</button>
+                <button onclick="clearSiteData()" style="background:var(--btn-danger); color:white; border:none; border-radius:40px; padding:10px 20px;">🗑️ Depolama Alanını Temizle</button>
+            </div>
+            <div id="feedbackDurum" style="margin-top:12px; font-size:14px; color:var(--text-secondary);"></div>
+        </div>
+    </div>
+
+    <!-- GERİ BİLDİRİM LİSTESİ -->
+    <div id="feedback-list" class="tab-content">
+        <div style="background:var(--card-bg); border-radius:var(--radius); padding:24px;">
+            <h3>📬 Geri Bildirimler</h3>
+            <div style="overflow-x:auto; margin-top:16px;">
+                <table id="feedbackTablo" style="width:100%; border-collapse:collapse; font-size:13px;">
+                    <thead>
+                        <tr>
+                            <th>Kullanıcı</th>
+                            <th>Konu</th>
+                            <th>Mesaj</th>
+                            <th>Tarih</th>
+                            <th>Durum</th>
+                            <th>İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="feedbackListesi">
+                        <tr><td colspan="6" style="text-align:center; color:var(--text-secondary); padding:20px;">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="feedbackDurumMesaji" style="margin-top:12px; font-size:13px; color:var(--text-secondary);"></div>
+        </div>
+    </div>
+
+    <!-- ========== ÜRÜN DETAY TAB ========== -->
+    <div id="urun-detay" class="tab-content">
+        <button onclick="detayGeri()" class="detay-geri-btn">← Stok Listesine Dön</button>
+        <h3>📦 Ürün Detayı</h3>
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:start; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <h2 id="detayUrunAd">-</h2>
+                    <p>Barkod: <span id="detayUrunBarkod">-</span></p>
+                    <p>Stok: <span id="detayUrunStok">0</span></p>
+                    <p>Kritik: <span id="detayUrunKritik">5</span></p>
+                    <p>Grup: <span id="detayUrunGrup">Genel</span></p>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button id="detayDuzenleBtn" style="background:var(--btn-warning); color:black; border:none; border-radius:40px; padding:8px 16px;">✏️ Düzenle</button>
+                    <button id="detaySilBtn" style="background:var(--btn-danger); color:white; border:none; border-radius:40px; padding:8px 16px;">🗑️ Sil</button>
+                </div>
+            </div>
+        </div>
+        <h4>📋 Tüm Hareketler</h4>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>İşlem</th>
+                        <th>Miktar</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="detayHareketlerTablo">
+                    <tr><td colspan="4" style="text-align:center;color:#888;">Yükleniyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ========== MODALLAR ========== -->
+
+    <!-- ÜRÜN DÜZENLEME MODAL -->
     <div id="detayModal" class="modal">
         <div class="modal-content">
             <h3>Ürün Düzenle</h3>
@@ -334,16 +592,14 @@
             <div id="detayIcerik"></div>
         </div>
     </div>
-    
-    <!-- SİPARİS MODAL (DÜZELTİLMİŞ) -->
-    <div id="siparisModal" class="modal" style="display:none;" onclick="if(event.target===this) siparisModalKapat()">
+
+    <!-- SİPARİS MODAL -->
+    <div id="siparisModal" class="modal" style="display:none;">
         <div class="modal-content">
             <h3 id="siparisModalBaslik">📦 Yeni İhtiyaç Listesi</h3>
             <input type="hidden" id="siparisDuzenleId">
             <div class="modal-body">
-                <div id="siparisUrunListesi">
-                    <!-- Ürün satırları buraya gelecek -->
-                </div>
+                <div id="siparisUrunListesi"></div>
                 <button onclick="siparisUrunSatirEkle()" style="background:#34495e; color:white; border:none; border-radius:20px; padding:8px 16px; margin-bottom:12px;">➕ Ürün Ekle</button>
                 <input type="text" id="siparisTedarikci" placeholder="Tedarikçi (isteğe bağlı)">
                 <input type="text" id="siparisNot" placeholder="Not (isteğe bağlı)">
@@ -354,7 +610,8 @@
             </div>
         </div>
     </div>
-    
+
+    <!-- SİPARİS DETAY MODAL -->
     <div id="siparisDetayModal" class="modal">
         <div class="modal-content">
             <h3>📋 İhtiyaç Listesi Detayı</h3>
@@ -365,49 +622,68 @@
             </div>
         </div>
     </div>
-</div>
 
-<!-- ŞİFRE SIFIRLAMA MODAL -->
-<div id="sifreSifirlamaModal" class="modal" style="display:none;" onclick="if(event.target===this) sifreSifirlamaModalKapat()">
-    <div class="modal-content" style="max-width:400px;">
-        <h3>🔑 Şifre Sıfırlama</h3>
-        <p style="color:var(--text); opacity:0.7; margin-bottom:16px; font-size:14px;">
-            Kayıtlı e-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.
-        </p>
-        <input type="email" id="sifreSifirlamaEmail" placeholder="E-posta adresiniz" style="margin-bottom:16px;">
-        <div style="display:flex; gap:12px;">
-            <button onclick="sifreSifirlamaGonder()" style="flex:2; background:var(--btn-primary); color:white; padding:14px; border:none; border-radius:40px; font-weight:700; cursor:pointer;">
-                📧 Bağlantı Gönder
-            </button>
-            <button onclick="sifreSifirlamaModalKapat()" style="flex:1; background:var(--card-border); color:var(--text); padding:14px; border:none; border-radius:40px; font-weight:600; cursor:pointer;">
-                İptal
-            </button>
+    <!-- ŞİFRE SIFIRLAMA MODAL -->
+    <div id="sifreSifirlamaModal" class="modal" style="display:none;" onclick="if(event.target===this) sifreSifirlamaModalKapat()">
+        <div class="modal-content" style="max-width:400px;">
+            <h3>🔑 Şifre Sıfırlama</h3>
+            <p style="color:var(--text); opacity:0.7; margin-bottom:16px; font-size:14px;">
+                Kayıtlı e-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.
+            </p>
+            <input type="email" id="sifreSifirlamaEmail" placeholder="E-posta adresiniz" style="margin-bottom:16px;">
+            <div style="display:flex; gap:12px;">
+                <button onclick="sifreSifirlamaGonder()" style="flex:2; background:var(--btn-primary); color:white; padding:14px; border:none; border-radius:40px; font-weight:700; cursor:pointer;">
+                    📧 Bağlantı Gönder
+                </button>
+                <button onclick="sifreSifirlamaModalKapat()" style="flex:1; background:var(--card-border); color:var(--text); padding:14px; border:none; border-radius:40px; font-weight:600; cursor:pointer;">
+                    İptal
+                </button>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- GRUP MODAL -->
-<div id="grupModal" class="modal" style="display:none;" onclick="if(event.target===this) grupModalKapat()">
-    <div class="modal-content" style="max-width:400px;">
-        <h3 id="grupModalBaslik">📁 Yeni Grup</h3>
-        <input type="hidden" id="grupDuzenleId">
-        <input type="text" id="grupAdi" placeholder="Grup adı" style="margin-bottom:16px;">
-        <input type="text" id="grupAciklama" placeholder="Açıklama (isteğe bağlı)" style="margin-bottom:16px;">
-        <div style="display:flex; gap:12px;">
-            <button onclick="grupKaydet()" style="flex:2; background:var(--btn-success); color:white; padding:14px; border:none; border-radius:40px; font-weight:700; cursor:pointer;">
-                💾 Kaydet
-            </button>
-            <button onclick="grupModalKapat()" style="flex:1; background:var(--card-border); color:var(--text); padding:14px; border:none; border-radius:40px; font-weight:600; cursor:pointer;">
-                İptal
-            </button>
+    <!-- GRUP MODAL -->
+    <div id="grupModal" class="modal" style="display:none;" onclick="if(event.target===this) grupModalKapat()">
+        <div class="modal-content" style="max-width:400px;">
+            <h3 id="grupModalBaslik">📁 Yeni Grup</h3>
+            <input type="hidden" id="grupDuzenleId">
+            <input type="text" id="grupAdi" placeholder="Grup adı" style="margin-bottom:16px;">
+            <input type="text" id="grupAciklama" placeholder="Açıklama (isteğe bağlı)" style="margin-bottom:16px;">
+            <div style="display:flex; gap:12px;">
+                <button onclick="grupKaydet()" style="flex:2; background:var(--btn-success); color:white; padding:14px; border:none; border-radius:40px; font-weight:700; cursor:pointer;">
+                    💾 Kaydet
+                </button>
+                <button onclick="grupModalKapat()" style="flex:1; background:var(--card-border); color:var(--text); padding:14px; border:none; border-radius:40px; font-weight:600; cursor:pointer;">
+                    İptal
+                </button>
+            </div>
         </div>
     </div>
-</div>
+
+</div><!-- #mainApp -->
 
 <script>
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('service-worker.js')
-        .then(reg => console.log('✅ Service Worker başarıyla kaydedildi!', reg))
+        .then(reg => {
+            console.log('✅ Service Worker başarıyla kaydedildi!', reg);
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // showToast yerine doğrudan DOM işlemi
+                        const toast = document.getElementById('toastMessage');
+                        if (toast) {
+                            toast.textContent = '🔄 Yeni güncelleme var! Sayfayı yenileyin.';
+                            toast.style.background = 'var(--btn-warning)';
+                            toast.classList.add('show');
+                            clearTimeout(toast._timeout);
+                            toast._timeout = setTimeout(() => toast.classList.remove('show'), 4000);
+                        }
+                    }
+                });
+            });
+        })
         .catch(err => console.error('❌ Service Worker kaydı başarısız:', err));
 }
 if ('serviceWorker' in navigator) {
