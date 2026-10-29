@@ -112,7 +112,6 @@
         <div id="quickNavContainer" class="quick-nav-container"></div>
         <div style="display:flex; align-items:center; gap:4px;">
             <button id="quickNavSettingsBtn" class="quick-nav-settings" onclick="toggleQuickNavSettings()">⚙️</button>
-            <button id="menuToggleBtn" class="menu-toggle-btn" onclick="toggleMoreMenu()" title="Tüm menü">⋮</button>
         </div>
     </div>
 
@@ -159,6 +158,7 @@
                 <button onclick="widgetEkle('grupSayisi')" class="widget-ekle-btn">📁 Grup Sayısı</button>
                 <button onclick="widgetEkle('toplamUrunCesidi')" class="widget-ekle-btn">🏷️ Ürün Çeşidi</button>
                 <button onclick="widgetEkle('bugunCikis')" class="widget-ekle-btn">📤 Bugün Çıkış</button>
+                <button onclick="widgetEkle('tahminiTukenenler')" class="widget-ekle-btn">⏳ Hızlı Tükenenler</button>
             </div>
             <button onclick="dashboardDuzenleModu()" style="margin-top:8px; background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:4px 12px; cursor:pointer;">✖ Kapat</button>
         </div>
@@ -229,6 +229,7 @@
                 </select>
                 <input type="text" id="aramaBarkod" placeholder="Barkod" onkeyup="gelişmişArama()" style="flex:1; min-width:120px;">
                 <button onclick="aramaTemizle()" style="background:var(--card-border); color:var(--text); border:none; border-radius:20px; padding:8px 16px; cursor:pointer;">Temizle</button>
+                <button id="kritikFiltreBtn" onclick="kritikFiltreToggle()" style="background:var(--card-border); color:var(--text); border:none; border-radius:20px; padding:8px 16px; cursor:pointer; transition: 0.3s;">⚠️ Sadece Kritik</button>
             </div>
         </div>
         <div style="overflow-x:auto;"><table class="stok-tablo"><thead><tr><th>Ürün</th><th>Mevcut</th><th></th></tr></thead><tbody id="tablo"></tbody></table></div>
@@ -254,7 +255,14 @@
         <button onclick="excelUrunleriYukle()" style="width:100%; background:var(--btn-success); color:black; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer;">📤 Excel'den Yükle</button>
         <div id="excelYukleDurum" style="margin-top:12px; font-size:13px; color:var(--text-secondary);"></div>
     </div>
-
+                <!-- Mevcut Excel alanının altına ekleyin -->
+        <hr style="margin:20px 0; border-color:var(--border);">
+        <h4>🧾 e-Fatura ile Stok Ekle (XML)</h4>
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">Gelen e-faturanın <strong>.xml</strong> dosyasını seçin. Ürünler barkod veya isim eşleşmesine göre otomatik olarak stoğa eklenir.</p>
+        <input type="file" id="efaturaFile" accept=".xml" style="margin-bottom:12px;">
+        <button onclick="efaturaIleStokEkle()" style="width:100%; background:#e67e22; color:white; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer;">📥 e-Faturayı İşle</button>
+        <div id="efaturaDurum" style="margin-top:12px; font-size:13px; color:var(--text-secondary);"></div>
+        <button onclick="birimDonusumModalGoster()" style="width:100%; background:var(--btn-dark); color:white; padding:10px; border:none; border-radius:10px; margin-top:8px; font-weight:600; cursor:pointer;">📏 Birim Dönüşümlerini Yönet</button>
     <!-- GRUPLAR -->
     <div id="gruplar" class="tab-content">
         <div style="background:var(--card-bg); border-radius:15px; padding:20px;">
@@ -509,6 +517,33 @@
         </div>
     </div>
 
+        <!-- FATURA ARŞİVİ -->
+    <div id="fatura-arsivi" class="tab-content">
+        <div style="background:var(--card-bg); border-radius:15px; padding:20px;">
+            <h3>🧾 Fatura Arşivi</h3>
+            <p style="color:var(--text-secondary); margin-bottom:16px; font-size:14px;">
+                Sisteme yüklenen tüm e-faturaların listesi. ETTN numarası sayesinde aynı fatura iki kez yüklenemez.
+            </p>
+            <div style="overflow-x:auto; border-radius:12px; border:1px solid var(--border);">
+                <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                    <thead>
+                        <tr style="background:var(--card-border);">
+                            <th style="padding:10px; text-align:left; color:var(--text);">Fatura No</th>
+                            <th style="padding:10px; text-align:left; color:var(--text);">Tedarikçi</th>
+                            <th style="padding:10px; text-align:center; color:var(--text);">Fatura Tarihi</th>
+                            <th style="padding:10px; text-align:right; color:var(--text);">Tutar</th>
+                            <th style="padding:10px; text-align:center; color:var(--text);">Ürün</th>
+                            <th style="padding:10px; text-align:center; color:var(--text);">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="faturaArsiviTablo">
+                        <tr><td colspan="6" style="text-align:center; padding:20px;">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
     <!-- GERİ BİLDİRİM LİSTESİ -->
     <div id="feedback-list" class="tab-content">
         <div style="background:var(--card-bg); border-radius:var(--radius); padding:24px;">
@@ -610,7 +645,34 @@
             </div>
         </div>
     </div>
-
+          <!-- E-FATURA EŞLEŞTİRME MODAL -->
+    <div id="efaturaEslestirmeModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:800px;">
+            <h3>🧾 Fatura Ürünlerini Eşleştir</h3>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">
+                Aşağıdaki ürünler sistemde tam olarak bulunamadı veya birim uyuşmazlığı var. Lütfen eşleştirme yapın ve gerekirse çarpan girin.
+            </p>
+            <div style="max-height:400px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+                <table style="width:100%; font-size:13px; border-collapse:collapse;">
+                    <thead style="background:var(--bg-secondary); position:sticky; top:0;">
+                        <tr>
+                            <th style="padding:8px; text-align:left;">Fatura Ürünü / Kodu</th>
+                            <th style="padding:8px; text-align:center;">Fatura Miktarı</th>
+                            <th style="padding:8px; text-align:left;">Sistemdeki Ürün (Seçiniz)</th>
+                            <th style="padding:8px; text-align:center;">Çarpan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="efaturaEslestirmeListesi">
+                        <!-- Dinamik doldurulacak -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-butonlar">
+                <button onclick="efaturaEslestirmeyiKaydetVeEkle()" class="btn-guncelle">Eşleştir ve Stoğa Ekle</button>
+                <button onclick="efaturaEslestirmeKapat()" class="btn-iptal">İptal</button>
+            </div>
+        </div>
+    </div>
     <!-- SİPARİS DETAY MODAL -->
     <div id="siparisDetayModal" class="modal">
         <div class="modal-content">
@@ -661,7 +723,40 @@
     </div>
 
 </div><!-- #mainApp -->
+    <!-- BİRİM DÖNÜŞÜM MODALI -->
+    <div id="birimDonusumModal" class="modal" style="display:none;" onclick="if(event.target===this) birimDonusumModalKapat()">
+        <div class="modal-content" style="max-width:500px;">
+            <h3>📏 Birim Dönüşümleri</h3>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">
+                Faturadaki birimleri (Paket, Koli vb.) sisteminizdeki birimlere (Adet, Kg vb.) dönüştürmek için çarpan tanımlayın.
+                <br><strong>Örnek:</strong> Fatura Birimi <code>PA</code> (Paket), Çarpan <code>12</code> ise; 1 Paket = 12 Adet olarak işlenir.
+            </p>
+            
+            <div id="birimDonusumListesi" style="max-height:200px; overflow-y:auto; margin-bottom:16px; border:1px solid var(--border); border-radius:8px;">
+                <!-- Dinamik liste -->
+            </div>
 
+            <div style="display:flex; gap:8px; align-items:flex-end; border-top:1px solid var(--border); padding-top:16px;">
+                <div style="flex:1;">
+                    <label style="font-size:11px; font-weight:600;">Fatura Birimi</label>
+                    <input type="text" id="faturaBirimKodu" placeholder="Örn: PA" style="margin-bottom:0; text-transform:uppercase;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:11px; font-weight:600;">Sistem Birimi</label>
+                    <input type="text" id="sistemBirimAdi" placeholder="Örn: Adet" style="margin-bottom:0;">
+                </div>
+                <div style="flex:0 0 80px;">
+                    <label style="font-size:11px; font-weight:600;">Çarpan</label>
+                    <input type="number" id="birimCarpan" value="1" min="1" style="margin-bottom:0;">
+                </div>
+                <button onclick="birimDonusumuEkle()" style="background:var(--btn-success); color:white; border:none; border-radius:8px; padding:12px; cursor:pointer; height:40px;">Ekle</button>
+            </div>
+            
+            <div class="modal-butonlar" style="margin-top:16px;">
+                <button onclick="birimDonusumModalKapat()" class="btn-iptal">Kapat</button>
+            </div>
+        </div>
+    </div>
 <script>
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('service-worker.js')

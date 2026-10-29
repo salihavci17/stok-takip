@@ -54,6 +54,27 @@ let hareketlerUnsubscribe = null;
 let kameraAktif = false;
 let oncekiTab = 'stok-listesi';
 let oncekiScrollY = 0;
+let sadeceKritikGoster = false;
+let stokTahminleri = {};
+let bekleyenEfaturaUrunleri = []; // Eşleşmeyen fatura ürünlerini tutar
+let aktifEfaturaTarihi = Timestamp.now(); // XML'den okunan fatura tarihini tutar
+
+// TÜM MENÜLERİN LİSTESİ (Hem yatay hem dikey menü için)
+const ALL_TABS = [
+    { id: 'hizli-islem', icon: '⚡', label: 'Hızlı' },
+    { id: 'stok-listesi', icon: '📋', label: 'Stok' },
+    { id: 'hareketler', icon: '🕒', label: 'Hareket' },
+    { id: 'rapor', icon: '📊', label: 'Rapor' },
+    { id: 'siparisler', icon: '📦', label: 'Sipariş' },
+    { id: 'fatura-arsivi', icon: '🧾', label: 'Fatura Arşivi' }, // YENİ EKLENDİ
+    { id: 'yeni-urun', icon: '➕', label: 'Yeni Ürün Ekle' },
+    { id: 'gruplar', icon: '📁', label: 'Gruplar' },
+    { id: 'kullanicilar', icon: '👥', label: 'Kullanıcılar' },
+    { id: 'loglar', icon: '📋', label: 'Loglar' },
+    { id: 'feedback', icon: '💬', label: 'Geri Bildirim Gönder' },
+    { id: 'feedback-list', icon: '📬', label: 'Geri Bildirimler' },
+    { id: 'yedekle', icon: '💾', label: 'Yedekleme' }
+];
 
 // --- DASHBOARD WIDGET DEĞİŞKENLERİ ---
 let dashboardWidgets = [];
@@ -68,7 +89,8 @@ const WIDGET_OPTIONS = {
     kullaniciSayisi: { id: 'kullaniciSayisi', title: '👥 Kullanıcı Sayısı', icon: '👥' },
     grupSayisi: { id: 'grupSayisi', title: '📁 Grup Sayısı', icon: '📁' },
     toplamUrunCesidi: { id: 'toplamUrunCesidi', title: '🏷️ Ürün Çeşidi', icon: '🏷️' },
-    bugunCikis: { id: 'bugunCikis', title: '📤 Bugün Çıkış', icon: '📤' }
+    bugunCikis: { id: 'bugunCikis', title: '📤 Bugün Çıkış', icon: '📤' },
+    tahminiTukenenler: { id: 'tahminiTukenenler', title: '⏳ Hızlı Tükenenler', icon: '⏳' } // YENİ EKLENDİ
 };
 
 // --- YARDIMCI FONKSİYONLAR ---
@@ -904,6 +926,20 @@ async function kullaniciListesiniGetir() {
 // ================================================================
 // ANA UYGULAMA - VERİ YÖNETİMİ
 // ================================================================
+window.kritikFiltreToggle = function() {
+    sadeceKritikGoster = !sadeceKritikGoster;
+    const btn = document.getElementById('kritikFiltreBtn');
+    if (btn) {
+        if (sadeceKritikGoster) {
+            btn.style.background = 'var(--danger)';
+            btn.style.color = 'white';
+        } else {
+            btn.style.background = 'var(--card-border)';
+            btn.style.color = 'var(--text)';
+        }
+    }
+    stoklariListele();
+};
 
 // ========== STOK LİSTESİ ==========
 function stoklariListele() {
@@ -919,17 +955,33 @@ function stoklariListele() {
         if (!gruplar_temp[g]) gruplar_temp[g] = [];
         gruplar_temp[g].push(u);
     });
-    Object.keys(gruplar_temp).sort().forEach((grup, idx) => {
+        Object.keys(gruplar_temp).sort().forEach((grup, idx) => {
+        // Kritik filtresi açıksa, o gruptaki kritik olmayan ürünleri gizle
+        const urunler = gruplar_temp[grup].filter(u => !sadeceKritikGoster || ((u.kalan || 0) <= (u.kritik || 5)));
+        
+        if (urunler.length === 0) return; // Grupta gösterilecek ürün kalmadıysa grubu atla
+
         const grupId = `grup-${idx}`;
         html += `<tr onclick="window.grupToggle('${grupId}')" style="background:var(--btn-warning); cursor:pointer;">
                     <td colspan="3"><b>📂 ${grup}</b></td>
                  </tr>`;
-        gruplar_temp[grup].forEach(u => {
+                urunler.forEach(u => {
             const m = u.kalan || 0, k = u.kritik || 5;
             toplam += m;
             if (m <= k) kritikSay++;
+            
+            // Tahmin verisini al
+            const tahmin = stokTahminleri[u.id];
+            let tahminHtml = '';
+            if (tahmin && tahmin.gun !== Infinity && m > 0) {
+                let renk = tahmin.durum === 'kritik' ? 'var(--danger)' : (tahmin.durum === 'uyari' ? 'var(--warning)' : 'var(--text-secondary)');
+                tahminHtml = `<br><small style="color:${renk}; font-weight:600;">⏳ ~${tahmin.gun} günlük stok</small>`;
+            } else if (m === 0) {
+                tahminHtml = `<br><small style="color:var(--danger); font-weight:600;">🚨 Stok Bitti</small>`;
+            }
+
             html += `<tr class="${grupId}" onclick="window.urunDetayGoster('${u.id}')" style="display:none; cursor:pointer;">
-                        <td style="padding-left:20px;">${getUrunAdi(u)}<br><small style="color:#888">${u.barkod || '-'}</small></td>
+                        <td style="padding-left:20px;">${getUrunAdi(u)}${tahminHtml}<br><small style="color:#888">${u.barkod || '-'}</small></td>
                         <td style="color:${m <= k ? 'var(--kritik-text)' : ''}"><b>${m}</b> ${u.birim || 'Adet'}</td>
                         <td>${yoneticiMi() ? `<button onclick="event.stopPropagation(); window.urunSil('${u.id}')" style="background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:6px 12px;">✖</button>` : ''}</td>
                     </tr>`;
@@ -1014,6 +1066,57 @@ function kritikKontrol() {
     kritikListeWidgetGuncelle();
     badgeGuncelle();
 }
+// ========== STOK TÜKENME TAHMİNİ ==========
+async function stokTahminleriniHesapla() {
+    try {
+        // Son 30 günün tarihini al
+        const son30Gun = new Date();
+        son30Gun.setDate(son30Gun.getDate() - 30);
+        son30Gun.setHours(0, 0, 0, 0);
+
+        // Son 30 gündeki çıkışları çek
+        const snap = await getDocs(query(
+            collection(db, "hareketler"),
+            where("tarih", ">=", Timestamp.fromDate(son30Gun)),
+            where("tur", "==", "cikis")
+        ));
+
+        const urunCikislari = {};
+        snap.forEach(d => {
+            const h = d.data();
+            if (h.urunId) {
+                urunCikislari[h.urunId] = (urunCikislari[h.urunId] || 0) + Number(h.miktar || 0);
+            }
+        });
+
+        stokTahminleri = {};
+
+        Object.values(stoklar).forEach(u => {
+            const toplamCikis = urunCikislari[u.id] || 0;
+            const gunlukOrtalama = toplamCikis / 30;
+            const mevcutStok = u.kalan || 0;
+
+            if (gunlukOrtalama > 0) {
+                const kalanGun = Math.floor(mevcutStok / gunlukOrtalama);
+                stokTahminleri[u.id] = {
+                    gun: kalanGun,
+                    ortalama: gunlukOrtalama.toFixed(1),
+                    durum: kalanGun <= 7 ? 'kritik' : (kalanGun <= 15 ? 'uyari' : 'normal')
+                };
+            } else {
+                // Eğer son 30 günde hiç çıkış yoksa tükenmez (Infinity)
+                stokTahminleri[u.id] = { gun: Infinity, ortalama: 0, durum: 'normal' };
+            }
+        });
+
+        // Ekranı güncelle
+        stoklariListele(); 
+        tahminiTukenenlerWidgetGuncelle();
+        
+    } catch(e) {
+        console.error('Tahmin hesaplama hatası:', e);
+    }
+}
 
 // ========== VERİLERİ GETİR ==========
 function verileriGetir() {
@@ -1051,6 +1154,7 @@ function verileriGetir() {
         kritikListeWidgetGuncelle();
         badgeGuncelle();
         grafikGuncelle();
+        stokTahminleriniHesapla(); // Tahminleri hesapla
         dashboardWidgetVerileriniGuncelle();
     }, (error) => {
         console.error('❌ Stok verileri dinlenirken hata:', error);
@@ -1724,36 +1828,53 @@ async function excelUrunleriYukle() {
                 return;
             }
             
-            durum.textContent = `📥 ${rows.length} ürün bulundu, ekleniyor...`;
+            durum.textContent = `📥 ${rows.length} satır okundu, kontrol ediliyor...`;
             durum.style.color = 'var(--text-secondary)';
             
-            let eklenen = 0;
+            const validRows = [];
             let hatali = 0;
-            const batch = writeBatch(db);
             
+            // Önce verileri doğrula ve listeye al
             for (const row of rows) {
                 const ad = row.ürünAdı || row.urunAdi || row.ad || row.Ad || row.ÜrünAdı;
                 if (!ad) { hatali++; continue; }
-                const barkod = row.barkod || row.Barkod || '';
-                const grup = row.grup || row.Grup || 'Genel';
-                const kritik = Number(row.kritik || row.Kritik || 5);
-                const birim = row.birim || row.Birim || 'Adet';
                 
-                const docRef = doc(collection(db, "stoklar"));
-                batch.set(docRef, {
+                validRows.push({
                     urunAd: ad.trim(),
-                    barkod: barkod.trim(),
+                    barkod: (row.barkod || row.Barkod || '').trim(),
                     kalan: Number(row.kalan || row.stok || 0),
-                    kritik: kritik,
-                    grup: grup.trim(),
-                    birim: birim,
+                    kritik: Number(row.kritik || row.Kritik || 5),
+                    grup: (row.grup || row.Grup || 'Genel').trim(),
+                    birim: row.birim || row.Birim || 'Adet',
                     olusturmaTarihi: Timestamp.now()
                 });
-                eklenen++;
             }
             
-            await batch.commit();
-            durum.textContent = `✅ ${eklenen} ürün eklendi. ${hatali > 0 ? `(${hatali} satır atlandı)` : ''}`;
+            if (validRows.length === 0) {
+                durum.textContent = '❌ Geçerli ürün bulunamadı.';
+                durum.style.color = 'var(--btn-danger)';
+                return;
+            }
+
+            // 500 limitini aşmamak için 400'lük parçalar halinde yükle
+            let eklenen = 0;
+            const CHUNK_SIZE = 400;
+            
+            for (let i = 0; i < validRows.length; i += CHUNK_SIZE) {
+                const chunk = validRows.slice(i, i + CHUNK_SIZE);
+                const batch = writeBatch(db);
+                
+                chunk.forEach(item => {
+                    const docRef = doc(collection(db, "stoklar"));
+                    batch.set(docRef, item);
+                });
+                
+                await batch.commit();
+                eklenen += chunk.length;
+                durum.textContent = `⏳ Yükleniyor: ${eklenen} / ${validRows.length} ürün...`;
+            }
+            
+            durum.textContent = `✅ Başarılı! ${eklenen} ürün eklendi. ${hatali > 0 ? `(${hatali} satır atlandı)` : ''}`;
             durum.style.color = 'var(--btn-success)';
             fileInput.value = '';
             verileriGetir();
@@ -1765,7 +1886,6 @@ async function excelUrunleriYukle() {
     };
     reader.readAsArrayBuffer(file);
 }
-
 // ================================================================
 // ÜRÜN İŞLEMLERİ
 // ================================================================
@@ -1832,26 +1952,53 @@ async function stokIslem(tip) {
 async function urunGuncelle() {
     if (!yoneticiMi()) return showToast("Yetkiniz yok!", true);
     if (!seciliUrunId) return showToast("Ürün seçili değil!", true);
+    
+    const eskiUrun = stoklar[seciliUrunId];
+    const yeniMiktar = Number(document.getElementById('modalMiktar').value);
+    const eskiMiktar = eskiUrun?.kalan || 0;
+    const fark = yeniMiktar - eskiMiktar;
+
     try {
-        await updateDoc(doc(db, "stoklar", seciliUrunId), {
+        const batch = writeBatch(db);
+        
+        // 1. Ürünü güncelle
+        batch.update(doc(db, "stoklar", seciliUrunId), {
             urunAd: document.getElementById('modalUrunAd').value,
             barkod: document.getElementById('modalBarkod').value,
-            kalan: Number(document.getElementById('modalMiktar').value),
+            kalan: yeniMiktar,
             kritik: Number(document.getElementById('modalKritik').value),
             grup: document.getElementById('modalGrup').value
         });
-        showToast("✅ Güncellendi");
+
+        // 2. Eğer stok miktarı değiştiyse, otomatik hareket kaydı oluştur
+        if (fark !== 0) {
+            const hareketRef = doc(collection(db, "hareketler"));
+            batch.set(hareketRef, {
+                urunId: seciliUrunId,
+                urun: document.getElementById('modalUrunAd').value,
+                tur: fark > 0 ? 'giris' : 'cikis',
+                miktar: Math.abs(fark),
+                birim: eskiUrun?.birim || 'Adet',
+                tarih: Timestamp.now(),
+                aciklama: 'Manuel stok düzeltmesi (Ürün Güncelleme Ekranı)'
+            });
+        }
+
+        await batch.commit();
+        
+        showToast(fark !== 0 ? `✅ Güncellendi. Stok ${fark > 0 ? '+' : ''}${fark}` : "✅ Güncellendi");
         await logEkle('urun_guncelle', `${getUrunAdi(stoklar[seciliUrunId])} güncellendi`, { urunId: seciliUrunId });
+        
         kapatModal();
         
-        // Detay tab'ındaysak stok listesine geri dön
         const activeTab = document.querySelector('.tab-content.active');
         if (activeTab && activeTab.id === 'urun-detay') {
             detayGeri();
         }
-    } catch(e) { showToast(getFriendlyErrorMessage(e), true); }
+    } catch(e) { 
+        showToast(getFriendlyErrorMessage(e), true); 
+    }
 }
-
 async function urunSil(id) {
     if (!yoneticiMi()) return showToast("Yetkiniz yok!", true);
     const confirmed = await showConfirm('🗑️ Ürünü Sil', 'Bu ürünü silmek istediğinize emin misiniz?');
@@ -3131,6 +3278,11 @@ function switchTab(tabId) {
     });
     
     document.getElementById('mobileMenu')?.classList.remove('open');
+
+    // YENİ EKLENEN KISIM: Arşiv sekmesine geçişte listeyi güncelle
+    if (tabId === 'fatura-arsivi') {
+        faturaArsiviniListele();
+    }
     
     if (history.pushState) {
         history.pushState(null, '', '#' + tabId);
@@ -3138,7 +3290,7 @@ function switchTab(tabId) {
 }
 
 // ================================================================
-// DASHBOARD WIDGET YÖNETİMİ
+// DASHBOARD WIDGET YÖNETİMİ (TEMİZ SÜRÜM)
 // ================================================================
 function dashboardWidgetlariYukle() {
     try {
@@ -3151,10 +3303,10 @@ function dashboardWidgetlariYukle() {
     } catch(e) {
         dashboardWidgets = ['toplamStok', 'kritik', 'bugunGiris', 'populer'];
     }
-    dashboardWidgetlariGoster();
+    window.dashboardWidgetlariGoster();
 }
 
-function dashboardWidgetlariGoster() {
+window.dashboardWidgetlariGoster = function() {
     const container = document.getElementById('dashboardWidgets');
     if (!container) return;
     
@@ -3184,8 +3336,8 @@ function dashboardWidgetlariGoster() {
     });
     container.innerHTML = html;
     
-    dashboardWidgetVerileriniGuncelle();
-}
+    window.dashboardWidgetVerileriniGuncelle();
+};
 
 function dashboardWidgetVerileriniGuncelle() {
     const toplam = Object.values(stoklar).reduce((sum, u) => sum + (u.kalan || 0), 0);
@@ -3202,206 +3354,46 @@ function dashboardWidgetVerileriniGuncelle() {
     sonHareketleriGetir();
     siparisSayisiniGetir();
     kullaniciSayisiniGetir();
-    
+    tahminiTukenenlerWidgetGuncelle();
+
     const dashGrupSayisi = document.getElementById('dashGrupSayisi');
     if (dashGrupSayisi) dashGrupSayisi.innerHTML = `<div>${Object.keys(gruplar).length}</div>`;
     const dashToplamUrunCesidi = document.getElementById('dashToplamUrunCesidi');
     if (dashToplamUrunCesidi) dashToplamUrunCesidi.innerHTML = `<div>${Object.keys(stoklar).length}</div>`;
     bugunCikisGetir();
 }
-// ================================================================
-// DASHBOARD WIDGET YÖNETİMİ - EKLEME VE ÇIKARMA
-// ================================================================
 
-// Dashboard düzenleme modunu aç/kapat
 window.dashboardDuzenleModu = function() {
     const panel = document.getElementById('widgetEklePanel');
-    const widgets = document.querySelectorAll('#dashboardWidgets .dash-card');
+    if (!panel) return;
     
-    if (panel) {
-        // Panel açık/kapa
-        const isOpen = panel.style.display === 'block';
-        panel.style.display = isOpen ? 'none' : 'block';
+    const isOpen = panel.style.display === 'block';
+    panel.style.display = isOpen ? 'none' : 'block';
+    
+    document.querySelectorAll('#dashboardWidgets .dash-card').forEach(card => {
+        const widgetId = card.dataset.widget;
+        if (!widgetId) return;
         
-        // Widget'lara silme butonu ekle/çıkar
-        widgets.forEach(card => {
-            const widgetId = card.dataset.widget;
-            const existingBtn = card.querySelector('.widget-sil-btn');
-            
-            if (!isOpen) {
-                // Silme butonu ekle
-                if (!existingBtn) {
-                    const silBtn = document.createElement('button');
-                    silBtn.className = 'widget-sil-btn';
-                    silBtn.innerHTML = '✖';
-                    silBtn.title = 'Widget\'ı kaldır';
-                    silBtn.style.cssText = `
-                        position: absolute;
-                        top: 4px;
-                        right: 4px;
-                        background: var(--btn-danger);
-                        color: white;
-                        border: none;
-                        border-radius: 50%;
-                        width: 24px;
-                        height: 24px;
-                        font-size: 12px;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        opacity: 0.8;
-                        transition: all 0.2s;
-                    `;
-                    silBtn.onmouseover = () => silBtn.style.opacity = '1';
-                    silBtn.onmouseout = () => silBtn.style.opacity = '0.8';
-                    silBtn.onclick = function(e) {
-                        e.stopPropagation();
-                        widgetKaldir(widgetId);
-                    };
-                    card.style.position = 'relative';
-                    card.appendChild(silBtn);
-                }
-            } else {
-                // Silme butonunu kaldır
-                if (existingBtn) {
-                    existingBtn.remove();
-                }
-            }
-        });
-    }
-};
-
-// Widget kaldırma fonksiyonu
-function widgetKaldir(widgetId) {
-    const confirmed = confirm(`"${WIDGET_OPTIONS[widgetId]?.title || widgetId}" widget'ını kaldırmak istediğinize emin misiniz?`);
-    if (!confirmed) return;
-    
-    // Widget listesinden çıkar
-    dashboardWidgets = dashboardWidgets.filter(id => id !== widgetId);
-    localStorage.setItem('dashboardWidgets', JSON.stringify(dashboardWidgets));
-    
-    // Widget'ı DOM'dan kaldır
-    const card = document.querySelector(`#dashboardWidgets .dash-card[data-widget="${widgetId}"]`);
-    if (card) {
-        card.remove();
-    }
-    
-    showToast('✅ Widget kaldırıldı');
-    
-    // Eğer hiç widget kalmadıysa boş mesaj göster
-    if (dashboardWidgets.length === 0) {
-        const container = document.getElementById('dashboardWidgets');
-        if (container) {
-            container.innerHTML = `
-                <div class="empty-state" style="flex:1;">
-                    <div class="empty-icon">📊</div>
-                    <h4>Henüz widget eklenmemiş</h4>
-                    <p>"Düzenle" butonuna tıklayarak widget ekleyin.</p>
-                </div>
-            `;
-        }
-    }
-}
-
-// Widget ekleme (mevcut fonksiyonu güncelle)
-window.widgetEkle = function(widgetId) {
-    if (!dashboardWidgets.includes(widgetId)) {
-        dashboardWidgets.push(widgetId);
-        localStorage.setItem('dashboardWidgets', JSON.stringify(dashboardWidgets));
+        const existingBtn = card.querySelector('.widget-sil-btn');
         
-        // Widget'ı DOM'a ekle
-        const container = document.getElementById('dashboardWidgets');
-        if (container) {
-            // Boş durum mesajını kaldır
-            const emptyState = container.querySelector('.empty-state');
-            if (emptyState) emptyState.remove();
-            
-            const widget = WIDGET_OPTIONS[widgetId];
-            if (widget) {
-                const card = document.createElement('div');
-                card.className = 'dash-card';
-                card.dataset.widget = widgetId;
-                card.innerHTML = `
-                    <small>${widget.title}</small>
-                    <div id="dash${widgetId.charAt(0).toUpperCase() + widgetId.slice(1)}">
-                        <span style="font-size:16px; opacity:0.5;">⏳</span>
-                    </div>
-                `;
-                container.appendChild(card);
-                
-                // Widget verilerini güncelle
-                dashboardWidgetVerileriniGuncelle();
-                showToast('✅ Widget eklendi');
+        if (!isOpen) {
+            if (!existingBtn) {
+                const silBtn = document.createElement('button');
+                silBtn.className = 'widget-sil-btn';
+                silBtn.innerHTML = '✖';
+                silBtn.title = 'Widget\'ı kaldır';
+                silBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    window.widgetKaldir(widgetId);
+                };
+                card.style.position = 'relative';
+                card.appendChild(silBtn);
             }
+        } else {
+            if (existingBtn) existingBtn.remove();
         }
-    } else {
-        showToast('ℹ️ Bu widget zaten ekli', true);
-    }
-};
-
-// Dashboard widget'larını göster (güncellenmiş)
-window.dashboardWidgetlariGoster = function() {
-    const container = document.getElementById('dashboardWidgets');
-    if (!container) return;
-    
-    if (dashboardWidgets.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state" style="flex:1;">
-                <div class="empty-icon">📊</div>
-                <h4>Henüz widget eklenmemiş</h4>
-                <p>"Düzenle" butonuna tıklayarak widget ekleyin.</p>
-            </div>
-        `;
-        return;
-    }
-    
-    let html = '';
-    dashboardWidgets.forEach(widgetId => {
-        const widget = WIDGET_OPTIONS[widgetId];
-        if (!widget) return;
-        html += `
-            <div class="dash-card" data-widget="${widgetId}">
-                <small>${widget.title}</small>
-                <div id="dash${widgetId.charAt(0).toUpperCase() + widgetId.slice(1)}">
-                    <span style="font-size:16px; opacity:0.5;">⏳</span>
-                </div>
-            </div>
-        `;
     });
-    container.innerHTML = html;
-    
-    dashboardWidgetVerileriniGuncelle();
 };
-
-// Widget kaldırma butonlarını güncelle (düzenleme modu kapandığında temizle)
-// Dashboard widget'larını yeniden gösterirken silme butonlarını temizle
-const originalGoster = window.dashboardWidgetlariGoster;
-window.dashboardWidgetlariGoster = function() {
-    originalGoster();
-    // Düzenleme modu kapalıysa silme butonlarını temizle
-    const panel = document.getElementById('widgetEklePanel');
-    if (panel && panel.style.display !== 'block') {
-        document.querySelectorAll('#dashboardWidgets .dash-card .widget-sil-btn').forEach(btn => btn.remove());
-    }
-};
-function widgetEkle(widgetId) {
-    if (!dashboardWidgets.includes(widgetId)) {
-        dashboardWidgets.push(widgetId);
-        localStorage.setItem('dashboardWidgets', JSON.stringify(dashboardWidgets));
-        dashboardWidgetlariGoster();
-        showToast('✅ Widget eklendi');
-    } else {
-        showToast('ℹ️ Bu widget zaten ekli', true);
-    }
-}
-// ================================================================
-// WIDGET KALDIRMA İŞLEVİ (DÜZELTİLMİŞ)
-// ================================================================
-
-// ================================================================
-// WIDGET KALDIRMA - ÇALIŞAN SÜRÜM
-// ================================================================
 
 window.widgetKaldir = function(widgetId) {
     const widgetTitle = WIDGET_OPTIONS[widgetId]?.title || widgetId;
@@ -3418,80 +3410,70 @@ window.widgetKaldir = function(widgetId) {
     if (dashboardWidgets.length === 0) {
         const container = document.getElementById('dashboardWidgets');
         if (container) {
-            container.innerHTML = `
-                <div class="empty-state" style="flex:1;">
-                    <div class="empty-icon">📊</div>
-                    <h4>Henüz widget eklenmemiş</h4>
-                    <p>"Düzenle" butonuna tıklayarak widget ekleyin.</p>
-                </div>
-            `;
+            container.innerHTML = `<div class="empty-state" style="flex:1;"><div class="empty-icon">📊</div><h4>Henüz widget eklenmemiş</h4><p>"Düzenle" butonuna tıklayarak widget ekleyin.</p></div>`;
         }
     }
     
-    // Düzenleme modunu kapat
-    document.getElementById('widgetEklePanel').style.display = 'none';
+    const panel = document.getElementById('widgetEklePanel');
+    if (panel) panel.style.display = 'none';
     document.querySelectorAll('#dashboardWidgets .dash-card .widget-sil-btn').forEach(btn => btn.remove());
 };
 
-window.dashboardDuzenleModu = function() {
-    const panel = document.getElementById('widgetEklePanel');
-    const widgets = document.querySelectorAll('#dashboardWidgets .dash-card');
-    
-    if (!panel) return;
-    
-    // Panel durumunu değiştir
-    const isOpen = panel.style.display === 'block';
-    panel.style.display = isOpen ? 'none' : 'block';
-    
-    // Widget'lara silme butonu ekle/çıkar
-    widgets.forEach(card => {
-        const widgetId = card.dataset.widget;
-        if (!widgetId) return;
+window.widgetEkle = function(widgetId) {
+    if (!dashboardWidgets.includes(widgetId)) {
+        dashboardWidgets.push(widgetId);
+        localStorage.setItem('dashboardWidgets', JSON.stringify(dashboardWidgets));
         
-        const existingBtn = card.querySelector('.widget-sil-btn');
-        
-        if (!isOpen) {
-            // Silme butonu ekle (zaten yoksa)
-            if (!existingBtn) {
-                const silBtn = document.createElement('button');
-                silBtn.className = 'widget-sil-btn';
-                silBtn.innerHTML = '✖';
-                silBtn.title = 'Widget\'ı kaldır';
-                silBtn.style.cssText = `
-                    position: absolute;
-                    top: -8px;
-                    right: -8px;
-                    width: 28px;
-                    height: 28px;
-                    background: #e74c3c;
-                    color: white;
-                    border: 2px solid white;
-                    border-radius: 50%;
-                    font-size: 16px;
-                    font-weight: bold;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                    z-index: 999;
-                    transition: transform 0.2s;
-                `;
-                silBtn.onmouseover = () => silBtn.style.transform = 'scale(1.15)';
-                silBtn.onmouseout = () => silBtn.style.transform = 'scale(1)';
-                silBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    window.widgetKaldir(widgetId);
-                };
-                card.style.position = 'relative';
-                card.appendChild(silBtn);
-                console.log('✅ Silme butonu eklendi:', widgetId);
+        const container = document.getElementById('dashboardWidgets');
+        if (container) {
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+            
+            const widget = WIDGET_OPTIONS[widgetId];
+            if (widget) {
+                const card = document.createElement('div');
+                card.className = 'dash-card';
+                card.dataset.widget = widgetId;
+                card.innerHTML = `<small>${widget.title}</small><div id="dash${widgetId.charAt(0).toUpperCase() + widgetId.slice(1)}"><span style="font-size:16px; opacity:0.5;">⏳</span></div>`;
+                container.appendChild(card);
+                
+                window.dashboardWidgetVerileriniGuncelle();
+                showToast('✅ Widget eklendi');
+                
+                if (document.getElementById('widgetEklePanel').style.display === 'block') {
+                    window.dashboardDuzenleModu(); 
+                    window.dashboardDuzenleModu(); 
+                }
             }
-        } else {
-            if (existingBtn) existingBtn.remove();
         }
-    });
+    } else {
+        showToast('ℹ️ Bu widget zaten ekli', true);
+    }
 };
+function tahminiTukenenlerWidgetGuncelle() {
+    const container = document.getElementById('dashTahminiTukenenler');
+    if (!container) return;
+
+    // Sadece stoğu olan ve tükenme süresi hesaplanabilen ürünleri al, süreye göre sırala
+    const tahminliUrunler = Object.values(stoklar)
+        .filter(u => stokTahminleri[u.id] && stokTahminleri[u.id].gun !== Infinity && u.kalan > 0)
+        .map(u => ({ ...u, tahmin: stokTahminleri[u.id] }))
+        .sort((a, b) => a.tahmin.gun - b.tahmin.gun)
+        .slice(0, 5); // En hızlı tükenen 5 ürün
+
+    if (tahminliUrunler.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-secondary); font-size:13px;">✅ Tükenme riski yok</div>';
+        return;
+    }
+
+    container.innerHTML = tahminliUrunler.map(u => {
+        let renk = u.tahmin.durum === 'kritik' ? 'var(--danger)' : (u.tahmin.durum === 'uyari' ? 'var(--warning)' : 'var(--text)');
+        return `<div style="display:flex; justify-content:space-between; padding:4px 0; font-size:13px; border-bottom:1px solid var(--border);">
+            <span>${getUrunAdi(u)}</span>
+            <span style="color:${renk}; font-weight:600;">${u.tahmin.gun} gün</span>
+        </div>`;
+    }).join('');
+}
 // ================================================================
 // QUICK NAV YÖNETİMİ
 // ================================================================
@@ -3506,32 +3488,54 @@ function toggleQuickNavSettings() {
     if (!list) return;
     
     list.innerHTML = '';
-    const menuItems = document.querySelectorAll('.quick-nav-btn');
-    menuItems.forEach(btn => {
-        const id = btn.dataset.tab;
-        const icon = btn.querySelector('.nav-icon')?.textContent || '📄';
-        const label = btn.querySelector('.nav-label')?.textContent || id;
-        const checked = btn.style.display !== 'none';
+    
+    // Tüm sekmeleri dön
+    ALL_TABS.forEach(tab => {
+        // Butonun yatay menüde olup olmadığını kontrol et
+        const existingBtn = document.querySelector(`#quickNavContainer .quick-nav-btn[data-tab="${tab.id}"]`);
+        const isVisible = existingBtn && existingBtn.style.display !== 'none';
         
         const item = document.createElement('div');
         item.className = 'quick-nav-settings-item';
         item.innerHTML = `
-            <input type="checkbox" id="qnav-${id}" ${checked ? 'checked' : ''}>
-            <label for="qnav-${id}">${icon} ${label}</label>
-            <span class="drag-handle">⠿</span>
+            <input type="checkbox" id="qnav-${tab.id}" ${isVisible ? 'checked' : ''}>
+            <label for="qnav-${tab.id}">${tab.icon} ${tab.label}</label>
         `;
+        
         item.querySelector('input').addEventListener('change', function() {
-            const targetBtn = document.querySelector(`.quick-nav-btn[data-tab="${id}"]`);
-            if (targetBtn) {
-                targetBtn.style.display = this.checked ? 'flex' : 'none';
+            const isChecked = this.checked;
+            let btn = document.querySelector(`#quickNavContainer .quick-nav-btn[data-tab="${tab.id}"]`);
+            
+            if (isChecked) {
+                if (!btn) {
+                    // Buton yatay menüde yoksa oluştur ve ekle
+                    btn = document.createElement('button');
+                    btn.className = 'quick-nav-btn';
+                    btn.dataset.tab = tab.id;
+                    btn.innerHTML = `<span class="nav-icon">${tab.icon}</span><span class="nav-label">${tab.label}</span>`;
+                    btn.addEventListener('click', () => switchTab(tab.id));
+                    
+                    const moreBtn = document.querySelector('#quickNavContainer .more-btn');
+                    if (moreBtn) {
+                        document.getElementById('quickNavContainer').insertBefore(btn, moreBtn);
+                    } else {
+                        document.getElementById('quickNavContainer').appendChild(btn);
+                    }
+                } else {
+                    btn.style.display = 'flex';
+                }
+            } else {
+                if (btn) {
+                    btn.style.display = 'none';
+                }
             }
         });
+        
         list.appendChild(item);
     });
     
     modal.style.display = 'flex';
 }
-
 function closeQuickNavSettings() {
     document.getElementById('quickNavSettingsModal').style.display = 'none';
 }
@@ -3732,53 +3736,402 @@ function siparisYazdir() {
     `);
     w.document.close();
 }
+// UBL-TR Birim Kodlarını Türkçe'ye Çevirir
+function unitCodeToText(code) {
+    const birimler = {
+        'C62': 'Adet', 'PA': 'Paket', 'BX': 'Koli', 'KGM': 'Kg', 
+        'LTR': 'Litre', 'GRM': 'Gram', 'MTR': 'Metre', 'SET': 'Set', 'DZN': 'Düzine'
+    };
+    return birimler[code] || code || 'Adet';
+}
+window.unitCodeToText = unitCodeToText;
+// ================================================================
+// E-FATURA (XML) İLE OTOMATİK STOK EKLEME VE ÖĞRENME
+// ================================================================
+async function efaturaIleStokEkle() {
+    const fileInput = document.getElementById('efaturaFile');
+    const durum = document.getElementById('efaturaDurum');
+
+    if (!fileInput.files || fileInput.files.length === 0) {
+        durum.textContent = '❌ Lütfen bir XML dosyası seçin.';
+        durum.style.color = 'var(--btn-danger)';
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = async function(e) {
+        try {
+            showLoading('Fatura okunuyor...');
+            durum.textContent = '⏳ Fatura ayrıştırılıyor...';
+            durum.style.color = 'var(--text-secondary)';
+
+            const xmlText = e.target.result;
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+            const cac = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2";
+            const cbc = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
+
+            // --- 1. FATURA TEMEL BİLGİLERİNİ OKU ---
+            const uuidNode = xmlDoc.getElementsByTagNameNS(cbc, "UUID")[0];
+            const invoiceIdNode = xmlDoc.getElementsByTagNameNS(cbc, "ID")[0];
+            const issueDateNode = xmlDoc.getElementsByTagNameNS(cbc, "IssueDate")[0];
+            const issueTimeNode = xmlDoc.getElementsByTagNameNS(cbc, "IssueTime")[0];
+            
+            const supplierNode = xmlDoc.getElementsByTagNameNS(cac, "AccountingSupplierParty")[0]
+                                    ?.getElementsByTagNameNS(cac, "Party")[0]
+                                    ?.getElementsByTagNameNS(cac, "PartyName")[0]
+                                    ?.getElementsByTagNameNS(cbc, "Name")[0];
+            
+            const payableAmountNode = xmlDoc.getElementsByTagNameNS(cac, "LegalMonetaryTotal")[0]
+                                    ?.getElementsByTagNameNS(cbc, "PayableAmount")[0];
+
+            const ettn = uuidNode ? uuidNode.textContent.trim() : "";
+            const faturaNo = invoiceIdNode ? invoiceIdNode.textContent.trim() : "Bilinmeyen";
+            const tedarikciAdi = supplierNode ? supplierNode.textContent.trim() : "Bilinmeyen Tedarikçi";
+            const faturaTutari = payableAmountNode ? Number(payableAmountNode.textContent) : 0;
+
+            if (!ettn) throw new Error("Faturada ETTN (UUID) numarası bulunamadı. Mükerrer kontrolü yapılamaz.");
+
+            // --- 2. MÜKERRER (ÇİFT) YÜKLEME KONTROLÜ ---
+            durum.textContent = '🔍 Mükerrer fatura kontrolü yapılıyor...';
+            const arsivKontrol = await getDoc(doc(db, "fatura_arsivi", ettn));
+            if (arsivKontrol.exists()) {
+                throw new Error(`Bu fatura (No: ${faturaNo}) daha önce sisteme yüklenmiş! İşlem iptal edildi.`);
+            }
+
+            // Tarih İşleme
+            const faturaTarihiStr = issueDateNode ? issueDateNode.textContent.trim() : "";
+            const faturaSaatiStr = issueTimeNode ? issueTimeNode.textContent.trim() : "00:00:00";
+            let faturaDateObj = new Date();
+            if (faturaTarihiStr) {
+                faturaDateObj = new Date(`${faturaTarihiStr}T${faturaSaatiStr}`);
+                if (isNaN(faturaDateObj.getTime())) faturaDateObj = new Date(faturaTarihiStr);
+                if (isNaN(faturaDateObj.getTime())) faturaDateObj = new Date();
+            }
+            aktifEfaturaTarihi = Timestamp.fromDate(faturaDateObj);
+            const tarihBilgi = faturaDateObj.toLocaleDateString('tr-TR');
+
+            const lines = xmlDoc.getElementsByTagNameNS(cac, "InvoiceLine");
+            if (lines.length === 0) throw new Error("Faturada ürün bulunamadı.");
+
+            // Kayıtlı eşleştirmeleri ve birim dönüşümlerini çek
+            const eslestirmelerSnap = await getDocs(collection(db, "fatura_eslestirmeleri"));
+            const kayitliEslestirmeler = {};
+            eslestirmelerSnap.forEach(d => {
+                const data = d.data();
+                if (data.faturaUrunKodu) kayitliEslestirmeler[`KOD_${data.faturaUrunKodu.toLowerCase()}`] = { stokId: data.stokId, carpan: data.carpan || 1 };
+                if (data.faturaUrunAdi) kayitliEslestirmeler[`AD_${data.faturaUrunAdi.toLowerCase()}`] = { stokId: data.stokId, carpan: data.carpan || 1 };
+            });
+
+            await birimDonusumleriniYukle();
+
+            const batch = writeBatch(db);
+            let eklenenUrunSayisi = 0;
+            bekleyenEfaturaUrunleri = [];
+            const stokDizisi = Object.values(stoklar);
+
+            // --- 3. ÜRÜNLERİ İŞLE ---
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
+                const nameNode = line.getElementsByTagNameNS(cac, "Item")[0]?.getElementsByTagNameNS(cbc, "Name")[0];
+                const urunAdi = nameNode ? nameNode.textContent.trim() : "";
+                
+                const sellerIdNode = line.getElementsByTagNameNS(cac, "SellersItemIdentification")[0]?.getElementsByTagNameNS(cbc, "ID")[0];
+                const urunKodu = sellerIdNode ? sellerIdNode.textContent.trim() : "";
+
+                const qtyNode = line.getElementsByTagNameNS(cbc, "InvoicedQuantity")[0];
+                const miktar = qtyNode ? Number(qtyNode.textContent) : 0;
+                const birimKodu = qtyNode ? qtyNode.getAttribute("unitCode") : "C62";
+                const faturaBirimi = unitCodeToText(birimKodu);
+
+                if (miktar <= 0) continue;
+
+                let eslesenUrunId = null;
+                let carpan = 1;
+
+                if (urunKodu && kayitliEslestirmeler[`KOD_${urunKodu.toLowerCase()}`]) {
+                    eslesenUrunId = kayitliEslestirmeler[`KOD_${urunKodu.toLowerCase()}`].stokId;
+                    carpan = kayitliEslestirmeler[`KOD_${urunKodu.toLowerCase()}`].carpan;
+                } else if (urunAdi && kayitliEslestirmeler[`AD_${urunAdi.toLowerCase()}`]) {
+                    eslesenUrunId = kayitliEslestirmeler[`AD_${urunAdi.toLowerCase()}`].stokId;
+                    carpan = kayitliEslestirmeler[`AD_${urunAdi.toLowerCase()}`].carpan;
+                }
+
+                if (!eslesenUrunId && urunKodu) {
+                    const bulunan = stokDizisi.find(u => u.barkod && u.barkod.toLowerCase() === urunKodu.toLowerCase());
+                    if (bulunan) eslesenUrunId = bulunan.id;
+                }
+
+                if (!eslesenUrunId && urunAdi) {
+                    const bulunan = stokDizisi.find(u => getUrunAdi(u).toLowerCase() === urunAdi.toLowerCase());
+                    if (bulunan) eslesenUrunId = bulunan.id;
+                }
+
+                if (birimDonusumleri[faturaBirimi.toUpperCase()]) {
+                    carpan = birimDonusumleri[faturaBirimi.toUpperCase()].carpan;
+                }
+
+                if (eslesenUrunId) {
+                    const urun = stoklar[eslesenUrunId];
+                    const sistemBirimi = urun.birim || 'Adet';
+                    
+                    if (faturaBirimi.toLowerCase() !== sistemBirimi.toLowerCase() && carpan === 1) {
+                        bekleyenEfaturaUrunleri.push({
+                            urunAdi: urunAdi, urunKodu: urunKodu, miktar: miktar, 
+                            birim: faturaBirimi, eslesenUrunId: eslesenUrunId, sistemBirimi: sistemBirimi
+                        });
+                        continue;
+                    }
+
+                    const yeniStok = (urun.kalan || 0) + (miktar * carpan);
+                    batch.update(doc(db, "stoklar", eslesenUrunId), { kalan: yeniStok });
+                    
+                    const hareketRef = doc(collection(db, "hareketler"));
+                    batch.set(hareketRef, {
+                        urunId: eslesenUrunId, urun: getUrunAdi(urun), tur: 'giris',
+                        miktar: miktar * carpan, birim: urun.birim || 'Adet',
+                        tarih: aktifEfaturaTarihi, aciklama: `e-Fatura ile stok girişi (${miktar} ${faturaBirimi})`
+                    });
+                    eklenenUrunSayisi++;
+                } else {
+                    bekleyenEfaturaUrunleri.push({
+                        urunAdi: urunAdi, urunKodu: urunKodu, miktar: miktar, 
+                        birim: faturaBirimi, eslesenUrunId: null, sistemBirimi: null
+                    });
+                }
+            }
+
+            // --- 4. ARŞİVE KAYDET VE BATCH'İ UYGULA ---
+            // Eşleşmeyen ürün olsa bile faturayı arşive kaydediyoruz ki bir daha yüklenemesin.
+            const arsivRef = doc(db, "fatura_arsivi", ettn);
+            batch.set(arsivRef, {
+                ettn: ettn,
+                faturaNo: faturaNo,
+                tedarikci: tedarikciAdi,
+                faturaTarihi: aktifEfaturaTarihi,
+                tutar: faturaTutari,
+                yuklemeTarihi: Timestamp.now(),
+                yukleyen: mevcutKullanici?.email || 'Sistem',
+                urunSayisi: lines.length
+            });
+
+            await batch.commit();
+            await logEkle('efatura_stok', `${faturaNo} nolu e-fatura işlendi. (${eklenenUrunSayisi} ürün eklendi)`, { faturaNo: faturaNo });
+
+            hideLoading();
+            fileInput.value = '';
+
+            if (bekleyenEfaturaUrunleri.length > 0) {
+                durum.innerHTML = `✅ ${eklenenUrunSayisi} ürün eklendi. ⚠️ ${bekleyenEfaturaUrunleri.length} ürün için eşleştirme/birim kontrolü gerekiyor.`;
+                durum.style.color = 'var(--btn-warning)';
+                efaturaEslestirmeModalGoster();
+            } else {
+                durum.innerHTML = `✅ Başarılı! Faturadaki ${eklenenUrunSayisi} ürünün tamamı stoğa eklendi. (Tarih: ${tarihBilgi})`;
+                durum.style.color = 'var(--btn-success)';
+            }
+
+        } catch(err) {
+            hideLoading();
+            console.error('E-Fatura yükleme hatası:', err);
+            durum.textContent = '❌ Hata: ' + err.message;
+            durum.style.color = 'var(--btn-danger)';
+        }
+    };
+    reader.readAsText(file, "UTF-8");
+}
+
+window.efaturaIleStokEkle = efaturaIleStokEkle;
+
+// Modal'ı açar ve eşleşmeyen ürünleri listeler
+function efaturaEslestirmeModalGoster() {
+    const tbody = document.getElementById('efaturaEslestirmeListesi');
+    tbody.innerHTML = '';
+    const stokDizisi = Object.values(stoklar).sort((a,b) => getUrunAdi(a).localeCompare(getUrunAdi(b)));
+
+    bekleyenEfaturaUrunleri.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border)';
+        
+        let optionsHtml = '<option value="">-- Seçiniz --</option>';
+        stokDizisi.forEach(u => {
+            const selected = (item.eslesenUrunId === u.id) ? 'selected' : '';
+            optionsHtml += `<option value="${u.id}" ${selected}>${getUrunAdi(u)} (${u.birim || 'Adet'})</option>`;
+        });
+
+        tr.innerHTML = `
+            <td style="padding:8px;">
+                <strong>${item.urunAdi}</strong><br>
+                <small style="color:var(--text-secondary);">Kod: ${item.urunKodu || '-'}</small>
+            </td>
+            <td style="padding:8px; text-align:center; font-weight:bold; color:var(--btn-success);">
+                ${item.miktar} <br><small>${item.birim}</small>
+            </td>
+            <td style="padding:8px;">
+                <select id="efatura-select-${index}" onchange="efaturaBirimGuncelle(${index})" style="width:100%; padding:6px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text); font-size:13px;">
+                    ${optionsHtml}
+                </select>
+                <div id="efatura-sistem-birim-${index}" style="font-size:11px; color:var(--text-secondary); margin-top:4px;"></div>
+            </td>
+            <td style="padding:8px;">
+                <input type="number" id="efatura-carpan-${index}" value="1" min="0.01" step="0.01" style="width:70px; padding:6px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text);">
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('efaturaEslestirmeModal').style.display = 'flex';
+    bekleyenEfaturaUrunleri.forEach((_, index) => efaturaBirimGuncelle(index));
+}
+
+function efaturaBirimGuncelle(index) {
+    const select = document.getElementById(`efatura-select-${index}`);
+    const birimDiv = document.getElementById(`efatura-sistem-birim-${index}`);
+    const carpanInput = document.getElementById(`efatura-carpan-${index}`);
+    
+    if (select.value && stoklar[select.value]) {
+        const urun = stoklar[select.value];
+        const faturaBirimi = bekleyenEfaturaUrunleri[index].birim;
+        const sistemBirimi = urun.birim || 'Adet';
+        
+        if (faturaBirimi.toLowerCase() !== sistemBirimi.toLowerCase()) {
+            birimDiv.innerHTML = `Sistem Birimi: <strong>${sistemBirimi}</strong> (Lütfen çarpanı girin)`;
+            birimDiv.style.color = 'var(--btn-warning)';
+            carpanInput.disabled = false;
+        } else {
+            birimDiv.innerHTML = `Sistem Birimi: <strong>${sistemBirimi}</strong> (Birimler aynı)`;
+            birimDiv.style.color = 'var(--text-secondary)';
+            carpanInput.disabled = true;
+            carpanInput.value = 1;
+        }
+    } else {
+        birimDiv.innerHTML = '';
+        carpanInput.disabled = false;
+    }
+}
+
+async function efaturaEslestirmeyiKaydetVeEkle() {
+    showLoading('Eşleştirmeler kaydediliyor ve stoklar güncelleniyor...');
+    const batch = writeBatch(db);
+    let eklenen = 0;
+    let hata = false;
+
+    for (let i = 0; i < bekleyenEfaturaUrunleri.length; i++) {
+        const select = document.getElementById(`efatura-select-${i}`);
+        const carpanInput = document.getElementById(`efatura-carpan-${i}`);
+        const secilenStokId = select.value;
+        const item = bekleyenEfaturaUrunleri[i];
+
+        if (secilenStokId) {
+            const urun = stoklar[secilenStokId];
+            if (!urun) continue;
+            
+            const carpan = Number(carpanInput.value) || 1;
+            const eklenecekMiktar = item.miktar * carpan;
+
+            // Eşleştirmeyi kaydet (öğrenme)
+            const eslestirmeRef = doc(collection(db, "fatura_eslestirmeleri"));
+            batch.set(eslestirmeRef, {
+                faturaUrunAdi: item.urunAdi,
+                faturaUrunKodu: item.urunKodu,
+                stokId: secilenStokId,
+                carpan: carpan,
+                kayitTarihi: Timestamp.now()
+            });
+
+            // Stoğu güncelle
+            const yeniStok = (urun.kalan || 0) + eklenecekMiktar;
+            batch.update(doc(db, "stoklar", secilenStokId), { kalan: yeniStok });
+
+            // Hareket ekle
+            const hareketRef = doc(collection(db, "hareketler"));
+            batch.set(hareketRef, {
+                urunId: secilenStokId, urun: getUrunAdi(urun), tur: 'giris',
+                miktar: eklenecekMiktar, birim: urun.birim || 'Adet', tarih: aktifEfaturaTarihi,
+                aciklama: `e-Fatura eşleştirme (Fatura: ${item.miktar} ${item.birim} x ${carpan} = ${eklenecekMiktar} ${urun.birim || 'Adet'})`
+            });
+            eklenen++;
+        } else {
+            hata = true;
+        }
+    }
+
+    if (hata) {
+        hideLoading();
+        showToast('⚠️ Lütfen eşleştirme yapılmadan geçmek istediğiniz ürünleri işaretleyin veya seçim yapın.', true);
+        return;
+    }
+
+    try {
+        await batch.commit();
+        hideLoading();
+        showToast(`✅ ${eklenen} ürün için eşleştirme kaydedildi, birim dönüşümleri uygulandı ve stoğa eklendi.`);
+        await logEkle('efatura_eslestirme', `${eklenen} ürün için fatura eşleştirmesi ve birim dönüşümü yapıldı.`);
+        
+        efaturaEslestirmeKapat();
+        document.getElementById('efaturaDurum').innerHTML = `✅ Başarılı! ${eklenen} ürün stoğa eklendi.`;
+        document.getElementById('efaturaDurum').style.color = 'var(--btn-success)';
+    } catch(err) {
+        hideLoading();
+        console.error('Eşleştirme kaydetme hatası:', err);
+        showToast('❌ Eşleştirmeler kaydedilirken hata oluştu.', true);
+    }
+}
+
+window.efaturaBirimGuncelle = efaturaBirimGuncelle;
+window.efaturaEslestirmeyiKaydetVeEkle = efaturaEslestirmeyiKaydetVeEkle;
 
 document.addEventListener('DOMContentLoaded', function() {
     const container = document.getElementById('quickNavContainer');
     const mobileMenu = document.getElementById('mobileMenu');
     if (!container) return;
 
-    // ANA BUTONLAR (her zaman görünür - 5 tane)
-    const primaryTabs = [
-        { id: 'hizli-islem', icon: '⚡', label: 'Hızlı' },
-        { id: 'stok-listesi', icon: '📋', label: 'Stok' },
-        { id: 'hareketler', icon: '🕒', label: 'Hareket' },
-        { id: 'rapor', icon: '📊', label: 'Rapor' },
-        { id: 'siparisler', icon: '📦', label: 'Sipariş' }
-    ];
+    // localStorage'dan kullanıcı ayarlarını al
+    let settings = {};
+    try {
+        const kayitli = localStorage.getItem('quickNavSettings');
+        if (kayitli) settings = JSON.parse(kayitli);
+    } catch(e) {}
 
-    // İKİNCİL BUTONLAR ("Daha Fazla" menüsünde)
-    const secondaryTabs = [
-        { id: 'yeni-urun', icon: '➕', label: 'Yeni Ürün Ekle' },
-        { id: 'gruplar', icon: '📁', label: 'Gruplar' },
-        { id: 'kullanicilar', icon: '👥', label: 'Kullanıcılar' },
-        { id: 'loglar', icon: '📋', label: 'Loglar' },
-        { id: 'feedback', icon: '💬', label: 'Geri Bildirim Gönder' },
-        { id: 'feedback-list', icon: '📬', label: 'Geri Bildirimler' },
-        { id: 'yedekle', icon: '💾', label: 'Yedekleme' }
-    ];
+    // Eğer kullanıcı daha önce ayar yapmadıysa, varsayılan 5 sekmeyi aç
+    if (Object.keys(settings).length === 0) {
+        settings = {
+            'hizli-islem': true,
+            'stok-listesi': true,
+            'hareketler': true,
+            'rapor': true,
+            'siparisler': true
+        };
+    }
 
-    // Ana butonları oluştur
-    primaryTabs.forEach(tab => {
-        const btn = document.createElement('button');
-        btn.className = 'quick-nav-btn';
-        btn.dataset.tab = tab.id;
-        btn.innerHTML = `<span class="nav-icon">${tab.icon}</span><span class="nav-label">${tab.label}</span>`;
-        btn.addEventListener('click', () => switchTab(tab.id));
-        container.appendChild(btn);
+    container.innerHTML = ''; // İçeriği temizle
+
+    // Sadece ayarı "true" olan menüleri yatay çubuğa ekle
+    ALL_TABS.forEach(tab => {
+        if (settings[tab.id]) {
+            const btn = document.createElement('button');
+            btn.className = 'quick-nav-btn';
+            btn.dataset.tab = tab.id;
+            btn.innerHTML = `<span class="nav-icon">${tab.icon}</span><span class="nav-label">${tab.label}</span>`;
+            btn.addEventListener('click', () => switchTab(tab.id));
+            container.appendChild(btn);
+        }
     });
 
-    // "Daha Fazla" butonu
+    // "Daha" butonunu her zaman en sona ekle
     const moreBtn = document.createElement('button');
     moreBtn.className = 'quick-nav-btn more-btn';
     moreBtn.innerHTML = `<span class="nav-icon">⋮</span><span class="nav-label">Daha</span>`;
     moreBtn.onclick = () => toggleMoreMenu();
     container.appendChild(moreBtn);
 
-    // Mobil menüye (Daha Fazla açılır menüsü) TÜM sekmeleri ekle
+    // Sağ üstteki "Daha" (Mobil) menüsüne TÜM sekmeleri ekle
     if (mobileMenu) {
         mobileMenu.innerHTML = '';
-        [...primaryTabs, ...secondaryTabs].forEach(tab => {
+        ALL_TABS.forEach(tab => {
             const a = document.createElement('a');
             a.href = '#' + tab.id;
             a.textContent = tab.icon + ' ' + tab.label;
@@ -3800,6 +4153,149 @@ function toggleMoreMenu() {
     const menu = document.getElementById('mobileMenu');
     if (menu) menu.classList.toggle('open');
 }
+// ================================================================
+// BİRİM DÖNÜŞÜM YÖNETİMİ
+// ================================================================
+let birimDonusumleri = {}; // { 'PA': { sistemBirimi: 'Adet', carpan: 12 } }
+
+async function birimDonusumleriniYukle() {
+    try {
+        const snap = await getDocs(collection(db, "birim_donusumleri"));
+        birimDonusumleri = {};
+        snap.forEach(d => {
+            const data = d.data();
+            birimDonusumleri[data.faturaBirimi.toUpperCase()] = {
+                id: d.id,
+                sistemBirimi: data.sistemBirimi,
+                carpan: data.carpan
+            };
+        });
+    } catch(e) { console.warn('Birim dönüşümleri yüklenemedi:', e); }
+}
+
+function birimDonusumModalGoster() {
+    document.getElementById('birimDonusumModal').style.display = 'flex';
+    birimDonusumListesiniGuncelle();
+}
+
+function birimDonusumModalKapat() {
+    document.getElementById('birimDonusumModal').style.display = 'none';
+}
+
+async function birimDonusumListesiniGuncelle() {
+    await birimDonusumleriniYukle();
+    const list = document.getElementById('birimDonusumListesi');
+    const keys = Object.keys(birimDonusumleri);
+    
+    if (keys.length === 0) {
+        list.innerHTML = '<div style="padding:16px; text-align:center; color:var(--text-secondary);">Henüz birim dönüşümü tanımlanmamış.</div>';
+        return;
+    }
+    
+    list.innerHTML = keys.map(key => {
+        const d = birimDonusumleri[key];
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px solid var(--border);">
+            <span><strong>${key}</strong> (Fatura) → <strong>${d.sistemBirimi}</strong> <span style="color:var(--btn-warning);">×${d.carpan}</span></span>
+            <button onclick="birimDonusumuSil('${d.id}')" style="background:var(--btn-danger); color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer; font-size:12px;">✖</button>
+        </div>`;
+    }).join('');
+}
+
+async function birimDonusumuEkle() {
+    const faturaBirimi = document.getElementById('faturaBirimKodu').value.trim().toUpperCase();
+    const sistemBirimi = document.getElementById('sistemBirimAdi').value.trim();
+    const carpan = Number(document.getElementById('birimCarpan').value) || 1;
+    
+    if (!faturaBirimi || !sistemBirimi) return showToast('Lütfen tüm alanları doldurun!', true);
+    if (carpan <= 0) return showToast('Çarpan 0 veya negatif olamaz!', true);
+    
+    try {
+        await addDoc(collection(db, "birim_donusumleri"), {
+            faturaBirimi: faturaBirimi,
+            sistemBirimi: sistemBirimi,
+            carpan: carpan
+        });
+        showToast(`✅ ${faturaBirimi} → ${sistemBirimi} (×${carpan}) eklendi.`);
+        document.getElementById('faturaBirimKodu').value = '';
+        document.getElementById('sistemBirimAdi').value = '';
+        document.getElementById('birimCarpan').value = '1';
+        birimDonusumListesiniGuncelle();
+    } catch(e) { showToast(getFriendlyErrorMessage(e), true); }
+}
+
+async function birimDonusumuSil(id) {
+    if (!confirm('Bu birim dönüşümünü silmek istediğinize emin misiniz?')) return;
+    try {
+        await deleteDoc(doc(db, "birim_donusumleri", id));
+        showToast('✅ Silindi');
+        birimDonusumListesiniGuncelle();
+    } catch(e) { showToast(getFriendlyErrorMessage(e), true); }
+}
+
+window.birimDonusumModalGoster = birimDonusumModalGoster;
+window.birimDonusumModalKapat = birimDonusumModalKapat;
+window.birimDonusumuEkle = birimDonusumuEkle;
+window.birimDonusumuSil = birimDonusumuSil;
+
+// ================================================================
+// FATURA ARŞİVİ LİSTELEME
+// ================================================================
+async function faturaArsiviniListele() {
+    const tbody = document.getElementById('faturaArsiviTablo');
+    if (!tbody) return;
+    
+    try {
+        showLoading('Fatura arşivi yükleniyor...');
+        const snap = await getDocs(query(collection(db, "fatura_arsivi"), orderBy("yuklemeTarihi", "desc")));
+        
+        if (snap.empty) {
+            tbody.innerHTML = `
+                <tr><td colspan="6">
+                    <div class="empty-state">
+                        <div class="empty-icon">🧾</div>
+                        <h4>Henüz yüklenmiş fatura yok</h4>
+                        <p>E-fatura yüklediğinizde burada listelenecektir.</p>
+                    </div>
+                </td></tr>
+            `;
+            hideLoading();
+            return;
+        }
+
+        let html = '';
+        snap.forEach(d => {
+            const f = d.data();
+            const faturaTarihi = f.faturaTarihi?.toDate().toLocaleDateString('tr-TR') || '-';
+            const yuklemeTarihi = f.yuklemeTarihi?.toDate().toLocaleString('tr-TR') || '-';
+            const tutarStr = Number(f.tutar).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            
+            html += `
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:10px;"><strong>${f.faturaNo || '-'}</strong><br><small style="color:#888;">ETTN: ${f.ettn.substring(0,8)}...</small></td>
+                    <td style="padding:10px;">${f.tedarikci || '-'}</td>
+                    <td style="padding:10px; text-align:center;">${faturaTarihi}</td>
+                    <td style="padding:10px; text-align:right; font-weight:600; color:var(--text);">${tutarStr} ₺</td>
+                    <td style="padding:10px; text-align:center;">${f.urunSayisi || 0} kalem</td>
+                    <td style="padding:10px; text-align:center;">
+                        <button onclick="window.faturaArsivDetay('${f.ettn}')" style="background:var(--btn-primary); color:white; border:none; border-radius:20px; padding:4px 10px; cursor:pointer; font-size:12px;">Detay</button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+        hideLoading();
+    } catch(e) {
+        console.error('Arşiv listeleme hatası:', e);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--danger); padding:20px;">❌ Arşiv yüklenirken hata oluştu</td></tr>';
+        hideLoading();
+    }
+}
+
+// Sekmeye tıklandığında arşivi yükle
+window.faturaArsivDetay = function(ettn) {
+    // İleride buraya detay modalı eklenebilir.
+    showToast("Fatura ETTN: " + ettn);
+};
 
 // ================================================================
 // GLOBAL FONKSİYONLARI WINDOW OBJESİNE EKLE (EXPORT)
@@ -3944,11 +4440,44 @@ window.switchTab = switchTab;
 // Excel
 window.excelUrunleriYukle = excelUrunleriYukle;
 
-// Bildirim
-window.requestNotificationPermission = window.requestNotificationPermission;
-window.sendNotification = window.sendNotification;
-window.debounceSearch = window.debounceSearch;
+// ========== YEREL BİLDİRİM GÖNDERME FONKSİYONU ==========
+function sendNotification(title, body, url = '/') {
+    // Eğer tarayıcı bildirimleri desteklemiyorsa toast göster
+    if (!('Notification' in window)) {
+        showToast(`${title}: ${body}`);
+        return;
+    }
 
+    if (Notification.permission === 'granted') {
+        // Service worker üzerinden bildirim göster (Arka planda ve mobilde daha stabil çalışır)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification(title, {
+                    body: body,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/2897/2897785.png',
+                    badge: 'https://cdn-icons-png.flaticon.com/512/2897/2897785.png',
+                    vibrate: [200, 100, 200],
+                    data: { url: url }
+                });
+            }).catch(err => {
+                console.warn('SW bildirim hatası, varsayılan deneniyor:', err);
+                new Notification(title, { body: body, icon: 'https://cdn-icons-png.flaticon.com/512/2897/2897785.png' });
+            });
+        } else {
+            // Service worker yoksa direkt göster
+            new Notification(title, {
+                body: body,
+                icon: 'https://cdn-icons-png.flaticon.com/512/2897/2897785.png'
+            });
+        }
+    } else {
+        // İzin verilmemişse sadece uygulama içi toast göster
+        showToast(`${title}: ${body}`);
+    }
+}
+
+// Global'e ekle
+window.sendNotification = sendNotification;
 // Özet
 window.bugunOzetiniGetir = bugunOzetiniGetir;
 window.bugunCikisGetir = bugunCikisGetir;
@@ -3967,12 +4496,6 @@ window.oturumZamanAsimiBaslat = oturumZamanAsimiBaslat;
 window.oturumZamanAsimiSifirla = oturumZamanAsimiSifirla;
 window.populateTimeSelects = populateTimeSelects;
 
-// Widget fonksiyonlarını window'a ekle (eksikse)
-window.widgetKaldir = window.widgetKaldir || widgetKaldir;
-window.dashboardDuzenleModu = window.dashboardDuzenleModu || dashboardDuzenleModu;
-window.widgetEkle = window.widgetEkle || widgetEkle;
-window.dashboardWidgetlariGoster = window.dashboardWidgetlariGoster || dashboardWidgetlariGoster;
-window.dashboardWidgetVerileriniGuncelle = window.dashboardWidgetVerileriniGuncelle;
 // ========== EKSİK EXPORT'LAR (DÜZELTME) ==========
 window.toggleMoreMenu = toggleMoreMenu;
 window.detayGeri = detayGeri;
