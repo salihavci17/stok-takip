@@ -55,25 +55,28 @@ let kameraAktif = false;
 let oncekiTab = 'stok-listesi';
 let oncekiScrollY = 0;
 let sadeceKritikGoster = false;
+let secilenHareketler = new Set();
+let aktifHareketFiltreleri = {};
 let stokTahminleri = {};
 let bekleyenEfaturaUrunleri = []; // Eşleşmeyen fatura ürünlerini tutar
 let aktifEfaturaTarihi = Timestamp.now(); // XML'den okunan fatura tarihini tutar
 
 // TÜM MENÜLERİN LİSTESİ (Hem yatay hem dikey menü için)
 const ALL_TABS = [
-    { id: 'hizli-islem', icon: '⚡', label: 'Hızlı' },
-    { id: 'stok-listesi', icon: '📋', label: 'Stok' },
-    { id: 'hareketler', icon: '🕒', label: 'Hareket' },
-    { id: 'rapor', icon: '📊', label: 'Rapor' },
-    { id: 'siparisler', icon: '📦', label: 'Sipariş' },
-    { id: 'fatura-arsivi', icon: '🧾', label: 'Fatura Arşivi' }, // YENİ EKLENDİ
-    { id: 'yeni-urun', icon: '➕', label: 'Yeni Ürün Ekle' },
-    { id: 'gruplar', icon: '📁', label: 'Gruplar' },
-    { id: 'kullanicilar', icon: '👥', label: 'Kullanıcılar' },
-    { id: 'loglar', icon: '📋', label: 'Loglar' },
-    { id: 'feedback', icon: '💬', label: 'Geri Bildirim Gönder' },
-    { id: 'feedback-list', icon: '📬', label: 'Geri Bildirimler' },
-    { id: 'yedekle', icon: '💾', label: 'Yedekleme' }
+    { id: 'genel-bakis',  icon: '📊', label: 'Genel Bakış', adminOnly: false },
+    { id: 'hizli-islem',  icon: '⚡', label: 'Hızlı',       adminOnly: false },
+    { id: 'stok-listesi', icon: '📋', label: 'Stok',         adminOnly: false },
+    { id: 'hareketler',   icon: '🕒', label: 'Hareket',      adminOnly: false },
+    { id: 'rapor',        icon: '📊', label: 'Rapor',        adminOnly: false },
+    { id: 'siparisler',   icon: '📦', label: 'Sipariş',      adminOnly: false },
+    { id: 'fatura-arsivi',icon: '🧾', label: 'Fatura Arşivi',adminOnly: false },
+    { id: 'yeni-urun',    icon: '➕', label: 'Ürün/Veri Ekle',adminOnly: false },
+    { id: 'gruplar',      icon: '📁', label: 'Gruplar',      adminOnly: false },
+    { id: 'feedback',     icon: '💬', label: 'Geri Bildirim',adminOnly: false },
+    { id: 'kullanicilar', icon: '👥', label: 'Kullanıcılar', adminOnly: true },
+    { id: 'loglar',       icon: '📋', label: 'Loglar',       adminOnly: true },
+    { id: 'feedback-list',icon: '📬', label: 'Geri Bildirimler', adminOnly: true },
+    { id: 'yedekle',      icon: '💾', label: 'Yedekleme',    adminOnly: true }
 ];
 
 // --- DASHBOARD WIDGET DEĞİŞKENLERİ ---
@@ -104,17 +107,23 @@ function yoneticiMi() { return mevcutRol === 'admin' || mevcutRol === 'yonetici'
 
 // ========== LOG EKLEME ==========
 async function logEkle(islem, detay, ekstra = {}) {
-    if (!mevcutKullanici) return;
+    if (!mevcutKullanici) {
+        console.warn("⚠️ Log atlanıyor: Kullanıcı oturumu yok.");
+        return;
+    }
     try {
-        await addDoc(collection(db, "logs"), {
+        console.log(`📝 Log ekleniyor: [${islem}] - ${detay}`);
+        const docRef = await addDoc(collection(db, "logs"), {
             kullanici: mevcutKullanici.email,
             islem: islem,
             detay: detay,
             tarih: Timestamp.now(),
             ...ekstra
         });
+        console.log(`✅ Log başarıyla kaydedildi. ID: ${docRef.id}`);
     } catch(e) {
-        console.warn('Log eklenemedi:', e.message);
+        console.error('❌ Log eklenemedi:', e);
+        showToast('Log kaydedilemedi! Konsolu (F12) kontrol edin.', true);
     }
 }
 
@@ -638,9 +647,11 @@ onAuthStateChanged(auth, async (user) => {
         loginScreen.style.display = 'none';
         mainApp.style.display = 'block';
 
+        buildQuickNav();
         oturumZamanAsimiBaslat();
         checkForUpdates();
         if (adminMi()) kullaniciListesiniGetir();
+        await birimDonusumleriniYukle();
         verileriGetir();
         siparisleriListele();
         checkNotificationStatus();
@@ -672,24 +683,31 @@ onAuthStateChanged(auth, async (user) => {
             }
         }
 
-        try {
-            await logEkle('giris', 'Kullanıcı giriş yaptı');
-        } catch (e) {
-            console.warn('Giriş logu eklenemedi:', e.message);
-        }
+              setTimeout(async () => {
+            try {
+                await logEkle('giris', 'Kullanıcı giriş yaptı');
+            } catch (e) {
+                console.warn('Giriş logu eklenemedi:', e.message);
+            }
+        }, 1500); // 1.5 saniye bekle
 
-    } else {
+        } else {
+        // ÖNCE log at (mevcutKullanici henüz null olmadığı için)
+        if (mevcutKullanici) {
+            try {
+                await logEkle('cikis', 'Kullanıcı çıkış yaptı');
+            } catch (e) {
+                console.warn('Çıkış logu eklenemedi:', e.message);
+            }
+        }
+        
+        // SONRA kullanıcıyı sıfırla
         mevcutKullanici = null;
         mevcutRol = null;
         loginScreen.style.display = 'flex';
         mainApp.style.display = 'none';
         if (inaktiviteTimeout) clearTimeout(inaktiviteTimeout);
         loadRememberMe();
-        try {
-            await logEkle('cikis', 'Kullanıcı çıkış yaptı');
-        } catch (e) {
-            console.warn('Çıkış logu eklenemedi:', e.message);
-        }
     }
 });
 
@@ -697,16 +715,28 @@ onAuthStateChanged(auth, async (user) => {
 // LOG GÖSTERİMİ
 // ================================================================
 async function loglariGetir() {
+    console.log("🚀 loglariGetir fonksiyonu tetiklendi! Veriler isteniyor...");
     const tbody = document.getElementById('logTabloGovde');
-    if (!tbody) return;
+    if (!tbody) {
+        console.error("❌ HATA: logTabloGovde elementi bulunamadı!");
+        return;
+    }
     try {
         showLoading('Loglar yükleniyor...');
-        let q = query(collection(db, "logs"), orderBy("tarih", "desc"), limit(LOG_LIMIT));
-        if (logFiltre !== 'hepsi') {
-            q = query(q, where("islem", "==", logFiltre));
+        console.log("📡 Firebase'e sorgu atılıyor: logFiltre =", logFiltre);
+        // ... geri kalan kod aynı ...
+        let q;
+        // Filtre yoksa sadece orderBy kullan (Index gerektirmez)
+        if (logFiltre === 'hepsi') {
+            q = query(collection(db, "logs"), orderBy("tarih", "desc"), limit(LOG_LIMIT));
+        } else {
+            // Filtre varsa where + orderBy (Index gerekebilir)
+            q = query(collection(db, "logs"), where("islem", "==", logFiltre), orderBy("tarih", "desc"), limit(LOG_LIMIT));
         }
+
         const snap = await getDocs(q);
         tbody.innerHTML = "";
+        
         if (snap.empty) {
             tbody.innerHTML = `
                 <tr><td colspan="4">
@@ -721,6 +751,7 @@ async function loglariGetir() {
             hideLoading();
             return;
         }
+
         let html = "";
         snap.forEach(d => {
             const log = d.data();
@@ -741,6 +772,7 @@ async function loglariGetir() {
                 </tr>
             `;
         });
+        
         if (html === "") {
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888; padding:20px;">🔍 Arama sonucu bulunamadı</td></tr>';
         } else {
@@ -750,7 +782,10 @@ async function loglariGetir() {
         hideLoading();
     } catch(e) {
         console.error('Log getirme hatası:', e);
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--btn-danger); padding:20px;">❌ Loglar yüklenirken hata oluştu</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--btn-danger); padding:20px;">
+            ❌ Loglar yüklenirken hata oluştu.<br>
+            <small>${e.message}</small>
+        </td></tr>`;
         hideLoading();
     }
 }
@@ -1401,7 +1436,7 @@ function aramaTemizle() {
 // ================================================================
 // HAREKETLER
 // ================================================================
-async function hareketleriListele(filters = {}) {
+async function hareketleriListele(filters = null) {
     const tbody = document.getElementById('hareketlerTablo');
     if (!tbody) return;
     
@@ -1447,7 +1482,7 @@ async function hareketleriListele(filters = {}) {
                 hideLoading();
                 return;
             }
-            let html = '';
+                       let html = '';
             let toplamGiris = 0, toplamCikis = 0;
             docs.forEach(d => {
                 const h = d.data();
@@ -1455,7 +1490,12 @@ async function hareketleriListele(filters = {}) {
                 if (h.tur === 'giris') toplamGiris += h.miktar;
                 else toplamCikis += h.miktar;
                 const isAdmin = adminMi();
+                const isChecked = secilenHareketler.has(id) ? 'checked' : '';
+                
                 html += `<tr>
+                    <td style="text-align: center;">
+                        ${isAdmin ? `<input type="checkbox" class="hareket-checkbox" value="${id}" ${isChecked} onchange="hareketSec('${id}', this.checked)">` : ''}
+                    </td>
                     <td style="font-size:12px;">${h.tarih?.toDate().toLocaleString('tr-TR') || '-'}</td>
                     <td>${h.urun || '-'}</td>
                     <td><b>${h.miktar}</b> ${h.birim || ''}</td>
@@ -1469,12 +1509,21 @@ async function hareketleriListele(filters = {}) {
                 </tr>`;
             });
             html += `<tr style="background:var(--card-border); font-weight:700; border-top:2px solid var(--text);">
+                <td></td>
                 <td colspan="2" style="padding:10px 12px; color:var(--text);">📊 TOPLAM</td>
                 <td style="padding:10px 12px; text-align:center; color:#2ecc71;">+${toplamGiris}</td>
                 <td style="padding:10px 12px; text-align:center; color:#e74c3c;">-${toplamCikis}</td>
                 <td></td>
             </tr>`;
             tbody.innerHTML = html;
+            
+            guncelleTopluSilBtn();
+            
+            const selectAllCb = document.getElementById('selectAllHareketler');
+            if (selectAllCb) {
+                const checkboxes = document.querySelectorAll('.hareket-checkbox');
+                selectAllCb.checked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+            }
             hideLoading();
         }, (error) => {
             console.error('Hareketler dinleme hatası:', error);
@@ -1492,6 +1541,7 @@ function hareketleriFiltrele() {
     const baslangic = document.getElementById('hareketBaslangic')?.value;
     const bitis = document.getElementById('hareketBitis')?.value;
     const urunFiltre = document.getElementById('hareketUrunFiltre')?.value.trim();
+    secilenHareketler.clear(); // Filtre değişince seçimleri temizle
     hareketleriListele({ baslangic, bitis, urunFiltre });
 }
 
@@ -1499,9 +1549,94 @@ function hareketleriTemizle() {
     document.getElementById('hareketBaslangic').value = '';
     document.getElementById('hareketBitis').value = '';
     document.getElementById('hareketUrunFiltre').value = '';
+    secilenHareketler.clear();
     hareketleriListele({});
 }
 
+window.hareketSec = function(id, checked) {
+    if (checked) secilenHareketler.add(id);
+    else secilenHareketler.delete(id);
+    guncelleTopluSilBtn();
+};
+
+window.tumHareketleriSec = function(checked) {
+    const checkboxes = document.querySelectorAll('.hareket-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checked;
+        if (checked) secilenHareketler.add(cb.value);
+        else secilenHareketler.delete(cb.value);
+    });
+    guncelleTopluSilBtn();
+};
+
+function guncelleTopluSilBtn() {
+    const btn = document.getElementById('topluHareketSilBtn');
+    if (btn) {
+        btn.style.display = secilenHareketler.size > 0 ? 'inline-block' : 'none';
+        btn.innerHTML = `🗑️ Seçilenleri Sil (${secilenHareketler.size})`;
+    }
+}
+
+window.topluHareketSil = async function() {
+    if (!adminMi()) return showToast("❌ Bu işlem için admin yetkisi gerekli!", true);
+    if (secilenHareketler.size === 0) return showToast("Hiç hareket seçilmedi!", true);
+
+    const confirmed = await showConfirm('🗑️ Toplu Hareket Sil', `${secilenHareketler.size} adet hareketi silmek istediğinize emin misiniz?\n\nBu işlem stok miktarlarını da geriye alacaktır!`);
+    if (!confirmed) return;
+
+    showLoading('Hareketler siliniyor ve stoklar güncelleniyor...');
+
+    try {
+        const batch = writeBatch(db);
+        let etkilenenStoklar = {}; 
+
+        const ids = Array.from(secilenHareketler);
+        for (const id of ids) {
+            const hSnap = await getDoc(doc(db, "hareketler", id));
+            if (hSnap.exists()) {
+                const h = hSnap.data();
+                if (h.urunId) {
+                    if (!etkilenenStoklar[h.urunId]) {
+                        const stokSnap = await getDoc(doc(db, "stoklar", h.urunId));
+                        if (stokSnap.exists()) {
+                            etkilenenStoklar[h.urunId] = { kalan: Number(stokSnap.data().kalan || 0), degisim: 0 };
+                        }
+                    }
+                    if (etkilenenStoklar[h.urunId]) {
+                        if (h.tur === 'giris') etkilenenStoklar[h.urunId].degisim -= Number(h.miktar || 0);
+                        else etkilenenStoklar[h.urunId].degisim += Number(h.miktar || 0);
+                    }
+                }
+                batch.delete(doc(db, "hareketler", id));
+            }
+        }
+
+        for (const [urunId, data] of Object.entries(etkilenenStoklar)) {
+            const yeniStok = data.kalan + data.degisim;
+            if (yeniStok < 0) {
+                hideLoading();
+                return showToast(`❌ İşlem iptal edildi: Silme sonucunda bir ürünün stoğu negatife düşüyor!`, true);
+            }
+            batch.update(doc(db, "stoklar", urunId), { kalan: yeniStok });
+        }
+
+        await batch.commit();
+        hideLoading();
+        showToast(`✅ ${secilenHareketler.size} hareket başarıyla silindi.`);
+        
+        secilenHareketler.clear();
+        guncelleTopluSilBtn();
+        hareketleriListele(); // Filtreyi koruyarak yenile
+        
+        const selectAllCb = document.getElementById('selectAllHareketler');
+        if (selectAllCb) selectAllCb.checked = false;
+        
+    } catch(e) {
+        hideLoading();
+        console.error('Toplu silme hatası:', e);
+        showToast(getFriendlyErrorMessage(e), true);
+    }
+};
 async function hareketSil(id) {
     if (!adminMi()) return showToast("❌ Bu işlem için admin yetkisi gerekli!", true);
 
@@ -1541,7 +1676,8 @@ async function hareketSil(id) {
             await deleteDoc(doc(db, "hareketler", id));
             showToast("✅ Hareket silindi");
         }
-        hareketleriListele({});
+                await logEkle('hareket_sil', `Hareket silindi: ${hareket.urun || '-'} (${hareket.miktar} ${hareket.birim || 'Adet'} ${hareket.tur === 'giris' ? 'Giriş' : 'Çıkış'})`);
+             hareketleriListele({});
     } catch(e) {
         console.error('Silme hatası:', e);
         showToast(getFriendlyErrorMessage(e), true);
@@ -1602,6 +1738,7 @@ async function hareketDuzenleKaydet() {
             await updateDoc(doc(db, "hareketler", id), guncelleme);
             showToast("✅ Hareket güncellendi (ürün bağlantısı yok)");
             hareketDuzenleKapat();
+            await logEkle('hareket_guncelle', `Hareket güncellendi. Eski: ${eski.miktar} ${eski.tur === 'giris' ? 'Giriş' : 'Çıkış'} -> Yeni: ${yeniMiktar} ${yeniTur === 'giris' ? 'Giriş' : 'Çıkış'}`);
             hareketleriListele({});
             return;
         }
@@ -2144,6 +2281,7 @@ async function topluIslem(tip) {
     await batch.commit();
     hideProgress();
     showToast("Toplu işlem tamam");
+    await logEkle(`toplu_${tip}`, `Sepetten toplu ${tip === 'giris' ? 'Giriş' : 'Çıkış'} yapıldı. Toplam ${sepet.length} çeşit ürün işlendi.`);
     sepet = [];
     sepetiGoster();
     sepetiKaydet();
@@ -2985,6 +3123,7 @@ async function siparisKaydet() {
             );
         }
         siparisModalKapat();
+        await logEkle('siparis_ekle', `Yeni sipariş oluşturuldu: ${duzenleId ? 'Düzenlendi' : (data.siparisNo || 'Yeni')} - ${urunler.length} kalem ürün`);
         siparisleriListele();
     } catch(e) { showToast(getFriendlyErrorMessage(e), true); }
 }
@@ -3040,6 +3179,7 @@ async function siparisDurumGuncelle(id, yeniDurum) {
     try {
         await updateDoc(doc(db, "siparisler", id), { durum: yeniDurum });
         showToast("Durum güncellendi");
+        await logEkle('siparis_durum', `Sipariş durumu güncellendi: ${id} -> ${yeniDurum}`);
         siparisleriListele();
         const durumText = yeniDurum === 'bekliyor' ? 'Bekliyor' : 
                           yeniDurum === 'siparis_verildi' ? 'Sipariş Verildi' :
@@ -3058,6 +3198,7 @@ async function siparisSil(id) {
     try {
         await deleteDoc(doc(db, "siparisler", id));
         showToast("Sipariş silindi");
+        await logEkle('siparis_sil', `Sipariş silindi (ID: ${id})`);
         siparisleriListele();
     } catch(e) { showToast(getFriendlyErrorMessage(e), true); }
 }
@@ -3283,6 +3424,11 @@ function switchTab(tabId) {
     if (tabId === 'fatura-arsivi') {
         faturaArsiviniListele();
     }
+
+    // YENİ EKLENEN KISIM: Loglar sekmesine geçişte logları getir
+    if (tabId === 'loglar') {
+        loglariGetir();
+    }
     
     if (history.pushState) {
         history.pushState(null, '', '#' + tabId);
@@ -3454,25 +3600,34 @@ function tahminiTukenenlerWidgetGuncelle() {
     const container = document.getElementById('dashTahminiTukenenler');
     if (!container) return;
 
-    // Sadece stoğu olan ve tükenme süresi hesaplanabilen ürünleri al, süreye göre sırala
+    // Tüm tahminleri al, süreye göre sırala (slice kaldırıldı)
     const tahminliUrunler = Object.values(stoklar)
         .filter(u => stokTahminleri[u.id] && stokTahminleri[u.id].gun !== Infinity && u.kalan > 0)
         .map(u => ({ ...u, tahmin: stokTahminleri[u.id] }))
-        .sort((a, b) => a.tahmin.gun - b.tahmin.gun)
-        .slice(0, 5); // En hızlı tükenen 5 ürün
+        .sort((a, b) => a.tahmin.gun - b.tahmin.gun);
 
     if (tahminliUrunler.length === 0) {
         container.innerHTML = '<div style="color:var(--text-secondary); font-size:13px;">✅ Tükenme riski yok</div>';
         return;
     }
 
-    container.innerHTML = tahminliUrunler.map(u => {
+    // Kaydırılabilir liste oluştur
+    let html = '<div style="max-height: 180px; overflow-y: auto; padding-right: 4px;">';
+    html += tahminliUrunler.map(u => {
         let renk = u.tahmin.durum === 'kritik' ? 'var(--danger)' : (u.tahmin.durum === 'uyari' ? 'var(--warning)' : 'var(--text)');
         return `<div style="display:flex; justify-content:space-between; padding:4px 0; font-size:13px; border-bottom:1px solid var(--border);">
             <span>${getUrunAdi(u)}</span>
             <span style="color:${renk}; font-weight:600;">${u.tahmin.gun} gün</span>
         </div>`;
     }).join('');
+    html += '</div>';
+    
+    // Alt bilgi (kaç ürün olduğunu gösterir)
+    html += `<div style="font-size:11px; color:var(--text-secondary); margin-top:6px; text-align:right;">
+        Toplam ${tahminliUrunler.length} ürün
+    </div>`;
+    
+    container.innerHTML = html;
 }
 // ================================================================
 // QUICK NAV YÖNETİMİ
@@ -3826,8 +3981,6 @@ async function efaturaIleStokEkle() {
                 if (data.faturaUrunAdi) kayitliEslestirmeler[`AD_${data.faturaUrunAdi.toLowerCase()}`] = { stokId: data.stokId, carpan: data.carpan || 1 };
             });
 
-            await birimDonusumleriniYukle();
-
             const batch = writeBatch(db);
             let eklenenUrunSayisi = 0;
             bekleyenEfaturaUrunleri = [];
@@ -4029,7 +4182,8 @@ async function efaturaEslestirmeyiKaydetVeEkle() {
             const urun = stoklar[secilenStokId];
             if (!urun) continue;
             
-            const carpan = Number(carpanInput.value) || 1;
+           let carpan = Number(carpanInput.value);
+           if (isNaN(carpan) || carpan <= 0) carpan = 1; // Negatif veya sıfır girilirse 1 kabul et
             const eklenecekMiktar = item.miktar * carpan;
 
             // Eşleştirmeyi kaydet (öğrenme)
@@ -4084,54 +4238,52 @@ async function efaturaEslestirmeyiKaydetVeEkle() {
 window.efaturaBirimGuncelle = efaturaBirimGuncelle;
 window.efaturaEslestirmeyiKaydetVeEkle = efaturaEslestirmeyiKaydetVeEkle;
 
-document.addEventListener('DOMContentLoaded', function() {
+// Sekmeleri yetkiye göre kur (giriş sonrası çağrılır)
+function buildQuickNav() {
     const container = document.getElementById('quickNavContainer');
     const mobileMenu = document.getElementById('mobileMenu');
     if (!container) return;
 
-    // localStorage'dan kullanıcı ayarlarını al
     let settings = {};
     try {
         const kayitli = localStorage.getItem('quickNavSettings');
         if (kayitli) settings = JSON.parse(kayitli);
     } catch(e) {}
 
-    // Eğer kullanıcı daha önce ayar yapmadıysa, varsayılan 5 sekmeyi aç
     if (Object.keys(settings).length === 0) {
         settings = {
+            'genel-bakis': true,
             'hizli-islem': true,
             'stok-listesi': true,
             'hareketler': true,
-            'rapor': true,
-            'siparisler': true
+            'rapor': true
         };
     }
 
-    container.innerHTML = ''; // İçeriği temizle
+    container.innerHTML = '';
 
-    // Sadece ayarı "true" olan menüleri yatay çubuğa ekle
     ALL_TABS.forEach(tab => {
-        if (settings[tab.id]) {
-            const btn = document.createElement('button');
-            btn.className = 'quick-nav-btn';
-            btn.dataset.tab = tab.id;
-            btn.innerHTML = `<span class="nav-icon">${tab.icon}</span><span class="nav-label">${tab.label}</span>`;
-            btn.addEventListener('click', () => switchTab(tab.id));
-            container.appendChild(btn);
-        }
+        if (tab.adminOnly && !adminMi()) return;   // 🔒 yetki filtresi
+        if (!settings[tab.id]) return;             // 👁️ kullanıcı tercihi
+
+        const btn = document.createElement('button');
+        btn.className = 'quick-nav-btn';
+        btn.dataset.tab = tab.id;
+        btn.innerHTML = `<span class="nav-icon">${tab.icon}</span><span class="nav-label">${tab.label}</span>`;
+        btn.addEventListener('click', () => switchTab(tab.id));
+        container.appendChild(btn);
     });
 
-    // "Daha" butonunu her zaman en sona ekle
     const moreBtn = document.createElement('button');
     moreBtn.className = 'quick-nav-btn more-btn';
     moreBtn.innerHTML = `<span class="nav-icon">⋮</span><span class="nav-label">Daha</span>`;
     moreBtn.onclick = () => toggleMoreMenu();
     container.appendChild(moreBtn);
 
-    // Sağ üstteki "Daha" (Mobil) menüsüne TÜM sekmeleri ekle
     if (mobileMenu) {
         mobileMenu.innerHTML = '';
         ALL_TABS.forEach(tab => {
+            if (tab.adminOnly && !adminMi()) return; // 🔒
             const a = document.createElement('a');
             a.href = '#' + tab.id;
             a.textContent = tab.icon + ' ' + tab.label;
@@ -4144,9 +4296,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const defaultTab = window.location.hash?.replace('#', '') || 'hizli-islem';
+    const defaultTab = window.location.hash?.replace('#', '') || 'genel-bakis';
     setTimeout(() => switchTab(defaultTab), 100);
-});
+}
 
 // YENİ: Daha Fazla menüsünü aç/kapa
 function toggleMoreMenu() {

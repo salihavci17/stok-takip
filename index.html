@@ -137,6 +137,7 @@
     </div>
 
     <!-- ========== DASHBOARD ========== -->
+    <div id="genel-bakis" class="tab-content active">
     <div id="dashboardContainer">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <h2 style="font-size:18px;">📊 Genel Bakış</h2>
@@ -171,7 +172,7 @@
 
         <div id="dashboardWidgets" class="dashboard"></div>
     </div>
-
+    </div><!-- /genel-bakis -->
     <div id="reader" style="width:100%; display:none; margin-bottom:10px;"></div>
 
     <!-- KRİTİK PANEL -->
@@ -186,8 +187,8 @@
 
     <!-- ========== TAB İÇERİKLERİ ========== -->
 
-    <!-- HIZLI İŞLEM -->
-    <div id="hizli-islem" class="tab-content active">
+       <!-- HIZLI İŞLEM -->
+    <div id="hizli-islem" class="tab-content">
         <div class="card">
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <button id="kameraAcBtn" onclick="kameraBaslat()" style="flex:1; background:#27ae60; color:white; padding:12px; border:none; border-radius:10px;">📷 Barkod Oku</button>
@@ -197,8 +198,7 @@
         <select id="urunSelect"><option value="">Ürün Seçin</option></select>
         <input type="number" id="islemMiktar" placeholder="Adet">
         <input type="datetime-local" id="islemTarihi" placeholder="Tarih & Saat (boş bırakırsanız şimdi)">
-        
-        <!-- SABİT BUTON CONTAİNER -->
+
         <div class="sticky-button-container">
             <div class="islem-butonlar">
                 <button class="btn-giris" onclick="stokIslem('giris')">GİRİŞ (+)</button>
@@ -206,17 +206,19 @@
             </div>
             <button class="btn-sepet" onclick="sepeteEkle()">➕ Sepete Ekle</button>
         </div>
-    </div>
 
-    <!-- SEPET -->
-    <div class="sepet-alani">
-        <h4>🛒 Sepetiniz</h4>
-        <div id="sepetListesi">Sepet boş</div>
-        <div id="sepetButonlar" style="display:none; margin-top:10px;">
-            <button onclick="topluIslem('giris')" style="flex:1; background:#27ae60; color:white; padding:10px; border:none; border-radius:8px;">Toplu Giriş</button>
-            <button onclick="topluIslem('cikis')" style="flex:1; background:#e67e22; color:white; padding:10px; border:none; border-radius:8px;">Toplu Çıkış</button>
+        <!-- SEPET (artık burada) -->
+        <div class="sepet-alani">
+            <h4>🛒 Sepetiniz</h4>
+            <div id="sepetListesi">Sepet boş</div>
+            <div id="sepetButonlar" style="display:none; margin-top:10px;">
+                <button onclick="topluIslem('giris')" style="flex:1; background:#27ae60; color:white; padding:10px; border:none; border-radius:8px;">Toplu Giriş</button>
+                <button onclick="topluIslem('cikis')" style="flex:1; background:#e67e22; color:white; padding:10px; border:none; border-radius:8px;">Toplu Çıkış</button>
+            </div>
         </div>
     </div>
+
+    
 
     <!-- STOK LİSTESİ -->
     <div id="stok-listesi" class="tab-content">
@@ -254,7 +256,7 @@
         <input type="file" id="excelFile" accept=".xlsx,.xls" style="margin-bottom:12px;">
         <button onclick="excelUrunleriYukle()" style="width:100%; background:var(--btn-success); color:black; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer;">📤 Excel'den Yükle</button>
         <div id="excelYukleDurum" style="margin-top:12px; font-size:13px; color:var(--text-secondary);"></div>
-    </div>
+    
                 <!-- Mevcut Excel alanının altına ekleyin -->
         <hr style="margin:20px 0; border-color:var(--border);">
         <h4>🧾 e-Fatura ile Stok Ekle (XML)</h4>
@@ -263,7 +265,8 @@
         <button onclick="efaturaIleStokEkle()" style="width:100%; background:#e67e22; color:white; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer;">📥 e-Faturayı İşle</button>
         <div id="efaturaDurum" style="margin-top:12px; font-size:13px; color:var(--text-secondary);"></div>
         <button onclick="birimDonusumModalGoster()" style="width:100%; background:var(--btn-dark); color:white; padding:10px; border:none; border-radius:10px; margin-top:8px; font-weight:600; cursor:pointer;">📏 Birim Dönüşümlerini Yönet</button>
-    <!-- GRUPLAR -->
+         </div>
+        <!-- GRUPLAR -->
     <div id="gruplar" class="tab-content">
         <div style="background:var(--card-bg); border-radius:15px; padding:20px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -279,7 +282,7 @@
         <input type="text" id="grupArama" placeholder="🔍 Grup ara..." onkeyup="debounceSearch('grupArama', gruplariFiltrele)" style="margin-bottom:12px;">
     </div>
 
-    <!-- HAREKETLER -->
+       <!-- HAREKETLER -->
     <div id="hareketler" class="tab-content">
         <h3>🕒 Hareketler</h3>
         <div class="filtre-alani" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
@@ -288,11 +291,16 @@
             <input type="text" id="hareketUrunFiltre" placeholder="Ürün ara..." onkeyup="debounceSearch('hareketUrunFiltre', hareketleriFiltrele)">
             <button onclick="hareketleriFiltrele()" style="background:var(--btn-primary); color:white; border:none; border-radius:40px; padding:8px 16px;">🔍 Filtrele</button>
             <button onclick="hareketleriTemizle()" style="background:var(--card-border); color:var(--text); border:none; border-radius:40px; padding:8px 16px;">Temizle</button>
+            
+            <!-- YENİ EKLENEN TOPLU SİL BUTONU -->
+            <button id="topluHareketSilBtn" onclick="topluHareketSil()" style="background:var(--btn-danger); color:white; border:none; border-radius:40px; padding:8px 16px; display:none; font-weight:bold;">🗑️ Seçilenleri Sil</button>
         </div>
         <div style="overflow-x:auto;">
             <table>
                 <thead>
                     <tr>
+                        <!-- YENİ EKLENEN SEÇİM KUTUSU SÜTUNU -->
+                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllHareketler" onchange="tumHareketleriSec(this.checked)"></th>
                         <th>Tarih</th>
                         <th>Ürün</th>
                         <th>Miktar</th>
@@ -543,7 +551,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- GERİ BİLDİRİM LİSTESİ -->
     <div id="feedback-list" class="tab-content">
         <div style="background:var(--card-bg); border-radius:var(--radius); padding:24px;">
