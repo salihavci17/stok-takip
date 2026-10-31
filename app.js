@@ -185,7 +185,17 @@ function debounce(func, wait = 300) {
         timeout = setTimeout(later, wait);
     };
 }
-
+// Şifre Göster / Gizle Fonksiyonu
+window.sifreGosterGizle = function(inputId, iconElement) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+        input.type = 'text';
+        iconElement.textContent = '🙈'; // Gizle ikonu
+    } else {
+        input.type = 'password';
+        iconElement.textContent = '👁️'; // Göster ikonu
+    }
+};
 // ========== ÖZEL CONFIRM MODAL ==========
 function showConfirm(title, message) {
     return new Promise((resolve) => {
@@ -4627,6 +4637,23 @@ function sendNotification(title, body, url = '/') {
         showToast(`${title}: ${body}`);
     }
 }
+// ========== ÇEVRİMDIŞI (OFFLINE) UYARISI ==========
+function updateOnlineStatus() {
+    const banner = document.getElementById('offlineBanner');
+    if (!banner) return;
+    
+    if (navigator.onLine) {
+        banner.style.display = 'none'; // İnternet varsa gizle
+    } else {
+        banner.style.display = 'block'; // İnternet yoksa göster
+    }
+}
+
+// İnternet durumunu dinle
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+// Sayfa ilk açıldığında kontrol et
+updateOnlineStatus();
 
 // Global'e ekle
 window.sendNotification = sendNotification;

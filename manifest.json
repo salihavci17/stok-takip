@@ -1,8 +1,12 @@
 {
   "name": "Stok Takip Pro",
+  "lang": "tr",
+  "dir": "ltr",
   "short_name": "StokApp",
   "description": "Depo ve stok yönetimi için profesyonel uygulama",
   "start_url": "index.html",
+    "scope": "/",
+  "id": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#3498db",
@@ -10,7 +14,7 @@
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2897/2897785.png",
-      "sizes": "192x192",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
@@ -21,21 +25,30 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["business", "productivity"],
+    "categories": ["business", "productivity"],
+  "screenshots": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2897/2897785.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Stok Takip Ekranı"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Hızlı İşlem",
       "short_name": "Hızlı",
       "description": "Stok giriş/çıkış yap",
       "url": "index.html#hizli-islem",
-      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2897/2897785.png", "sizes": "192x192" }]
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2897/2897785.png", "sizes": "512x512" }]
     },
     {
       "name": "Stok Listesi",
       "short_name": "Liste",
       "description": "Tüm stokları gör",
       "url": "index.html#stok-listesi",
-      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2897/2897785.png", "sizes": "192x192" }]
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2897/2897785.png", "sizes": "512x512" }]
     }
   ]
 }

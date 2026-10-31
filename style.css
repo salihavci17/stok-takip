@@ -787,3 +787,25 @@ tr:hover td { background: rgba(99, 102, 241, 0.05); }
 .quick-nav-btn.more-btn .nav-icon {
     font-size: 20px; font-weight: 800; line-height: 1;
 }
+/* ========== LİSTE İÇEREN WIDGET'LAR İÇİN ÖZEL TASARIM ========== */
+/* Bu widget'lar daha geniş alana yayılacak (Yan yana 2 tane sığacak şekilde) */
+#dashboardWidgets .dash-card[data-widget="populer"],
+#dashboardWidgets .dash-card[data-widget="sonHareketler"],
+#dashboardWidgets .dash-card[data-widget="tahminiTukenenler"],
+#dashboardWidgets .dash-card[data-widget="kritikListe"] {
+    flex: 1 1 calc(50% - 12px); 
+    min-width: 220px;
+    text-align: left; /* Yazıları sola yasla */
+    padding: 16px;    /* İç boşluğu biraz daraltıp listeye yer aç */
+}
+
+/* İçindeki yazıların boyutunu normal seviyeye çek */
+#dashboardWidgets .dash-card[data-widget="populer"] > div,
+#dashboardWidgets .dash-card[data-widget="sonHareketler"] > div,
+#dashboardWidgets .dash-card[data-widget="tahminiTukenenler"] > div,
+#dashboardWidgets .dash-card[data-widget="kritikListe"] > div {
+    font-size: 14px; 
+    font-weight: 500;
+    color: var(--text);
+    word-break: break-word; /* Uzun ürün isimleri taşmasın */
+}

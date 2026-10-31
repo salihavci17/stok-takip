@@ -19,6 +19,10 @@
 </head>
 <body>
 
+<!-- İnternet Yok Uyarısı -->
+<div id="offlineBanner" style="display: none; position: fixed; top: 0; left: 0; width: 100%; background: #e74c3c; color: white; text-align: center; padding: 10px; font-weight: bold; z-index: 99999; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+    ⚠️ İnternet bağlantısı yok! Lütfen bağlantınızı kontrol edin.
+</div>
 <!-- Toast Bildirim -->
 <div id="toastMessage" class="toast-message"></div>
 
@@ -63,7 +67,10 @@
         </div>
         <div id="girisForm" class="login-form active">
             <input type="email" id="loginEmail" placeholder="E-posta">
-            <input type="password" id="loginPassword" placeholder="Şifre">
+            <div style="position: relative;">
+    <input type="password" id="loginPassword" placeholder="Şifre" style="padding-right: 40px;">
+    <span onclick="sifreGosterGizle('loginPassword', this)" style="position: absolute; right: 15px; top: 15px; cursor: pointer; opacity: 0.6;">👁️</span>
+</div>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
                 <input type="checkbox" id="rememberMe" style="width:auto; margin:0; padding:0;">
                 <label for="rememberMe" style="font-size:14px; color:var(--text-secondary); cursor:pointer;">Beni Hatırla</label>
@@ -77,7 +84,10 @@
         </div>
         <div id="kayitForm" class="login-form">
             <input type="email" id="registerEmail" placeholder="E-posta">
-            <input type="password" id="registerPassword" placeholder="Şifre (min 6)">
+            <div style="position: relative;">
+    <input type="password" id="registerPassword" placeholder="Şifre (min 6)" style="padding-right: 40px;">
+    <span onclick="sifreGosterGizle('registerPassword', this)" style="position: absolute; right: 15px; top: 15px; cursor: pointer; opacity: 0.6;">👁️</span>
+</div>
             <button class="btn-login" onclick="kullaniciKayit()">Kayıt Ol</button>
         </div>
     </div>
