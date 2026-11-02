@@ -794,8 +794,12 @@ async function loglariGetir() {
         console.error('Log getirme hatası:', e);
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--btn-danger); padding:20px;">
             ❌ Loglar yüklenirken hata oluştu.<br>
-            <small>${e.message}</small>
+            <small id="logHataMesaji"></small>
         </td></tr>`;
+        const hataMesajiEl = tbody.querySelector('#logHataMesaji');
+        if (hataMesajiEl) {
+            hataMesajiEl.textContent = e?.message || 'Bilinmeyen hata';
+        }
         hideLoading();
     }
 }
