@@ -2209,20 +2209,39 @@ function sepetiGoster() {
         if (butonlar) butonlar.style.display = 'none';
     } else {
         let toplamMiktar = 0;
-        let html = sepet.map((u, i) => {
+        liste.innerHTML = '';
+        sepet.forEach((u, i) => {
             toplamMiktar += u.miktar;
-            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--card-border);">
-                <span><b>${u.ad}</b> x${u.miktar}</span>
-                <button onclick="window.sepetSil(${i})" style="background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:6px 14px;">Sil</button>
-            </div>`;
-        }).join('');
-        html += `
-            <div style="display:flex; justify-content:space-between; padding:12px; background:var(--card-border); border-radius:8px; margin-top:8px; font-weight:600; color:var(--text);">
-                <span>📊 Toplam</span>
-                <span>${sepet.length} ürün çeşidi · ${toplamMiktar} adet</span>
-            </div>
-        `;
-        liste.innerHTML = html;
+
+            const satir = document.createElement('div');
+            satir.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--card-border);";
+
+            const etiket = document.createElement('span');
+            etiket.textContent = `${u.ad} x${u.miktar}`;
+
+            const silBtn = document.createElement('button');
+            silBtn.textContent = 'Sil';
+            silBtn.style.cssText = "background:var(--btn-danger); color:white; border:none; border-radius:20px; padding:6px 14px;";
+            silBtn.onclick = () => window.sepetSil(i);
+
+            satir.appendChild(etiket);
+            satir.appendChild(silBtn);
+            liste.appendChild(satir);
+        });
+
+        const toplamSatir = document.createElement('div');
+        toplamSatir.style.cssText = "display:flex; justify-content:space-between; padding:12px; background:var(--card-border); border-radius:8px; margin-top:8px; font-weight:600; color:var(--text);";
+
+        const toplamBaslik = document.createElement('span');
+        toplamBaslik.textContent = '📊 Toplam';
+
+        const toplamDeger = document.createElement('span');
+        toplamDeger.textContent = `${sepet.length} ürün çeşidi · ${toplamMiktar} adet`;
+
+        toplamSatir.appendChild(toplamBaslik);
+        toplamSatir.appendChild(toplamDeger);
+        liste.appendChild(toplamSatir);
+
         if (butonlar) butonlar.style.display = 'flex';
     }
     sepetiKaydet();
