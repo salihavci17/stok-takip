@@ -2758,6 +2758,15 @@ function pdfIndir() {
     const baslik = document.getElementById('raporBaslik')?.textContent || 'Stok Raporu';
     const tarihBilgi = document.getElementById('raporTarihBilgi')?.textContent || '';
     const altBilgi = document.getElementById('raporAltBilgi')?.textContent || '';
+    const escapeHtml = (value) => String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const baslikEscaped = escapeHtml(baslik);
+    const tarihBilgiEscaped = escapeHtml(tarihBilgi);
+    const altBilgiEscaped = escapeHtml(altBilgi);
     
     const tabloClone = tablo.cloneNode(true);
     
@@ -2797,12 +2806,12 @@ function pdfIndir() {
 <body>
 <div class="rapor-container">
     <div class="header">
-        <h1>${baslik}</h1>
+        <h1>${baslikEscaped}</h1>
         <div class="tarih">📅 ${new Date().toLocaleDateString('tr-TR')}</div>
     </div>
-    ${tarihBilgi ? `<div class="rapor-tarih">${tarihBilgi}</div>` : ''}
+    ${tarihBilgi ? `<div class="rapor-tarih">${tarihBilgiEscaped}</div>` : ''}
     ${tabloClone.outerHTML}
-    <div class="footer"><span>${altBilgi}</span></div>
+    <div class="footer"><span>${altBilgiEscaped}</span></div>
 </div>
 </body>
 </html>
