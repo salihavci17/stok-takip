@@ -48,6 +48,21 @@ self.addEventListener('activate', event => {
   );
 });
 
+const EXTERNAL_ALLOWED_HOSTS = [
+  'firebase.com',
+  'googleapis.com',
+  'gstatic.com',
+  'firestore.googleapis.com',
+  'cloudfunctions.net',
+  'unpkg.com',
+  'cdnjs.cloudflare.com',
+  'cdn.jsdelivr.net'
+];
+
+function isAllowedExternalHost(hostname) {
+  return EXTERNAL_ALLOWED_HOSTS.some(domain => hostname === domain || hostname.endsWith(`.${domain}`));
+}
+
 // ========== FETCH EVENT ==========
 self.addEventListener('fetch', event => {
   const request = event.request;
@@ -58,14 +73,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  if (url.hostname.includes('firebase') || 
-      url.hostname.includes('googleapis') ||
-      url.hostname.includes('gstatic') ||
-      url.hostname.includes('firestore.googleapis.com') ||
-      url.hostname.includes('cloudfunctions.net') ||
-      url.hostname.includes('unpkg.com') ||
-      url.hostname.includes('cdnjs.cloudflare.com') ||
-      url.hostname.includes('cdn.jsdelivr.net')) {
+  if (isAllowedExternalHost(url.hostname)) {
     event.respondWith(
       fetch(request).catch(err => {
         console.warn('Service Worker: Harici istek başarısız:', request.url, err);
