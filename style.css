@@ -103,6 +103,44 @@
   --toast-bg: #0f2847; --card-bg: #0f2847;
 }
 
+/* ========== YENİ AÇIK TEMALAR ========== */
+
+[data-theme="light-blue"] {
+  --bg: #f0f8ff; --bg-secondary: #e6f2ff; --bg-card: #ffffff; --bg-input: #f8fbff;
+  --text: #0f172a; --text-secondary: #475569; --border: #cbd5e1;
+  --primary: #3b82f6; --primary-light: #60a5fa; --primary-dark: #2563eb;
+  --kritik-bg: #fff0f0; --kritik-border: #e74c3c; --kritik-text: #c0392b;
+  --toast-bg: #2c3e50; --header-bg: #ffffff; --card-bg: #ffffff;
+  --shadow: 0 8px 32px rgba(59, 130, 246, 0.1); --shadow-hover: 0 12px 48px rgba(59, 130, 246, 0.15);
+}
+
+[data-theme="light-green"] {
+  --bg: #f0fdf4; --bg-secondary: #dcfce7; --bg-card: #ffffff; --bg-input: #f4fdf6;
+  --text: #14532d; --text-secondary: #4b5563; --border: #bbf7d0;
+  --primary: #22c55e; --primary-light: #4ade80; --primary-dark: #16a34a;
+  --kritik-bg: #fff0f0; --kritik-border: #e74c3c; --kritik-text: #c0392b;
+  --toast-bg: #14532d; --header-bg: #ffffff; --card-bg: #ffffff;
+  --shadow: 0 8px 32px rgba(34, 197, 94, 0.1); --shadow-hover: 0 12px 48px rgba(34, 197, 94, 0.15);
+}
+
+[data-theme="light-purple"] {
+  --bg: #faf5ff; --bg-secondary: #f3e8ff; --bg-card: #ffffff; --bg-input: #fcf8ff;
+  --text: #4c1d95; --text-secondary: #6b7280; --border: #e9d5ff;
+  --primary: #a855f7; --primary-light: #c084fc; --primary-dark: #7c3aed;
+  --kritik-bg: #fff0f0; --kritik-border: #e74c3c; --kritik-text: #c0392b;
+  --toast-bg: #4c1d95; --header-bg: #ffffff; --card-bg: #ffffff;
+  --shadow: 0 8px 32px rgba(168, 85, 247, 0.1); --shadow-hover: 0 12px 48px rgba(168, 85, 247, 0.15);
+}
+
+[data-theme="light-cream"] { /* Göz yormayan, kitap kağıdı tonu (Sepya) */
+  --bg: #fdf6e3; --bg-secondary: #fef8eb; --bg-card: #fffbeb; --bg-input: #fffdf5;
+  --text: #451a03; --text-secondary: #78350f; --border: #fde68a;
+  --primary: #d97706; --primary-light: #f59e0b; --primary-dark: #b45309;
+  --kritik-bg: #fef2f2; --kritik-border: #ef4444; --kritik-text: #b91c1c;
+  --toast-bg: #451a03; --header-bg: #fffbeb; --card-bg: #fffbeb;
+  --shadow: 0 8px 32px rgba(217, 119, 6, 0.1); --shadow-hover: 0 12px 48px rgba(217, 119, 6, 0.15);
+}
+
 /* ========== TEMA SEÇİCİ ========== */
 .theme-select {
   background: transparent;
