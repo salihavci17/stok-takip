@@ -4149,6 +4149,16 @@ function efaturaEslestirmeModalGoster() {
     document.getElementById('efaturaEslestirmeModal').style.display = 'flex';
     bekleyenEfaturaUrunleri.forEach((_, index) => efaturaBirimGuncelle(index));
 }
+// Modal'ı kapatır ve bekleyen ürünleri temizler
+function efaturaEslestirmeKapat() {
+    const modal = document.getElementById('efaturaEslestirmeModal');
+    if (modal) modal.style.display = 'none';
+    // Eşleştirilmeyen ürünler modal tekrar açıldığında karışmasın diye temizle
+    bekleyenEfaturaUrunleri = [];
+}
+
+// window'a export et (HTML'deki onclick için gerekli)
+window.efaturaEslestirmeKapat = efaturaEslestirmeKapat;
 
 function efaturaBirimGuncelle(index) {
     const select = document.getElementById(`efatura-select-${index}`);
@@ -4674,6 +4684,9 @@ window.stoklariListele = stoklariListele;
 window.oturumZamanAsimiBaslat = oturumZamanAsimiBaslat;
 window.oturumZamanAsimiSifirla = oturumZamanAsimiSifirla;
 window.populateTimeSelects = populateTimeSelects;
+
+window.setTheme = setTheme;
+window.loadTheme = loadTheme;
 
 // ========== EKSİK EXPORT'LAR (DÜZELTME) ==========
 window.toggleMoreMenu = toggleMoreMenu;
